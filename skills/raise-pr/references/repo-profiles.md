@@ -25,12 +25,22 @@ Run `git remote -v` and inspect all remote URLs (fetch lines). Match against the
 
 ### PR body template (rhdh-plugins)
 
+The template has conditional sections. Include or omit them based on the resolved Jira context and caller context from Step 1.5.
+
 ```
 ## Description
 <generated description — 2-4 sentences explaining what changed and why>
 
-## Fixed
-- <Jira link — ask the user, or leave as TODO>
+<pr_description_extra — if provided by caller context, insert here (e.g., root cause analysis)>
+
+## Fixed                              ← include only if jira_key is set
+- [<JIRA-KEY>](<jira_url>) — <jira_summary>
+
+## UI before changes                  ← include only if recordings provided by caller
+![Before fix](<before-gif-url>)
+
+## UI after changes                   ← include only if recordings provided by caller
+![After fix](<after-gif-url>)
 
 ## Checklist
 - [x] A changeset describing the change and affected packages. ([more info](https://github.com/redhat-developer/rhdh-plugins/blob/main/CONTRIBUTING.md#creating-changesets))
@@ -38,6 +48,10 @@ Run `git remote -v` and inspect all remote URLs (fetch lines). Match against the
 - [ ] Tests for new functionality and regression tests for bug fixes
 - [ ] Screenshots attached (for UI changes)
 ```
+
+**When no Jira key is set**: omit `## Fixed` entirely.
+**When no recordings provided**: omit both `## UI before changes` and `## UI after changes`.
+**When both are absent**: the template reduces to `## Description` + `## Checklist` (the minimal form).
 
 ## Profile: community-plugins
 

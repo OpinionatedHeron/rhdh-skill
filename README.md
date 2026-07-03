@@ -98,7 +98,13 @@ Track work across the four RHDH Jira projects.
 
 Automate the full PR lifecycle — build, changeset, commit, push, and create — for plugin monorepos.
 
-- **[raise-pr](./skills/raise-pr/SKILL.md)** — Full PR workflow for `rhdh-plugins` and `community-plugins`: detect workspace from staged changes, run build/validation, generate changesets, commit with sign-off, push, and create the GitHub PR. Auto-detects which repo you're in. Supports `--a` auto-approve mode to skip all approval gates.
+- **[raise-pr](./skills/raise-pr/SKILL.md)** — Full PR workflow for `rhdh-plugins` and `community-plugins`: detect workspace from staged changes, run build/validation, generate changesets, commit with sign-off, push, and create the GitHub PR. Auto-detects which repo you're in. Supports `--a` auto-approve mode to skip all approval gates. Accepts an optional Jira key or URL to link the PR — adds Web Link, comment, and transitions the issue to Review.
+
+### Bug Fix
+
+Reproduce, diagnose, fix, and PR RHDH plugin bugs from Jira tickets with automated Playwright-based before/after screen recordings.
+
+- **[bug-fix](./skills/bug-fix/SKILL.md)** — End-to-end bug fix workflow: fetch Jira issue, map component to workspace, write Playwright reproduction test with video recording, diagnose root cause, apply fix, verify, and create PR with before/after recordings embedded. Chains into `raise-pr` for the full PR lifecycle including post-PR Jira updates.
 
 ### PR Review
 
