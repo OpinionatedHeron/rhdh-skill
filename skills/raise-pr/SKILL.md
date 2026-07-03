@@ -14,7 +14,7 @@ description: >
 <essential_principles>
 
 <principle name="scoped_dist_cleanup">
-Pre-build cleanup uses `rm -rf plugins/*/dist packages/*/dist` scoped to the workspace directory. If permission errors occur, escalate to `sudo`. Never use `find -name dist` or any broad recursive search — that deletes `dist/` inside `node_modules` and breaks everything.
+Pre-build cleanup uses `rm -rf plugins/*/dist packages/*/dist` scoped to the workspace directory. If permission errors occur (root-owned files from a prior Docker build), use a disposable Docker container to remove them — never use `sudo`. Never use `find -name dist` or any broad recursive search — that deletes `dist/` inside `node_modules` and breaks everything.
 </principle>
 
 <principle name="changesets_skip_packages">
@@ -23,6 +23,13 @@ Only plugins under `plugins/*` with published-source changes need changesets. Al
 
 <principle name="baseline_diffing">
 Capture `git status --porcelain` before builds as the baseline. After builds, only stage files that are new relative to that baseline. Pre-existing dirty files (local config overrides, dev fixtures) must never be staged.
+</principle>
+
+<principle name="step_echo_banners">
+Before executing each numbered Step, echo a clearly visible banner to the terminal so the user can track progress:
+```
+echo "================ Step N — <Step title> ==========="
+```
 </principle>
 
 </essential_principles>
@@ -113,10 +120,10 @@ Remove stale `dist/` directories that may contain root-owned files from previous
 rm -rf plugins/*/dist packages/*/dist
 ```
 
-If this fails with a permission error (`EACCES`), escalate to:
+If this fails with a permission error (`EACCES`), use a disposable Docker container to remove them (avoids needing `sudo` on the host):
 
 ```
-sudo rm -rf plugins/*/dist packages/*/dist
+docker run --rm -v "$(pwd)":/workspace alpine sh -c "rm -rf /workspace/plugins/*/dist /workspace/packages/*/dist"
 ```
 
 ### 5.1–5.6 — Build pipeline

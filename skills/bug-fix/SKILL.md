@@ -23,6 +23,21 @@ Do not hardcode workspace internals. Discover each workspace's e2e infrastructur
 Every bug fix PR must include before/after visual evidence. Playwright video recording captures the bug in action (before) and the fix working (after). These are converted to GIFs and embedded in the PR description.
 </principle>
 
+<principle name="step_echo_banners">
+Before executing each numbered Step, echo a clearly visible banner to the terminal so the user can track progress:
+```
+echo "================ Step N — <Step title> ==========="
+```
+</principle>
+
+<principle name="preflight_port_cleanup">
+Before running any Playwright test, check whether the dev-server port (from `playwright.config.ts`) is already in use. If it is, kill the process occupying it:
+```
+lsof -ti:<PORT> | xargs kill -9 2>/dev/null || true
+```
+A stale dev server from a prior session will cause the test to connect to the wrong app and time out.
+</principle>
+
 </essential_principles>
 
 ## Prerequisites
@@ -88,11 +103,15 @@ Read `references/e2e-patterns.md` for test patterns and `references/video-record
      ```
    - Encode the "steps to reproduce" from the Jira description as Playwright actions.
    - Assert the **expected** behavior (the assertion should fail when the bug is present).
-3. Run the test against the `en` locale in legacy mode:
+3. **Pre-flight: kill stale dev server** — before running the test, ensure the dev-server port (read from `playwright.config.ts` `webServer.url`) is free:
+   ```
+   lsof -ti:<PORT> | xargs kill -9 2>/dev/null || true
+   ```
+4. Run the test against the `en` locale in legacy mode:
    ```
    APP_MODE=legacy npx playwright test e2e-tests/_repro-<KEY>.test.ts --project=en
    ```
-4. The test should **fail** — confirming the bug is reproduced.
+5. The test should **fail** — confirming the bug is reproduced.
 
 **If the test passes** (bug not reproduced): re-read the Jira description, adjust the test, and retry. If still not reproducible after 2 attempts, report findings and ask the user for guidance.
 
@@ -194,7 +213,7 @@ Invoke `raise-pr --a` with the following caller context:
 | `jira_url` | `https://redhat.atlassian.net/browse/<jira_key>` |
 | `jira_summary` | Issue summary from Step 1 |
 | `recordings` | `{ before: "e2e-tests/_repro-artifacts/before-fix.gif", after: "e2e-tests/_repro-artifacts/after-fix.gif" }` |
-| `pr_description_extra` | `**Root cause:** <diagnosis from Step 5>` |
+| `pr_description_extra` | `### Root cause\n<diagnosis from Step 5>` |
 
 `raise-pr` handles: repo detection, build, changeset, commit (with `Fixes:` trailer), push, PR creation (with `## UI before/after changes`), and post-PR Jira updates (Web Link, comment, transition to Review).
 
