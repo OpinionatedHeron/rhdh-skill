@@ -11,6 +11,14 @@ description: >
 
 <essential_principles>
 
+<principle name="skill_entry_banner">
+As the very first action when the skill is invoked, echo a skill entry banner to the terminal:
+```
+echo "================ Using Bug Fix Skill ==========="
+```
+This must happen before any other work (reading references, MCP calls, etc.).
+</principle>
+
 <principle name="repro_test_is_temporary">
 The reproduction test (`_repro-<KEY>.test.ts`) is a diagnostic tool, not a deliverable. It is deleted before staging. It must never appear in the PR.
 </principle>
@@ -24,10 +32,11 @@ Every bug fix PR must include before/after visual evidence. Playwright video rec
 </principle>
 
 <principle name="step_echo_banners">
-Before executing each numbered Step, echo a clearly visible banner to the terminal so the user can track progress:
+Before executing each numbered Step, echo a clearly visible banner to the terminal so the user can track progress — even if the step's actual work is done via MCP tools or file reads rather than shell commands:
 ```
 echo "================ Step N — <Step title> ==========="
 ```
+This applies to ALL steps including Step 1. Run the echo command in a Shell tool call before doing anything else for that step.
 </principle>
 
 <principle name="preflight_port_cleanup">
@@ -36,6 +45,14 @@ Before running any Playwright test, check whether the dev-server port (from `pla
 lsof -ti:<PORT> | xargs kill -9 2>/dev/null || true
 ```
 A stale dev server from a prior session will cause the test to connect to the wrong app and time out.
+</principle>
+
+<principle name="preflight_system_limits">
+Before running any Playwright test, ensure the system file descriptor limit is raised and always use `required_permissions: ["all"]` on the shell command to avoid sandbox restrictions on browser launch:
+```
+ulimit -n 65536 2>/dev/null || true
+```
+Without this, webpack's file watcher (Watchpack) may hit `EMFILE: too many open files` and crash Chrome/Chromium.
 </principle>
 
 </essential_principles>
@@ -93,23 +110,31 @@ Read `references/e2e-patterns.md` for test patterns and `references/video-record
 1. Create a temporary test file: `e2e-tests/_repro-<JIRA-KEY>.test.ts`
    - The `_` prefix signals this file is temporary and should not be committed.
 2. The test must:
-   - Import workspace-specific helpers discovered in Step 2.
+   - Import workspace-specific helpers discovered in Step 2 **only for navigation/setup** (e.g., API mocking, translations).
    - Use i18n-safe selectors (via translation keys) where available.
-   - Configure video recording per-test:
+   - **Always create its own browser context with video recording** — do NOT rely on workspace bootstrap helpers for the context, as they may not enable video. Use the `browser` fixture directly:
      ```typescript
-     test.use({
-       video: { mode: 'on', size: { width: 1280, height: 720 } },
+     test('repro', async ({ browser }) => {
+       const context = await browser.newContext({
+         recordVideo: { dir: 'test-results/', size: { width: 1280, height: 720 } },
+       });
+       const page = await context.newPage();
+       
+       // ... test steps using page ...
+       
+       await context.close(); // finalizes the video file
      });
      ```
+     This guarantees video recording regardless of how the workspace's own e2e infrastructure manages contexts.
    - Encode the "steps to reproduce" from the Jira description as Playwright actions.
    - Assert the **expected** behavior (the assertion should fail when the bug is present).
 3. **Pre-flight: kill stale dev server** — before running the test, ensure the dev-server port (read from `playwright.config.ts` `webServer.url`) is free:
    ```
    lsof -ti:<PORT> | xargs kill -9 2>/dev/null || true
    ```
-4. Run the test against the `en` locale in legacy mode:
+4. Run the test against the `en` locale in legacy mode. **Always** prefix with `ulimit -n 65536` and use `required_permissions: ["all"]` on the Shell tool call:
    ```
-   APP_MODE=legacy npx playwright test e2e-tests/_repro-<KEY>.test.ts --project=en
+   ulimit -n 65536 && APP_MODE=legacy npx playwright test e2e-tests/_repro-<KEY>.test.ts --project=en
    ```
 5. The test should **fail** — confirming the bug is reproduced.
 
@@ -150,9 +175,9 @@ Read `references/e2e-patterns.md` for test patterns and `references/video-record
 
 ## Step 6 — Capture "after" recording
 
-1. Re-run the reproduction test:
+1. Re-run the reproduction test (with `ulimit` and `required_permissions: ["all"]`):
    ```
-   APP_MODE=legacy npx playwright test e2e-tests/_repro-<KEY>.test.ts --project=en
+   ulimit -n 65536 && APP_MODE=legacy npx playwright test e2e-tests/_repro-<KEY>.test.ts --project=en
    ```
 2. The test should **pass** — confirming the fix works.
 3. Copy the video:

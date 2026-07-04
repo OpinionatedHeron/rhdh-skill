@@ -4,21 +4,30 @@ How to capture before/after screen recordings for bug fix PRs. Reference this in
 
 ## Playwright Video Configuration
 
-Configure video recording per-test using `test.use()`:
+The reproduction test must **always create its own browser context** with `recordVideo` to guarantee video capture regardless of how the workspace's e2e infrastructure manages contexts:
 
 ```typescript
-test.use({
-  video: {
-    mode: 'on',
-    size: { width: 1280, height: 720 },
-  },
+test('repro', async ({ browser }) => {
+  const context = await browser.newContext({
+    recordVideo: { dir: 'test-results/', size: { width: 1280, height: 720 } },
+  });
+  const page = await context.newPage();
+
+  // ... test steps ...
+
+  await context.close(); // finalizes the video file
 });
 ```
 
-- **`mode: 'on'`** — record every test run (not `retain-on-failure`, because we want the "before" video even though the test fails).
+- **`recordVideo.dir`** — directory where Playwright saves the `.webm` file.
 - **`size`** — 1280x720 gives good quality at reasonable file size. Matches most laptop viewports.
+- **`context.close()`** — MUST be called to finalize the video. Without it the file may be incomplete.
 
 All rhdh-plugins workspaces use `@playwright/test` >= 1.60.0, which supports this config.
+
+### Why not `test.use({ video: ... })`?
+
+`test.use()` only applies to Playwright's auto-created contexts. Many rhdh-plugins workspaces (e.g., `lightspeed`) manually create contexts in `beforeAll` helpers, which bypasses `test.use()` entirely. By always creating our own context with `recordVideo`, we avoid this pitfall.
 
 ## Where Videos Land
 

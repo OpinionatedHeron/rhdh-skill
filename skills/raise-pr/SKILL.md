@@ -13,8 +13,16 @@ description: >
 
 <essential_principles>
 
+<principle name="skill_entry_banner">
+As the very first action when the skill is invoked, echo a skill entry banner to the terminal:
+```
+echo "================ Using Raise PR Skill ==========="
+```
+This must happen before any other work (reading references, detecting repo profile, etc.).
+</principle>
+
 <principle name="scoped_dist_cleanup">
-Pre-build cleanup uses `rm -rf plugins/*/dist packages/*/dist` scoped to the workspace directory. If permission errors occur (root-owned files from a prior Docker build), use a disposable Docker container to remove them — never use `sudo`. Never use `find -name dist` or any broad recursive search — that deletes `dist/` inside `node_modules` and breaks everything.
+Pre-build cleanup uses `rm -rf plugins/*/dist packages/*/dist` scoped to the workspace directory. If permission errors occur (root-owned files from a prior Docker build), **skip only `yarn build:all`** and warn the user to run `sudo chown -R $(whoami) .` to fix ownership permanently. Never use `sudo` in the skill itself. Never use `find -name dist` or any broad recursive search — that deletes `dist/` inside `node_modules` and breaks everything.
 </principle>
 
 <principle name="changesets_skip_packages">
@@ -120,11 +128,12 @@ Remove stale `dist/` directories that may contain root-owned files from previous
 rm -rf plugins/*/dist packages/*/dist
 ```
 
-If this fails with a permission error (`EACCES`), use a disposable Docker container to remove them (avoids needing `sudo` on the host):
+**If `EACCES` permission error occurs:** Set a flag `SKIP_BUILD_ALL=true`. Log a warning with the permanent fix:
+```
+echo "⚠️  Skipping yarn build:all — dist/ has root-owned files. Run 'sudo chown -R $(whoami) .' to fix ownership, then re-run."
+```
 
-```
-docker run --rm -v "$(pwd)":/workspace alpine sh -c "rm -rf /workspace/plugins/*/dist /workspace/packages/*/dist"
-```
+Never use `sudo` in the skill itself — just tell the user how to fix it.
 
 ### 5.1–5.6 — Build pipeline
 
@@ -133,9 +142,9 @@ Run in order:
 1. `yarn` — install dependencies
 2. `yarn prettier:fix` — format code
 3. `yarn tsc:full` — full TypeScript type check
-4. `yarn build:all` — build all packages
+4. `yarn build:all` — build all packages. **Skip this step if `SKIP_BUILD_ALL=true`** (from 5.0 fallback).
 5. `yarn test --watchAll=false` — run tests (disable Jest watch mode)
-6. `yarn build:api-reports:only` — generate/update API reports
+6. `yarn build:api-reports:only` — generate/update API reports (depends on `tsc:full`, always runs)
 
 ---
 
@@ -241,25 +250,49 @@ EOF
 
 Read `references/jira-input.md` for REST API patterns and auth setup.
 
+For each sub-step below, try methods in priority order. If one method fails (auth error, tool not available, network error), move to the next. Log which methods succeeded/failed so the user knows the final state.
+
 ### 11.1 — Add Web Link on Jira issue
 
-Add the PR as a Web Link on the Jira issue using the REST API:
+Add the PR as a Web Link on the Jira issue. Try in order:
 
+**Method A — Jira MCP `add_jira_comment` with link (if `add_remote_link` MCP tool exists):**
+```
+Use CallMcpTool: server="user-jira", toolName="add_remote_link"
+```
+
+**Method B — REST API:**
 ```
 POST /rest/api/3/issue/<jira_key>/remotelink
 Body: { "object": { "url": "<PR_URL>", "title": "PR: <PR_title>" } }
 ```
 
+**Method C — `acli` CLI:**
+```
+acli jira issue link add --key <jira_key> --url <PR_URL> --title "PR: <PR_title>"
+```
+
+**If all methods fail:** Log a warning and continue. The Web Link is desirable but not blocking:
+```
+echo "⚠️  Could not add Web Link to <jira_key>. Add manually: <PR_URL>"
+```
+
 ### 11.2 — Add comment
 
-Add a comment documenting the PR submission:
+Add a comment documenting the PR submission. Try in order:
 
+**Method A — Jira MCP:**
+```
+Use CallMcpTool: server="user-jira", toolName="add_jira_comment"
+Arguments: { "issueKey": "<jira_key>", "comment": "PR submitted: <PR_URL>" }
+```
+
+**Method B — `acli` CLI:**
 ```
 acli jira workitem comment add --key <jira_key> --comment "PR submitted: <PR_URL>" --yes
 ```
 
-If `acli` is not available, use the REST API:
-
+**Method C — REST API:**
 ```
 POST /rest/api/3/issue/<jira_key>/comment
 Body: { "body": { "type": "doc", "version": 1, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "PR submitted: <PR_URL>"}]}] } }
@@ -269,21 +302,37 @@ Body: { "body": { "type": "doc", "version": 1, "content": [{"type": "paragraph",
 
 Always attempt the transition — the user explicitly linked a Jira issue, so the intent is to move it to Review.
 
-1. Query available transitions:
+**Method A — Jira MCP (if `transition_jira_issue` tool exists):**
+```
+Use CallMcpTool: server="user-jira", toolName="transition_jira_issue"
+Arguments: { "issueKey": "<jira_key>", "transitionName": "Review" }
+```
 
+**Method B — REST API:**
+
+1. Query available transitions:
 ```
 GET /rest/api/3/issue/<jira_key>/transitions
 ```
 
 2. Find the transition whose `to.name` is `"Review"` (case-insensitive match).
 3. **If found**: execute it:
-
 ```
 POST /rest/api/3/issue/<jira_key>/transitions
 Body: { "transition": { "id": "<transition_id>" } }
 ```
 
 4. **If "Review" is not in the available transitions**: warn the user — "Issue `<jira_key>` is in status `<current_status>`. Cannot transition directly to Review. Available transitions: `<list>`. Move to the required status first."
+
+**Method C — `acli` CLI:**
+```
+acli jira issue transition --key <jira_key> --transition "Review" --yes
+```
+
+**If all methods fail for transition:** Log a warning and continue — the PR has been created successfully:
+```
+echo "⚠️  Could not transition <jira_key> to Review. Transition it manually."
+```
 
 ---
 
