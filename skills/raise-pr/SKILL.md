@@ -40,6 +40,14 @@ echo "================ Step N — <Step title> ==========="
 ```
 </principle>
 
+<principle name="no_manual_pr_creation">
+NEVER bypass this skill by running `gh pr create` or `git push` directly. When another skill (e.g., `bug-fix`) chains into `raise-pr`, you MUST read and follow every step of this skill sequentially — especially Step 10 (push, upload recordings, create PR). Skipping steps or substituting manual commands causes broken PR descriptions, missing recordings, and missing changesets. If you find yourself about to run `gh pr create` without having completed Steps 1–9 first, STOP — you are violating the skill contract.
+</principle>
+
+<principle name="recordings_upload_hard_gate">
+When `recordings` caller context is provided, the GIF upload in Step 10.2 is MANDATORY — not optional. You MUST upload both GIF files via the GitHub Contents API and extract real `raw.githubusercontent.com` URLs BEFORE constructing the PR body. NEVER use placeholder URLs, `github.com/user-attachments/assets/` URLs, or any fabricated URLs. If the upload fails, you MUST either retry or inform the user that manual upload is needed — do NOT silently proceed with broken image links.
+</principle>
+
 </essential_principles>
 
 ## Prerequisites
@@ -234,33 +242,44 @@ If no `jira_url`, omit the second `-m` flag.
 git push -u origin HEAD
 ```
 
-2. **Upload recording GIFs to branch** (only when `recordings` caller context is provided):
+2. **Upload recording GIFs to branch [HARD GATE when `recordings` is provided]**:
 
-   Skip this sub-step if `recordings` is not provided.
+   Skip this sub-step ONLY if `recordings` caller context is NOT provided. When `recordings` IS provided, this sub-step is MANDATORY — do NOT skip, defer, or substitute with placeholder URLs.
 
-   a. Determine the fork owner and repo name from the `origin` remote URL (e.g., `its-mitesh-kumar/rhdh-plugins`).
-   b. Get the current branch name: `git branch --show-current`.
-   c. For each GIF file (`recordings.before` and `recordings.after`), upload to the branch via the GitHub Contents API:
+   a. Verify both local GIF files exist before proceeding:
+   ```
+   ls -la <recordings.before> <recordings.after>
+   ```
+   If either file is missing, STOP and inform the user.
+
+   b. Determine the fork owner and repo name from the `origin` remote URL (e.g., `its-mitesh-kumar/rhdh-plugins`).
+   c. Get the current branch name: `git branch --show-current`.
+   d. For each GIF file (`recordings.before` and `recordings.after`), upload to the branch via the GitHub Contents API:
 
    ```
    TOKEN=$(gh auth token)
    GIF_B64=$(base64 -i <local-gif-path>)
-   curl -s -X PUT \
+   RESPONSE=$(curl -s -X PUT \
      -H "Authorization: token $TOKEN" \
      -H "Accept: application/vnd.github+json" \
      -d '{"message":"docs: add <before|after>-fix recording","content":"'"$GIF_B64"'","branch":"<branch-name>"}' \
-     "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/<workspace>/.github/screenshots/<before|after>-fix.gif"
+     "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/<workspace>/.github/screenshots/<before|after>-fix.gif")
+   echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); url=d.get('content',{}).get('download_url',''); print('download_url:', url); exit(0 if url.startswith('https://raw.githubusercontent.com') else 1)"
    ```
 
-   d. Extract the `download_url` from the JSON response — this is the `raw.githubusercontent.com` URL.
-   e. Store both URLs: `before_gif_url`, `after_gif_url`.
+   e. Extract the `download_url` from the JSON response — this is the `raw.githubusercontent.com` URL. **Verify** that the URL starts with `https://raw.githubusercontent.com/` — if it does not, the upload failed.
+   f. Store both URLs: `before_gif_url`, `after_gif_url`.
+   g. Echo a verification banner:
+   ```
+   echo "✅ GIF upload verified: before=$before_gif_url after=$after_gif_url"
+   ```
 
-   **If upload fails:** Log a warning and fall back to placeholder text in the PR body. Inform the user to manually drag GIFs into the PR description on GitHub.
+   **If upload fails:** Retry once. If the retry also fails, log a warning and inform the user to manually drag GIFs into the PR description on GitHub. Use placeholder text `_(Recording upload failed — drag GIF manually)_` in the PR body instead of a broken image link. NEVER fabricate a URL that looks real but does not resolve.
 
 3. Generate a PR title from the commit subject line.
 4. Build the PR body from the detected repo profile template (Step 1). The body has conditional sections:
    - **`## Fixed`** — include only if `jira_key` is set. Format: `- [<JIRA-KEY>](<jira_url>) — <jira_summary>`.
-   - **`## UI before changes` / `## UI after changes`** — include only if `recordings` are provided in caller context. Use the `raw.githubusercontent.com` URLs from sub-step 2 in the markdown: `![Before fix](<before_gif_url>)` / `![After fix](<after_gif_url>)`.
+   - **`## UI before changes` / `## UI after changes`** — include only if `recordings` are provided in caller context. Use the `raw.githubusercontent.com` URLs from sub-step 2 in the markdown: `![Before fix](<before_gif_url>)` / `![After fix](<after_gif_url>)`. **CRITICAL**: Both URLs MUST have been obtained from the GitHub Contents API response in sub-step 2. NEVER construct, guess, or fabricate these URLs. If sub-step 2 failed and you have no valid URLs, use the placeholder text from the failure path instead of a broken image link.
    - **`pr_description_extra`** — if provided by caller context (e.g., root cause analysis from `bug-fix`), insert it after the generated description paragraph.
    - **`## Test Plan`** — include only if `test_plan` is provided in caller context. Insert the markdown checklist as-is.
    - **`## Checklist`** — always present.
