@@ -4,8 +4,8 @@ description: >
   Automate the full PR workflow for rhdh-plugins and community-plugins monorepos:
   detect workspace, build, generate changeset, commit, push, and create the GitHub PR.
   Auto-detects which repo you're in. Supports --a auto-approve mode to skip all
-  approval gates. Accepts an optional Jira key or URL to link the PR to a Jira issue
-  (adds Web Link, comment, and transitions to Review). Use when asked to "raise a PR",
+  approval gates.   Accepts an optional Jira key or URL to link the PR to a Jira issue
+  (adds a PR comment on the Jira ticket). Use when asked to "raise a PR",
   "create a PR", "submit a PR", "open a PR", "push my changes", "make a PR for this
   plugin", or "PR workflow". Also use when user says "raise pr", "/pr", or mentions
   creating a pull request in rhdh-plugins or community-plugins.
@@ -41,6 +41,16 @@ echo "================ Step N — <Step title> ==========="
 </principle>
 
 </essential_principles>
+
+## Prerequisites
+
+- **`gh` CLI** — GitHub CLI must be installed and authenticated (`gh auth status` should show logged in). Install: https://cli.github.com/
+- **Jira MCP** — The Atlassian Rovo MCP server must be configured in Cursor for Jira comment updates. Setup guide: https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/
+  - If not configured, the skill will skip Jira updates and log a warning.
+- Working checkout of `rhdh-plugins` (or `community-plugins`)
+- `yarn` available on PATH
+
+---
 
 ## Mode: check for `--a` flag
 
@@ -224,13 +234,38 @@ If no `jira_url`, omit the second `-m` flag.
 git push -u origin HEAD
 ```
 
-2. Generate a PR title from the commit subject line.
-3. Build the PR body from the detected repo profile template (Step 1). The body has conditional sections:
+2. **Upload recording GIFs to branch** (only when `recordings` caller context is provided):
+
+   Skip this sub-step if `recordings` is not provided.
+
+   a. Determine the fork owner and repo name from the `origin` remote URL (e.g., `its-mitesh-kumar/rhdh-plugins`).
+   b. Get the current branch name: `git branch --show-current`.
+   c. For each GIF file (`recordings.before` and `recordings.after`), upload to the branch via the GitHub Contents API:
+
+   ```
+   TOKEN=$(gh auth token)
+   GIF_B64=$(base64 -i <local-gif-path>)
+   curl -s -X PUT \
+     -H "Authorization: token $TOKEN" \
+     -H "Accept: application/vnd.github+json" \
+     -d '{"message":"docs: add <before|after>-fix recording","content":"'"$GIF_B64"'","branch":"<branch-name>"}' \
+     "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/<workspace>/.github/screenshots/<before|after>-fix.gif"
+   ```
+
+   d. Extract the `download_url` from the JSON response — this is the `raw.githubusercontent.com` URL.
+   e. Store both URLs: `before_gif_url`, `after_gif_url`.
+
+   **If upload fails:** Log a warning and fall back to placeholder text in the PR body. Inform the user to manually drag GIFs into the PR description on GitHub.
+
+3. Generate a PR title from the commit subject line.
+4. Build the PR body from the detected repo profile template (Step 1). The body has conditional sections:
    - **`## Fixed`** — include only if `jira_key` is set. Format: `- [<JIRA-KEY>](<jira_url>) — <jira_summary>`.
-   - **`## UI before changes` / `## UI after changes`** — include only if `recordings` are provided in caller context. Embed the before/after GIF URLs.
+   - **`## UI before changes` / `## UI after changes`** — include only if `recordings` are provided in caller context. Use the `raw.githubusercontent.com` URLs from sub-step 2 in the markdown: `![Before fix](<before_gif_url>)` / `![After fix](<after_gif_url>)`.
    - **`pr_description_extra`** — if provided by caller context (e.g., root cause analysis from `bug-fix`), insert it after the generated description paragraph.
+   - **`## Test Plan`** — include only if `test_plan` is provided in caller context. Insert the markdown checklist as-is.
    - **`## Checklist`** — always present.
-4. Create the PR using `gh pr create` with the repo-appropriate template. Use the upstream repo value for `--repo` and `main` for `--base`. Pass the body via HEREDOC:
+   - **`## Note`** — include only if both `recordings` AND `jira_key` are provided (indicating an automated bug-fix PR). Contains the skill attribution disclaimer.
+5. Create the PR using `gh pr create` with the repo-appropriate template. Use the upstream repo value for `--repo` and `main` for `--base`. Pass the body via HEREDOC:
 
 ```
 gh pr create --repo <upstream-repo> --base main --title "<title>" --body "$(cat <<'EOF'
@@ -239,8 +274,8 @@ EOF
 )"
 ```
 
-5. Capture and store the PR URL for Step 11.
-6. Display the PR URL.
+6. Capture and store the PR URL for Step 11.
+7. Display the PR URL.
 
 ---
 
@@ -248,90 +283,16 @@ EOF
 
 **Skip this step entirely if `jira_key` is null.**
 
-Read `references/jira-input.md` for REST API patterns and auth setup.
+Add a comment on the Jira issue documenting the PR submission:
 
-For each sub-step below, try methods in priority order. If one method fails (auth error, tool not available, network error), move to the next. Log which methods succeeded/failed so the user knows the final state.
-
-### 11.1 — Add Web Link on Jira issue
-
-Add the PR as a Web Link on the Jira issue. Try in order:
-
-**Method A — Jira MCP `add_jira_comment` with link (if `add_remote_link` MCP tool exists):**
-```
-Use CallMcpTool: server="user-jira", toolName="add_remote_link"
-```
-
-**Method B — REST API:**
-```
-POST /rest/api/3/issue/<jira_key>/remotelink
-Body: { "object": { "url": "<PR_URL>", "title": "PR: <PR_title>" } }
-```
-
-**Method C — `acli` CLI:**
-```
-acli jira issue link add --key <jira_key> --url <PR_URL> --title "PR: <PR_title>"
-```
-
-**If all methods fail:** Log a warning and continue. The Web Link is desirable but not blocking:
-```
-echo "⚠️  Could not add Web Link to <jira_key>. Add manually: <PR_URL>"
-```
-
-### 11.2 — Add comment
-
-Add a comment documenting the PR submission. Try in order:
-
-**Method A — Jira MCP:**
 ```
 Use CallMcpTool: server="user-jira", toolName="add_jira_comment"
-Arguments: { "issueKey": "<jira_key>", "comment": "PR submitted: <PR_URL>" }
+Arguments: { "issueKey": "<jira_key>", "body": "PR submitted: <PR_URL>" }
 ```
 
-**Method B — `acli` CLI:**
+**If the MCP call fails:** Log a warning and continue — the PR has been created successfully:
 ```
-acli jira workitem comment add --key <jira_key> --comment "PR submitted: <PR_URL>" --yes
-```
-
-**Method C — REST API:**
-```
-POST /rest/api/3/issue/<jira_key>/comment
-Body: { "body": { "type": "doc", "version": 1, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "PR submitted: <PR_URL>"}]}] } }
-```
-
-### 11.3 — Transition to Review
-
-Always attempt the transition — the user explicitly linked a Jira issue, so the intent is to move it to Review.
-
-**Method A — Jira MCP (if `transition_jira_issue` tool exists):**
-```
-Use CallMcpTool: server="user-jira", toolName="transition_jira_issue"
-Arguments: { "issueKey": "<jira_key>", "transitionName": "Review" }
-```
-
-**Method B — REST API:**
-
-1. Query available transitions:
-```
-GET /rest/api/3/issue/<jira_key>/transitions
-```
-
-2. Find the transition whose `to.name` is `"Review"` (case-insensitive match).
-3. **If found**: execute it:
-```
-POST /rest/api/3/issue/<jira_key>/transitions
-Body: { "transition": { "id": "<transition_id>" } }
-```
-
-4. **If "Review" is not in the available transitions**: warn the user — "Issue `<jira_key>` is in status `<current_status>`. Cannot transition directly to Review. Available transitions: `<list>`. Move to the required status first."
-
-**Method C — `acli` CLI:**
-```
-acli jira issue transition --key <jira_key> --transition "Review" --yes
-```
-
-**If all methods fail for transition:** Log a warning and continue — the PR has been created successfully:
-```
-echo "⚠️  Could not transition <jira_key> to Review. Transition it manually."
+echo "⚠️  Could not add comment to <jira_key>. Add manually: <PR_URL>"
 ```
 
 ---
@@ -351,12 +312,13 @@ When another skill chains into `raise-pr`, it may provide a **caller context** w
 | `jira_key` | string | Steps 1.5, 4, 9, 10, 11 | Pre-resolved Jira issue key (skip Step 1.5 detection) |
 | `jira_url` | string | Steps 9, 10, 11 | Full Jira browse URL |
 | `jira_summary` | string | Step 10 | Issue summary for the PR body `## Fixed` section |
-| `recordings` | object | Step 10 | `{ before: "<path>", after: "<path>" }` — GIF paths for `## UI before/after changes` |
+| `recordings` | object | Step 10 | `{ before: "<local-gif-path>", after: "<local-gif-path>" }` — local GIF paths; `raise-pr` uploads them to the branch via GitHub Contents API and uses the resulting `raw.githubusercontent.com` URLs in the PR body |
 | `pr_description_extra` | string | Step 10 | Extra text inserted after the description (e.g., root cause analysis) |
+| `test_plan` | string | Step 10 | Markdown checklist for the `## Test Plan` section (e.g., `"- [ ] Open menu\n- [ ] Verify scrollbar on hover"`) |
 
 Skills that chain into `raise-pr`:
 
-- **`bug-fix`** — provides all five fields after reproducing and fixing a Jira bug with Playwright video recordings.
+- **`bug-fix`** — provides all six fields after reproducing and fixing a Jira bug with Playwright video recordings.
 
 <reference_index>
 
@@ -365,6 +327,6 @@ Skills that chain into `raise-pr`:
 | Reference | Load when... |
 |-----------|-------------|
 | `references/repo-profiles.md` | Always — at the start of every invocation (Step 1) |
-| `references/jira-input.md` | When resolving Jira context (Step 1.5) and performing post-PR Jira updates (Step 11) |
+| `references/jira-input.md` | When resolving Jira context (Step 1.5) |
 
 </reference_index>

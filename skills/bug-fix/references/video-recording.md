@@ -104,43 +104,39 @@ If `ffmpeg` is not installed:
 
 ## Embedding in PR Description
 
-### With GIFs (inline preview)
+### Automated approach (preferred) — Upload to branch via GitHub Contents API
 
-After creating the PR with placeholder text, upload the GIFs. Two approaches:
+After `git push`, upload GIFs to `<workspace>/.github/screenshots/<before|after>-fix.gif` on the branch using the GitHub Contents API. This is handled automatically by `raise-pr` Step 10.2.
 
-**Approach A — GitHub drag-and-drop URL**
+```bash
+TOKEN=$(gh auth token)
+GIF_B64=$(base64 -i e2e-tests/_repro-artifacts/before-fix.gif)
+curl -s -X PUT \
+  -H "Authorization: token $TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  -d '{"message":"docs: add before-fix recording","content":"'"$GIF_B64"'","branch":"<branch-name>"}' \
+  "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/<workspace>/.github/screenshots/before-fix.gif"
+```
 
-1. Create the PR with placeholder image references.
-2. Open the PR in a browser.
-3. Drag the GIF files into the PR description editor.
-4. GitHub uploads them to `user-images.githubusercontent.com` and generates URLs.
-5. The PR body is updated with the real URLs.
-
-**Approach B — PR comment with images**
-
-1. Create the PR with the description text (no images).
-2. Add a PR comment with the GIFs:
-   ```
-   gh pr comment <PR_NUMBER> --body "## Recordings
-
-   ### Before fix
-   (drag before-fix.gif here)
-
-   ### After fix
-   (drag after-fix.gif here)"
-   ```
-
-**Approach A is preferred** because images are directly in the PR description.
-
-### Without GIFs (webm attachments)
+Extract the `download_url` from the JSON response — this is the `raw.githubusercontent.com` URL. Use it in the PR body:
 
 ```markdown
 ## UI before changes
-[Download before-fix.webm](link-to-attachment)
+![Before fix](https://raw.githubusercontent.com/<fork-owner>/<repo>/branch/.github/screenshots/before-fix.gif)
 
 ## UI after changes
-[Download after-fix.webm](link-to-attachment)
+![After fix](https://raw.githubusercontent.com/<fork-owner>/<repo>/branch/.github/screenshots/after-fix.gif)
 ```
+
+The GIF files live on the feature branch only — they never reach `main`. When the PR merges and the branch is deleted, the files disappear. GitHub's camo proxy caches the rendered image permanently in the PR history.
+
+### Fallback — Manual upload
+
+If the Contents API upload fails (permissions error, file too large):
+
+1. Create the PR with placeholder text for the image sections.
+2. Inform the user to manually drag the GIF files into the PR description on GitHub's web UI.
+3. GitHub uploads them to `user-images.githubusercontent.com` and generates permanent URLs.
 
 ## Cleanup
 

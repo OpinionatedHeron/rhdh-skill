@@ -4,9 +4,8 @@ description: >
   Reproduce, diagnose, fix, and PR RHDH plugin bugs from Jira tickets using
   Playwright e2e tests with before/after screen recordings. Accepts a Jira key
   (RHDHBUGS-1934), Jira URL (redhat.atlassian.net/browse/...), or a request to
-  "fix this bug", "reproduce and fix", "/bug-fix". Chains into raise-pr for the
-  full PR lifecycle including post-PR Jira updates (Web Link, comment, transition
-  to Review).
+  "fix this bug", "reproduce and fix", "/bug-fix".   Chains into raise-pr for the
+  full PR lifecycle including post-PR Jira comment.
 ---
 
 <essential_principles>
@@ -28,7 +27,23 @@ Do not hardcode workspace internals. Discover each workspace's e2e infrastructur
 </principle>
 
 <principle name="video_evidence">
-Every bug fix PR must include before/after visual evidence. Playwright video recording captures the bug in action (before) and the fix working (after). These are converted to GIFs and embedded in the PR description.
+Every bug fix PR with a UI change MUST include before/after screen recordings. This is NON-NEGOTIABLE and cannot be skipped, deferred, or worked around. The recordings prove the bug existed and the fix resolves it.
+
+Enforcement rules:
+- The reproduction test MUST be written and run BEFORE any fix is applied (Steps 3-4 happen before Step 5). Violating this order means there is no "before" state to record.
+- The repro test MUST create its own browser context with `recordVideo` — NEVER use workspace bootstrap helpers (e.g., `bootstrapLightspeedE2ePage`) as they do not enable video recording.
+- If video files are not present in `e2e-tests/_repro-artifacts/` at Step 8, STOP and go back to capture them. Do NOT proceed to PR creation without recordings.
+- If the Playwright `context.close()` call is missing, the video file will be incomplete — always close the context.
+</principle>
+
+<principle name="fix_after_repro">
+NEVER apply the code fix before Steps 3 and 4 are complete. The correct order is:
+1. Write repro test (Step 3)
+2. Run repro test — it must FAIL (bug confirmed)
+3. Capture "before" video (Step 4)
+4. ONLY THEN apply the fix (Step 5)
+
+If you find yourself wanting to fix first and test after, STOP — you are violating the step order. The "before" recording cannot be captured retroactively.
 </principle>
 
 <principle name="step_echo_banners">
@@ -59,10 +74,12 @@ Without this, webpack's file watcher (Watchpack) may hit `EMFILE: too many open 
 
 ## Prerequisites
 
+- **`gh` CLI** — GitHub CLI must be installed and authenticated (`gh auth status` should show logged in). Install: https://cli.github.com/
+- **Jira MCP** — The Atlassian Rovo MCP server must be configured in Cursor for Jira comment updates. Setup guide: https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/
+  - If not configured, the skill will skip Jira updates and log a warning.
 - Working checkout of `rhdh-plugins` (or `community-plugins`)
 - `yarn` available on PATH
 - `ffmpeg` available on PATH (for video conversion; fall back to raw `.webm` if absent)
-- Jira auth configured (`.jira-token` next to `acli` binary, or Jira MCP in Cursor)
 
 ---
 
@@ -126,6 +143,7 @@ Read `references/e2e-patterns.md` for test patterns and `references/video-record
      });
      ```
      This guarantees video recording regardless of how the workspace's own e2e infrastructure manages contexts.
+   - **CRITICAL**: Do NOT use workspace-provided bootstrap/setup functions (like `bootstrapLightspeedE2ePage`, `setupE2eTest`, etc.) as the browser context source. These helpers create contexts WITHOUT video recording. You MUST call `browser.newContext({ recordVideo: ... })` yourself and then replicate only the mock setup from those helpers (API mocking, route handlers) on your custom page. Copy the mock calls — not the context creation.
    - Encode the "steps to reproduce" from the Jira description as Playwright actions.
    - Assert the **expected** behavior (the assertion should fail when the bug is present).
 3. **Pre-flight: kill stale dev server** — before running the test, ensure the dev-server port (read from `playwright.config.ts` `webServer.url`) is free:
@@ -153,16 +171,39 @@ Read `references/e2e-patterns.md` for test patterns and `references/video-record
    ```
 3. Store the path for later conversion (Step 7).
 
+**If no video file is found in `test-results/`**: the test likely used a bootstrap helper instead of a custom `recordVideo` context. Rewrite the test to use `browser.newContext({ recordVideo: ... })` directly, then re-run.
+
 ---
 
 ## Step 5 — Diagnose and fix
 
-1. **Diagnose**: trace from the failing Playwright selector back to the source:
+1. **Capture diagnostic context** from the failing state (before applying any fix). Re-use the reproduction test or run a lightweight Playwright script to gather:
+
+   a. **Screenshot** of the buggy UI state:
+      ```typescript
+      await page.screenshot({ path: 'e2e-tests/_repro-artifacts/bug-state.png', fullPage: true });
+      ```
+   b. **DOM snapshot** of the target element:
+      ```typescript
+      const targetEl = page.locator('<selector-under-test>');
+      const domSnapshot = await targetEl.evaluate(el => el.outerHTML);
+      ```
+   c. **Computed styles** of the target element (capture properties relevant to the bug):
+      ```typescript
+      const styles = await targetEl.evaluate(el => {
+        const cs = window.getComputedStyle(el);
+        return { display: cs.display, overflow: cs.overflow, scrollbarWidth: cs.scrollbarWidth };
+      });
+      ```
+
+   Use the screenshot (read it as an image), DOM structure, and computed styles to identify the exact root cause before modifying any source files. This provides concrete runtime evidence rather than guessing from source alone.
+
+2. **Diagnose**: trace from the failing Playwright selector back to the source:
    - Identify which React component renders the UI element under test.
    - Read the component source code (`plugins/*/src/components/`).
-   - Identify the root cause (e.g., MUI prop misconfiguration, missing state update, CSS issue, accessibility gap, i18n key mismatch).
-2. **Apply the fix** in the source code.
-3. **Validate**:
+   - Cross-reference the captured DOM/styles with the component's render logic to pinpoint the root cause (e.g., MUI prop misconfiguration, missing state update, CSS issue, accessibility gap, i18n key mismatch).
+3. **Apply the fix** in the source code.
+4. **Validate**:
    - `yarn tsc:full` — type check passes.
    - `yarn test --watchAll=false` — unit tests pass.
 
@@ -209,6 +250,17 @@ Read `references/video-recording.md` for conversion details.
 
 ## Step 8 — Clean up and create PR
 
+### 8.0 — Validate recordings exist [HARD GATE]
+
+Before proceeding with cleanup or PR creation, verify both recording files exist:
+
+```
+test -f e2e-tests/_repro-artifacts/before-fix.webm || { echo "ERROR: before-fix.webm missing — go back to Step 4"; exit 1; }
+test -f e2e-tests/_repro-artifacts/after-fix.webm || { echo "ERROR: after-fix.webm missing — go back to Step 6"; exit 1; }
+```
+
+If either file is missing, DO NOT proceed. Return to the relevant step (4 or 6) and capture the recording. This gate ensures the PR will always have visual evidence.
+
 ### 8.1 — Delete temporary files
 
 Remove the reproduction test and artifacts — these must not appear in the PR:
@@ -239,8 +291,27 @@ Invoke `raise-pr --a` with the following caller context:
 | `jira_summary` | Issue summary from Step 1 |
 | `recordings` | `{ before: "e2e-tests/_repro-artifacts/before-fix.gif", after: "e2e-tests/_repro-artifacts/after-fix.gif" }` |
 | `pr_description_extra` | `### Root cause\n<diagnosis from Step 5>` |
+| `test_plan` | Auto-generated markdown checklist (see below) |
 
-`raise-pr` handles: repo detection, build, changeset, commit (with `Fixes:` trailer), push, PR creation (with `## UI before/after changes`), and post-PR Jira updates (Web Link, comment, transition to Review).
+**Generating the `test_plan`:**
+
+Build a markdown checklist of verification steps for the reviewer. Derive them from:
+1. **Jira steps-to-reproduce** — convert each step into a positive verification action (e.g., "Click Help menu" becomes "- [ ] Open the Help menu").
+2. **Expected behavior after fix** — add steps verifying the fix works (e.g., "- [ ] Verify scrollbar appears on hover").
+3. **Regression check** — add at least one step confirming nothing else broke (e.g., "- [ ] Verify other menus/display modes are unchanged").
+
+Example output:
+```
+- [ ] Open the dropdown menu with many items
+- [ ] Verify scrollbar is hidden by default
+- [ ] Hover over the menu content area
+- [ ] Verify scrollbar becomes visible on hover
+- [ ] Verify other dropdown menus are unaffected
+```
+
+`raise-pr` handles: repo detection, build, changeset, commit (with `Fixes:` trailer), push, PR creation (with `## UI before/after changes` and `## Test Plan`), and post-PR Jira comment.
+
+> `raise-pr` uploads the GIF files to the branch via GitHub Contents API and embeds the resulting `raw.githubusercontent.com` URLs directly in the PR description. No manual image upload or separate PR comment is needed.
 
 ### 8.4 — Final cleanup
 
