@@ -115,7 +115,7 @@ Answer with a concrete recommendation:
 
 - Epic **RHIDP-13501** (E2E Test Optimization) — the per-repo responsibility split lives in the epic's comments and its Jira attachment `rhdh-dynamic-plugin-testing-guideline.md` (Jira-only; if unreachable, the decision table above is the summary).
 - Layer matrix: `rhdh: docs/e2e-tests/layer-migration-matrix.md` — in review in [rhdh#5044](https://github.com/redhat-developer/rhdh/pull/5044) (RHIDP-15076); the path resolves on `main` once that PR merges.
-- Cluster-free harness + docs: merged in [rhdh#5005](https://github.com/redhat-developer/rhdh/pull/5005) (RHIDP-15075).
-- Overlays native smoke: merged in [overlays#2714](https://github.com/redhat-developer/rhdh-plugin-export-overlays/pull/2714).
+- Cluster-free harness + docs: merged in [rhdh#5005](https://github.com/redhat-developer/rhdh/pull/5005) (RHIDP-15075); expanded to 10 specs / 14 test cases in [rhdh#5057](https://github.com/redhat-developer/rhdh/pull/5057) — the richest set of worked enablement examples (config mirrors, catalog file locations, OCI plugin additions).
+- Overlays native smoke: merged in [overlays#2714](https://github.com/redhat-developer/rhdh-plugin-export-overlays/pull/2714); the per-workspace mode used in Step 4 merged in [overlays#2731](https://github.com/redhat-developer/rhdh-plugin-export-overlays/pull/2731).
 - Catalog-index sanity check: in review in [rhdh#4967](https://github.com/redhat-developer/rhdh/pull/4967).
 - L3 pattern proposal: [rhdh#4864](https://github.com/redhat-developer/rhdh/pull/4864) (closed) under RHIDP-13235.
