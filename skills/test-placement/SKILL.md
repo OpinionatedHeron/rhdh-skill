@@ -4,15 +4,17 @@ description: >-
   Propose where to test a change in the RHDH dynamic-plugin ecosystem: which
   repo (rhdh-plugins, rhdh-plugin-export-overlays, rhdh), which test layer
   (unit, integration, component, cluster-free E2E, cluster E2E), where the
-  test lives, and how to create it. Use when a developer asks where to test
-  something, whether a test needs a cluster, or which repo a test belongs in
+  test lives, and how to create it. Use when asked "where should I test
+  this", "does this need a cluster", "should this be an e2e test", "which
+  repo does this test belong in", "what test layer", "test placement", or
+  when reviewing a test added at the wrong layer.
 ---
 
 # Test Placement Advisor
 
 Given the context of a change, bug, or new feature in the RHDH dynamic-plugin ecosystem, propose **where** it should be tested: which repository, which test layer, where the test lives, and how to create it. The guiding rule: **pick the cheapest environment that can actually catch the bug — most plugin validation does not need a cluster, and an increasing part doesn't need Docker either.**
 
-Conventions in this skill: paths are prefixed with the repo they live in — `rhdh:`, `overlays:` (= rhdh-plugin-export-overlays), `plugins:` (= rhdh-plugins). Some harnesses referenced here are **still in review** (see References for PR status). Before recommending a harness or script, verify its path exists on the target repo's `main`; if it doesn't, tell the developer it is pending in the corresponding PR instead of asserting it exists.
+Conventions in this skill: paths are prefixed with the repo they live in — `rhdh:`, `overlays:` (= rhdh-plugin-export-overlays), `plugins:` (= rhdh-plugins). For broader repo context, consult `../rhdh/references/rhdh-repos.md` (requires the `rhdh` core skill installed alongside; skip if the file is not found). Some harnesses referenced here are **still in review** (see References for PR status). Before recommending a harness or script, verify its path exists on the target repo's `main`; if it doesn't, tell the developer it is pending in the corresponding PR instead of asserting it exists.
 
 ## When to Use
 
@@ -109,10 +111,10 @@ Answer with a concrete recommendation:
 - **Why not elsewhere:** one line on the layers you rejected (especially if the dev proposed a more expensive one).
 - **Cost:** rough feedback time (seconds / ~4 min cluster-free / cluster job).
 
-## References (status as of 2026-07-07 — verify before citing as merged)
+## References (PR statuses are as of the last edit — verify before citing as merged)
 
 - Epic **RHIDP-13501** (E2E Test Optimization) — the per-repo responsibility split lives in the epic's comments and its Jira attachment `rhdh-dynamic-plugin-testing-guideline.md` (Jira-only; if unreachable, the decision table above is the summary).
-- Layer matrix: <https://github.com/redhat-developer/rhdh/blob/main/docs/e2e-tests/layer-migration-matrix.md> — in review in [rhdh#5044](https://github.com/redhat-developer/rhdh/pull/5044) (RHIDP-15076).
+- Layer matrix: `rhdh: docs/e2e-tests/layer-migration-matrix.md` — in review in [rhdh#5044](https://github.com/redhat-developer/rhdh/pull/5044) (RHIDP-15076); the path resolves on `main` once that PR merges.
 - Cluster-free harness + docs: merged in [rhdh#5005](https://github.com/redhat-developer/rhdh/pull/5005) (RHIDP-15075).
 - Overlays native smoke: merged in [overlays#2714](https://github.com/redhat-developer/rhdh-plugin-export-overlays/pull/2714).
 - Catalog-index sanity check: in review in [rhdh#4967](https://github.com/redhat-developer/rhdh/pull/4967).
