@@ -202,6 +202,14 @@ What would you like to do?
 
 **To route:** Read `../backstage-upgrade/SKILL.md` and follow its intake process.
 
+### Test Placement Routes
+
+| Response | Skill |
+|----------|-------|
+| "where should I test", "test placement", "does this need a cluster", "which repo does this test belong in", "should this be an e2e test", "test layer" | Route to `test-placement` skill |
+
+**To route:** Read `../test-placement/SKILL.md` and follow its instructions.
+
 ### General Routes
 
 | Response | Action |

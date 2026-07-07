@@ -119,6 +119,12 @@ Track work across the four RHDH Jira projects.
 
 - **[rhdh-test-plan-review](./skills/rhdh-test-plan-review/SKILL.md)** — Reviews an RHDH test plan Jira ticket and suggests platform/integration version updates based on support lifecycle pages and RHDH release milestones
 
+### Test Placement
+
+Decide where a test belongs across the RHDH ecosystem — which repo, which layer, and how to scaffold it.
+
+- **[test-placement](./skills/test-placement/SKILL.md)** — Given a change, bug, or feature, proposes the right repo (`rhdh-plugins` / `rhdh-plugin-export-overlays` / `rhdh`), the right test layer (L1 unit → L4b cluster e2e), the location, and scaffolding steps. Guiding rule: the cheapest environment that catches the bug wins. Encodes the RHIDP-13501 responsibility split and researched dead-ends so devs don't burn time on them.
+
 ### Repository Readiness
 
 - **[agent-ready](./skills/agent-ready/SKILL.md)** — Assess RHDH repositories against agentready criteria and address each gap. RHDH-aware: detects the repo from its remote URL, uses `rhdh-repos.md` context to pre-fill `AGENTS.md` and skip inapplicable findings. Supports single-repo and batch modes (assess all RHDH repos in one pass).
