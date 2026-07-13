@@ -4,8 +4,8 @@ description: >
   Automate the full PR workflow for rhdh-plugins and community-plugins monorepos:
   detect workspace, build, generate changeset, commit, push, and create the GitHub PR.
   Auto-detects which repo you're in. Supports --a auto-approve mode to skip all
-  approval gates.   Accepts an optional Jira key or URL to link the PR to a Jira issue
-  (adds a PR comment on the Jira ticket). Use when asked to "raise a PR",
+  approval gates.   Accepts an optional Jira key/URL or GitHub issue URL to link the PR to
+  a tracked issue (adds comments, transitions, and auto-close links). Use when asked to "raise a PR",
   "create a PR", "submit a PR", "open a PR", "push my changes", "make a PR for this
   plugin", or "PR workflow". Also use when user says "raise pr", "/pr", or mentions
   creating a pull request in rhdh-plugins or community-plugins.
@@ -53,7 +53,7 @@ When `recordings` caller context is provided, the GIF upload in Step 10.2 is MAN
 ## Prerequisites
 
 - **`gh` CLI** — GitHub CLI must be installed and authenticated (`gh auth status` should show logged in). Install: https://cli.github.com/
-- **Jira MCP** — The Atlassian Rovo MCP server must be configured in Cursor for Jira comment updates. Setup guide: https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/
+- **Jira MCP** — The Atlassian Rovo MCP server must be configured in your agent environment for Jira comment updates. Setup guide: https://support.atlassian.com/atlassian-rovo-mcp-server/docs/getting-started-with-the-atlassian-remote-mcp-server/
   - If not configured, the skill will skip Jira updates and log a warning.
 - Working checkout of `rhdh-plugins` (or `community-plugins`)
 - `yarn` available on PATH
@@ -79,28 +79,51 @@ Store the profile values for use in Steps 5, 6, and 10.
 
 ---
 
-## Step 1.5 — Resolve Jira context
+## Step 1.5 — Resolve issue context
 
-Read `references/jira-input.md` for parsing rules and REST API patterns.
+Determine whether the PR is linked to a Jira issue, GitHub issue, or neither.
 
-Resolve a Jira issue from one of these sources (in priority order):
+### Source 1: Caller context (highest priority)
 
-1. **Caller context** — another skill (e.g., `bug-fix`) passes `jira_key`, `jira_url`, and `jira_summary` directly. Skip detection.
-2. **Argument** — the user passed a Jira key or URL as an argument (e.g., `raise-pr RHDHBUGS-1934` or `raise-pr https://redhat.atlassian.net/browse/RHIDP-15252`).
-3. **Branch name** — if the current branch contains a Jira key (e.g., `fix/RHDHBUGS-1934-keyboard-nav`), extract it.
-4. **Prompt** — ask: "Jira issue key or URL? (enter to skip)".
+If another skill (e.g., `bug-fix`) provides caller context with `issue_source`, use it directly:
 
-**Parsing rules** (from `references/jira-input.md`):
+- **`issue_source` = `jira`:** Use `jira_key`, `jira_url`, `jira_summary` from caller context. Skip detection.
+- **`issue_source` = `github`:** Use `github_issue_number`, `github_issue_url`, `github_issue_repo`, `github_issue_title` from caller context. Skip detection.
 
+### Source 2: User argument
+
+If no caller context, parse the user's argument:
+
+**Jira patterns** (read `references/jira-input.md`):
 - If input matches `(RHIDP|RHDHBUGS|RHDHPLAN|RHDHSUPP)-\d+` anywhere in the string, extract that as the key.
 - If input contains `atlassian.net/browse/`, extract everything after `/browse/` as the key.
 - Construct: `jira_url = https://redhat.atlassian.net/browse/<jira_key>`
+- Set `issue_source = jira`.
 
-**Fetch issue summary** (if key resolved and summary not provided by caller):
+**GitHub patterns** (read `bug-fix/references/github-input.md`):
+- If input contains `github.com/.../issues/<N>`, extract owner/repo and number.
+- If input matches `#\d+`, resolve repo from `git remote -v`.
+- Construct: `github_issue_url = https://github.com/<owner>/<repo>/issues/<N>`
+- Set `issue_source = github`.
 
-Use the Jira REST API per `references/jira-input.md` to fetch the issue summary. If auth is not configured or the fetch fails, store `jira_summary = null` and continue — the key and URL are still usable.
+### Source 3: Branch name
 
-Store: `jira_key`, `jira_url`, `jira_summary` (all nullable). If no Jira reference was resolved, all three are null and Jira-specific behavior in later steps is skipped.
+If no argument matched, check the current branch name:
+- Jira key pattern: `fix/RHDHBUGS-1934-keyboard-nav` → extract `RHDHBUGS-1934`, set `issue_source = jira`.
+- GitHub issue pattern: `fix/607-report-portal-crash` → extract `#607` only if combined with repo context from `git remote -v`, set `issue_source = github`.
+
+### Source 4: Prompt
+
+Ask: "Issue key, URL, or #number? (enter to skip)".
+
+### Fetch summary (if not provided by caller)
+
+- **Jira:** Use the Jira REST API per `references/jira-input.md` to fetch the issue summary. If auth is not configured or the fetch fails, store `jira_summary = null` and continue.
+- **GitHub:** `gh issue view <N> --repo <repo> --json title -q .title`. If fetch fails, store `github_issue_title = null` and continue.
+
+### Store
+
+Set `issue_source` = `jira`, `github`, or `null`. If `null`, all issue-specific behavior in later steps is skipped.
 
 ---
 
@@ -215,22 +238,30 @@ If multiple packages are affected, list each on its own YAML line.
 
 1. Run `git diff --cached --stat` to review all staged changes.
 2. Generate a commit message in conventional commit format: `<type>(<workspace>): <short description>` (e.g., `feat(bulk-import): add batch repository import support`).
-3. **If `jira_url` is set**, append a `Fixes:` trailer in the commit body:
+3. **If `issue_source` is set**, append a `Fixes:` trailer in the commit body — but **only if the issue type is allowed for this repo profile**:
+   - **rhdh-plugins:** Both Jira and GitHub issue URLs are allowed.
+   - **community-plugins:** Only GitHub issue URLs are allowed. If `issue_source = jira`, do NOT add a `Fixes:` trailer (Jira info must never appear in community-plugins git history).
+
+   Examples:
+   - rhdh-plugins + Jira: `Fixes: https://redhat.atlassian.net/browse/RHDHBUGS-1934`
+   - rhdh-plugins + GitHub: `Fixes: https://github.com/redhat-developer/rhdh-plugins/issues/607`
+   - community-plugins + GitHub: `Fixes: https://github.com/backstage/community-plugins/issues/3574`
+   - community-plugins + Jira: **no trailer** (omit entirely)
 
 ```
 fix(adoption-insights): enable keyboard navigation in header date-range dropdown
 
-Fixes: https://redhat.atlassian.net/browse/RHDHBUGS-1934
+Fixes: <issue_url>
 ```
 
 4. **If NOT auto-approve:** present the commit message and staged file summary. Wait for approval. **If auto-approve:** commit immediately.
 5. Commit with the **`-s` flag** (Signed-off-by):
 
 ```
-git commit -s -m "<subject>" -m "Fixes: <jira_url>"
+git commit -s -m "<subject>" -m "Fixes: <issue_url>"
 ```
 
-If no `jira_url`, omit the second `-m` flag.
+Where `<issue_url>` is `jira_url` or `github_issue_url` depending on `issue_source`. If `issue_source` is null, or if the profile is community-plugins and `issue_source` is jira, omit the second `-m` flag.
 
 ---
 
@@ -254,7 +285,12 @@ git push -u origin HEAD
 
    b. Determine the fork owner and repo name from the `origin` remote URL (e.g., `its-mitesh-kumar/rhdh-plugins`).
    c. Get the current branch name: `git branch --show-current`.
-   d. For each GIF file (`recordings.before` and `recordings.after`), upload to the branch via the GitHub Contents API:
+   c2. Extract the committer identity for the `Signed-off-by` trailer (required by DCO checks):
+   ```
+   COMMITTER_NAME=$(git config user.name)
+   COMMITTER_EMAIL=$(git config user.email)
+   ```
+   d. For each GIF file (`recordings.before` and `recordings.after`), upload to the branch via the GitHub Contents API. The commit message MUST include a `Signed-off-by` trailer to pass DCO checks:
 
    ```
    TOKEN=$(gh auth token)
@@ -262,7 +298,7 @@ git push -u origin HEAD
    RESPONSE=$(curl -s -X PUT \
      -H "Authorization: token $TOKEN" \
      -H "Accept: application/vnd.github+json" \
-     -d '{"message":"docs: add <before|after>-fix recording","content":"'"$GIF_B64"'","branch":"<branch-name>"}' \
+     -d '{"message":"docs: add <before|after>-fix recording\n\nSigned-off-by: '"$COMMITTER_NAME"' <'"$COMMITTER_EMAIL"'>","content":"'"$GIF_B64"'","branch":"<branch-name>"}' \
      "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/<workspace>/.github/screenshots/<before|after>-fix.gif")
    echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); url=d.get('content',{}).get('download_url',''); print('download_url:', url); exit(0 if url.startswith('https://raw.githubusercontent.com') else 1)"
    ```
@@ -278,12 +314,14 @@ git push -u origin HEAD
 
 3. Generate a PR title from the commit subject line.
 4. Build the PR body from the detected repo profile template (Step 1). The body has conditional sections:
-   - **`## Fixed`** — include only if `jira_key` is set. Format: `- [<JIRA-KEY>](<jira_url>) — <jira_summary>`.
+   - **`## Fixed`** — repo-dependent:
+     - **rhdh-plugins:** include if `issue_source` is set. Jira: `- [<JIRA-KEY>](<jira_url>) — <jira_summary>`. GitHub: `- Fixes <github_issue_url>`.
+     - **community-plugins:** include ONLY if `issue_source = github`. Use `- Fixes <github_issue_url>` (triggers auto-close). NEVER include Jira info — omit `## Fixed` entirely when `issue_source = jira`.
    - **`## UI before changes` / `## UI after changes`** — include only if `recordings` are provided in caller context. Use the `raw.githubusercontent.com` URLs from sub-step 2 in the markdown: `![Before fix](<before_gif_url>)` / `![After fix](<after_gif_url>)`. **CRITICAL**: Both URLs MUST have been obtained from the GitHub Contents API response in sub-step 2. NEVER construct, guess, or fabricate these URLs. If sub-step 2 failed and you have no valid URLs, use the placeholder text from the failure path instead of a broken image link.
    - **`pr_description_extra`** — if provided by caller context (e.g., root cause analysis from `bug-fix`), insert it after the generated description paragraph.
    - **`## Test Plan`** — include only if `test_plan` is provided in caller context. Insert the markdown checklist as-is.
    - **`## Checklist`** — always present.
-   - **`## Note`** — include only if both `recordings` AND `jira_key` are provided (indicating an automated bug-fix PR). Contains the skill attribution disclaimer.
+   - **`## Note`** — include whenever `issue_source` is present in caller context (indicating `bug-fix` invoked `raise-pr`). Contains the skill attribution disclaimer. Omit for standalone `raise-pr` invocations.
 5. Create the PR using `gh pr create` with the repo-appropriate template. Use the upstream repo value for `--repo` and `main` for `--base`. Pass the body via HEREDOC:
 
 ```
@@ -298,20 +336,49 @@ EOF
 
 ---
 
-## Step 11 — Post-PR Jira updates
+## Step 11 — Post-PR issue updates
 
-**Skip this step entirely if `jira_key` is null.**
+**Skip this step entirely if `issue_source` is null.**
 
-Add a comment on the Jira issue documenting the PR submission:
+### If `issue_source` = `jira`
 
+1. **Comment** on the Jira issue documenting the PR submission:
+   ```
+   Use the Jira MCP `add_jira_comment` tool:
+     issueKey: "<jira_key>"
+     body: "PR submitted: <PR_URL>"
+   ```
+
+2. **Transition** the issue status to "Review" (if ACLI is available):
+   ```
+   acli jira workitem transition --key "<jira_key>" --status "Review" --yes
+   ```
+   Query available transitions first: `acli jira workitem getTransitions --key "<jira_key>"`. If "Review" is not available, skip the transition and log a warning.
+
+3. **Add web link** — add the PR URL as a remote link on the Jira issue (if REST auth is available):
+   ```
+   POST /rest/api/3/issue/<jira_key>/remotelink
+   { "object": { "url": "<PR_URL>", "title": "GitHub PR: <PR_title>" } }
+   ```
+   See `references/jira-input.md` for REST API patterns.
+
+**If any Jira call fails:** Log a warning and continue — the PR has been created successfully:
 ```
-Use CallMcpTool: server="user-jira", toolName="add_jira_comment"
-Arguments: { "issueKey": "<jira_key>", "body": "PR submitted: <PR_URL>" }
+echo "⚠️  Could not update <jira_key>. Add manually: <PR_URL>"
 ```
 
-**If the MCP call fails:** Log a warning and continue — the PR has been created successfully:
+### If `issue_source` = `github`
+
+1. **Comment** on the GitHub issue:
+   ```
+   gh issue comment <github_issue_number> --repo <github_issue_repo> --body "Fix submitted: <PR_URL>"
+   ```
+
+2. **Auto-close** — no explicit action needed. The `Fixes <github_issue_url>` in the PR body (Step 10) causes GitHub to automatically close the issue when the PR merges.
+
+**If the comment fails:** Log a warning and continue:
 ```
-echo "⚠️  Could not add comment to <jira_key>. Add manually: <PR_URL>"
+echo "⚠️  Could not comment on #<github_issue_number>. Add manually: <PR_URL>"
 ```
 
 ---
@@ -328,16 +395,21 @@ When another skill chains into `raise-pr`, it may provide a **caller context** w
 
 | Field | Type | Used in | Description |
 |-------|------|---------|-------------|
-| `jira_key` | string | Steps 1.5, 4, 9, 10, 11 | Pre-resolved Jira issue key (skip Step 1.5 detection) |
-| `jira_url` | string | Steps 9, 10, 11 | Full Jira browse URL |
-| `jira_summary` | string | Step 10 | Issue summary for the PR body `## Fixed` section |
-| `recordings` | object | Step 10 | `{ before: "<local-gif-path>", after: "<local-gif-path>" }` — local GIF paths; `raise-pr` uploads them to the branch via GitHub Contents API and uses the resulting `raw.githubusercontent.com` URLs in the PR body |
+| `issue_source` | string | Steps 1.5, 9, 10, 11 | `"jira"` or `"github"` — determines which issue-specific logic to follow |
+| `jira_key` | string | Steps 1.5, 4, 9, 10, 11 | Pre-resolved Jira issue key (skip Step 1.5 detection). Jira only. |
+| `jira_url` | string | Steps 9, 10, 11 | Full Jira browse URL. Jira only. |
+| `jira_summary` | string | Step 10 | Issue summary for the PR body `## Fixed` section. Jira only. |
+| `github_issue_number` | number | Steps 1.5, 10, 11 | GitHub issue number. GitHub only. |
+| `github_issue_url` | string | Steps 9, 10, 11 | Full GitHub issue URL (e.g., `https://github.com/redhat-developer/rhdh-plugins/issues/607`). GitHub only. |
+| `github_issue_repo` | string | Steps 10, 11 | `owner/repo` (e.g., `redhat-developer/rhdh-plugins`). GitHub only. |
+| `github_issue_title` | string | Step 10 | Issue title for the PR body `## Fixed` section. GitHub only. |
+| `recordings` | object | Step 10 | `{ before: "<local-gif-path>", after: "<local-gif-path>" }` — local GIF paths; `raise-pr` uploads them to the branch via GitHub Contents API and uses the resulting `raw.githubusercontent.com` URLs in the PR body. `null` in no-e2e mode. |
 | `pr_description_extra` | string | Step 10 | Extra text inserted after the description (e.g., root cause analysis) |
 | `test_plan` | string | Step 10 | Markdown checklist for the `## Test Plan` section (e.g., `"- [ ] Open menu\n- [ ] Verify scrollbar on hover"`) |
 
 Skills that chain into `raise-pr`:
 
-- **`bug-fix`** — provides all six fields after reproducing and fixing a Jira bug with Playwright video recordings.
+- **`bug-fix`** — provides `issue_source` plus the relevant issue fields, optionally `recordings` (full-e2e mode only), `pr_description_extra`, and `test_plan`.
 
 <reference_index>
 
@@ -346,6 +418,7 @@ Skills that chain into `raise-pr`:
 | Reference | Load when... |
 |-----------|-------------|
 | `references/repo-profiles.md` | Always — at the start of every invocation (Step 1) |
-| `references/jira-input.md` | When resolving Jira context (Step 1.5) |
+| `references/jira-input.md` | When resolving Jira context (Step 1.5, `issue_source` = `jira`) |
+| `bug-fix/references/github-input.md` | When resolving GitHub issue context (Step 1.5, `issue_source` = `github`) |
 
 </reference_index>
