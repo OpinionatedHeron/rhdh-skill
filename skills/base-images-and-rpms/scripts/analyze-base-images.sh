@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Analyze Containerfile/Dockerfile base images: current FROM lines, latest RHEC tags, UBI mismatches.
+# Invoked by base-images-and-rpms.sh --analyze or run directly.
 # SPDX-License-Identifier: Apache-2.0
 set -euo pipefail
 
@@ -85,7 +86,10 @@ canonical_path() {
 
 is_rhdh_repo() {
 	local w="$1"
-	[[ -n "${RHDH_REPO:-}" ]] && [[ "$(canonical_path "$w")" == "$(canonical_path "$RHDH_REPO")" ]]
+	if [[ -n "${RHDH_REPO:-}" ]] && [[ "$(canonical_path "$w")" == "$(canonical_path "$RHDH_REPO")" ]]; then
+		return 0
+	fi
+	[[ -f "${w}/rpms.in.yaml" && -f "${w}/package.json" ]]
 }
 
 is_rhdh_excluded_path() {

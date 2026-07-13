@@ -66,11 +66,7 @@ If told an implementation was wrong, apply the correction and then record what w
 
 ## Versioning
 
-Single version kept in sync across three files:
-
-- `pyproject.toml` — Python package version
-- `.claude-plugin/plugin.json` — plugin manifest
-- `.claude-plugin/marketplace.json` — marketplace listing (2 occurrences)
+Single source of truth: `pyproject.toml` (the `version` field).
 
 ### When to bump
 
@@ -80,12 +76,12 @@ Include a **patch** version bump (`x.y.Z`) in any PR that changes skill behavior
 
 1. Read the current version from `pyproject.toml`.
 2. Compute the new version (patch/minor/major as appropriate).
-3. Update all three files (4 occurrences total) in the same commit.
+3. Update `pyproject.toml` and commit.
 4. The PR title should include the new version, e.g., `feat: add foo skill (v0.4.0)`.
 
 ### Git tags
 
-The `skills` CLI (`npx skills add`) resolves versions via git tags, not from the JSON version fields. After merging a version-bump PR, create a tag: `git tag v<VERSION> && git push origin v<VERSION>`.
+The `skills` CLI (`npx skills add`) resolves versions via git tags, not from the version field. After merging a version-bump PR, create a tag: `git tag v<VERSION> && git push origin v<VERSION>`.
 
 ## Shared modules (lifecycle ↔ prow)
 

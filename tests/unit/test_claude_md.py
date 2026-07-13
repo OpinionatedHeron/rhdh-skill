@@ -50,8 +50,6 @@ class TestAgentsMdStructure:
     def test_has_versioning_section(self, agents_md):
         """AGENTS.md should document versioning."""
         assert "pyproject.toml" in agents_md
-        assert "plugin.json" in agents_md
-        assert "marketplace.json" in agents_md
 
     def test_has_agent_skills_section(self, agents_md):
         """AGENTS.md should have agent skills config section."""

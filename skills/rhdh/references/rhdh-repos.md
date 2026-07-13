@@ -206,5 +206,5 @@ rhdh (enterprise distribution, github.com)
 - **Deployment/operator changes:** Work in `rhdh-operator` or `rhdh-chart`
 - **Plugin packaging:** Work in `rhdh-plugin-export-overlays` to add/update plugins as dynamic plugins; uses actions from `rhdh-plugin-export-utils`
 - **Midstream plugin builds:** Work in `rhdh-plugin-catalog` for Konflux pipeline management, catalog index updates, and OCI artifact publishing to Red Hat registries
-- **Base image maintenance:** Use scripts in `rhdh-downstream` (`build/scripts/`), scan and update Containerfiles in `rhdh` and `rhdh-operator` — see `update-base-image` skill
+- **Base image maintenance:** Use the `base-images-and-rpms` skill (`--analyze` to scan, or full run with scripts from `rhdh-downstream` `build/scripts/`)
 - **CI/CD actions for plugins:** Work in `rhdh-plugin-export-utils` to modify the reusable GitHub Actions

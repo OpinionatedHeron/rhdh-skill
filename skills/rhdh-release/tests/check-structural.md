@@ -106,9 +106,9 @@ Read `skills/rhdh-release/references/config.md`:
 
 ### 11. Version consistency
 
-Read `pyproject.toml`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` and verify:
+Read `pyproject.toml` and verify:
 
-- [ ] All three files contain the same version string
+- [ ] The `version` field contains a valid semver string
 
 ## Report format
 

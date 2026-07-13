@@ -2,13 +2,30 @@
 
 Agent skills for the Red Hat Developer Hub team. Covers plugin development, overlay management, local testing, Jira workflows, and day-to-day RHDH engineering — so your agent knows the ecosystem instead of hallucinating through it.
 
-> **Quick start:** `npx skills add redhat-developer/rhdh-skill` — works with [50+ coding agents](https://github.com/vercel-labs/skills#supported-agents).
+> **Quick start:** `npx skills add -g redhat-developer/rhdh-skill` — works with [50+ coding agents](https://github.com/vercel-labs/skills#supported-agents).
 
 ## Why This Exists
 
 RHDH spans a dozen repositories, four Jira projects, version-specific Backstage compatibility, overlay CI pipelines, and a copy-sync customization system for local testing. Without guidance, agents hallucinate version numbers, use the legacy backend system, construct OCI URLs by hand, and miss project-specific conventions that are impossible to learn from training data alone.
 
 These skills encode the gotchas, workflows, and tribal knowledge so you don't re-explain them every session.
+
+## How It Works
+
+The [`rhdh`](./skills/rhdh/SKILL.md) skill is the primary entry point. It detects your environment (tools, repos, auth), runs doctor checks, and routes to the right sub-skill based on what you're doing — overlay management, plugin creation, local testing, Jira, CI, and so on. You don't need to remember which skill to invoke; just describe your task and `rhdh` figures it out.
+
+Under the hood, `rhdh` maintains a config file (`~/.config/rhdh-skill/config.json`) that maps short keys to your local git checkouts. Once configured, any skill can locate the right repo without you specifying paths each time:
+
+| Key | Repository | Key | Repository |
+|-----|-----------|-----|-----------|
+| `rhdh` | rhdh | `overlay` | rhdh-plugin-export-overlays |
+| `downstream` | rhdh (midstream) | `export-utils` | rhdh-plugin-export-utils |
+| `cli` | rhdh-cli | `catalog` | rhdh-plugin-catalog |
+| `plugins` | rhdh-plugins | `operator` | rhdh-operator |
+| `chart` | rhdh-chart | `local` | rhdh-local |
+| `factory` | rhdh-dynamic-plugin-factory | `backstage` | backstage |
+
+Run `rhdh doctor` at any time to check your environment — missing tools, unconfigured repos, and auth issues are flagged with fix instructions.
 
 ## What's Inside
 
@@ -65,12 +82,12 @@ Manage Prow CI job configurations and trigger nightly E2E tests.
 
 ### Base image
 
-Bump UBI / RHEC base image tags and refresh `@sha256` digests in **rhdh** and **rhdh-operator** (see [rhdh-repos](./skills/rhdh/references/rhdh-repos.md)).
+Bump UBI / RHEC base image tags, refresh RPM lockfiles, and align node headers / go.mod in **rhdh**, **rhdh-operator**, and **rhdh-must-gather** (see [rhdh-repos](./skills/rhdh/references/rhdh-repos.md)).
 
-- **[update-base-image](./skills/update-base-image/SKILL.md)** — Analyze and update Containerfile / Dockerfile using [rhdh-downstream](./skills/rhdh/references/rhdh-repos.md#rhdh-downstream) scripts (`build/scripts/`). Tags must be `major.minor-buildid` or `x.y.z-buildid`; bare numeric registry tags are ignored. Bundled `analyze-base-images.sh`; run `updateBaseImages.sh` per repo. Requires `skopeo login registry.redhat.io`.
+- **[base-images-and-rpms](./skills/base-images-and-rpms/SKILL.md)** — Weekly upstream maintenance: `updateBaseImages.sh`, `rpm-lockfile-prototype`, node headers, and go.mod (main only). Use `--analyze` for read-only Containerfile/Dockerfile scan before updating. Requires `skopeo login registry.redhat.io`.
 
 ```bash
-npx skills add redhat-developer/rhdh-skill --skill update-base-image
+npx skills add redhat-developer/rhdh-skill --skill base-images-and-rpms
 ```
 
 ### Local Testing
@@ -114,10 +131,6 @@ Reproduce, diagnose, fix, and PR RHDH plugin bugs from Jira tickets with automat
 
 - **[rhdh-test-plan-review](./skills/rhdh-test-plan-review/SKILL.md)** — Reviews an RHDH test plan Jira ticket and suggests platform/integration version updates based on support lifecycle pages and RHDH release milestones
 
-### Orchestration
-
-- **[rhdh](./skills/rhdh/SKILL.md)** — Entry point and router. Detects your environment, runs `doctor` checks, maintains a cross-session worklog, and routes to the right skill. Start here if you're not sure what you need.
-
 ### Repository Readiness
 
 - **[agent-ready](./skills/agent-ready/SKILL.md)** — Assess RHDH repositories against agentready criteria and address each gap. RHDH-aware: detects the repo from its remote URL, uses `rhdh-repos.md` context to pre-fill `AGENTS.md` and skip inapplicable findings. Supports single-repo and batch modes (assess all RHDH repos in one pass).
@@ -128,19 +141,37 @@ Reproduce, diagnose, fix, and PR RHDH plugin bugs from Jira tickets with automat
 
 ## Getting Started
 
-Install the skills, then just talk to your agent. Mention what you're working on — onboarding a plugin, triaging PRs, creating a new backend module, checking Jira issues — and the right skill activates automatically.
+1. **Install globally** (recommended — `rhdh` manages paths across multiple repos):
 
-If your agent doesn't pick up the right skill, or you want to start from the top, the `rhdh` orchestrator skill runs environment checks and routes you:
+   ```bash
+   npx skills add -g redhat-developer/rhdh-skill
+   ```
 
-```
-Tell my agent: "I need to onboard a new plugin to the Extensions Catalog"
-```
+2. **Talk to your agent.** Mention what you're working on and `rhdh` takes care of the rest — including first-time setup:
 
-Not everything needs every tool. Each skill checks for its own prerequisites and tells you what's missing.
+   ```
+   You: "I need to onboard the aws-appsync plugin to the Extensions Catalog"
+
+   Agent: runs rhdh doctor, detects missing config
+   Agent: runs rhdh config init, finds your local repos
+   Agent: routes to the overlay skill, starts the onboard workflow
+   ```
+
+   On the first run, `rhdh` auto-detects your local checkouts and creates `~/.config/rhdh-skill/config.json`. If a repo isn't found automatically, the agent will ask you for its path.
 
 ## Installation
 
-### Skills CLI (any agent)
+### Global install (recommended)
+
+```bash
+npx skills add -g redhat-developer/rhdh-skill
+```
+
+Global install is the right default — `rhdh` manages paths across multiple repos via its config, so it doesn't need to live inside any single project.
+
+### Project-scope install
+
+For single-repo use (e.g., only the `create-plugin` skill inside one plugin repo):
 
 ```bash
 npx skills add redhat-developer/rhdh-skill
@@ -159,11 +190,10 @@ npx skills add redhat-developer/rhdh-skill --skill create-plugin
 npx skills add redhat-developer/rhdh-skill -a claude-code
 ```
 
-### Claude Code Plugin Marketplace
+### Update
 
 ```bash
-claude plugin marketplace add redhat-developer/rhdh-skill
-claude plugin install --scope project rhdh
+npx skills update rhdh-skill
 ```
 
 ### Local Checkout (development)
@@ -171,8 +201,6 @@ claude plugin install --scope project rhdh
 ```bash
 npx skills add ./path/to/rhdh-skill
 ```
-
-> **Note:** Always install in project scope. The skills reference repository-specific paths.
 
 ## Development
 
