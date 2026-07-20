@@ -74,17 +74,18 @@ GitHub PR descriptions support inline images (PNG, GIF, JPEG) but NOT inline `.w
 
 ```bash
 ffmpeg -i e2e-tests/_repro-artifacts/before-fix.webm \
-  -vf "fps=10,scale=800:-1" -loop 0 \
+  -vf "fps=15,scale=800:-1,setpts=1.5*PTS" -loop 0 \
   e2e-tests/_repro-artifacts/before-fix.gif
 
 ffmpeg -i e2e-tests/_repro-artifacts/after-fix.webm \
-  -vf "fps=10,scale=800:-1" -loop 0 \
+  -vf "fps=15,scale=800:-1,setpts=1.5*PTS" -loop 0 \
   e2e-tests/_repro-artifacts/after-fix.gif
 ```
 
 Options explained:
-- `fps=10` — 10 frames per second (balances smoothness vs file size)
+- `fps=15` — 15 frames per second for smooth playback
 - `scale=800:-1` — scale width to 800px, maintain aspect ratio
+- `setpts=1.5*PTS` — slow playback to 1.5x duration so transitions are visible to human reviewers
 - `-loop 0` — loop the GIF infinitely
 
 ### Check if ffmpeg is available
@@ -104,9 +105,18 @@ If `ffmpeg` is not installed:
 
 ## Embedding in PR Description
 
-### Automated approach (preferred) — Upload to branch via GitHub Contents API
+### Automated approach (preferred) — Upload to dedicated `screenrecordings` branch
 
-After `git push`, upload GIFs to `<workspace>/.github/screenshots/<before|after>-fix.gif` on the branch using the GitHub Contents API. This is handled automatically by `raise-pr` Step 10.2.
+GIFs are uploaded to a dedicated `screenrecordings` branch on the user's fork — NOT the feature branch. This keeps the GIFs out of the PR diff (no "Files changed" noise) and prevents them from landing on upstream `main` when the PR merges. This is handled automatically by `raise-pr` Step 10.2.
+
+Files are stored with issue-specific paths to avoid collisions across bug fixes:
+
+```
+screenrecordings/<workspace>-<ISSUE_ID>/before-fix.gif
+screenrecordings/<workspace>-<ISSUE_ID>/after-fix.gif
+```
+
+Where `<ISSUE_ID>` is the Jira key (e.g., `RHDHBUGS-2911`) or GitHub issue number (e.g., `9834`).
 
 ```bash
 TOKEN=$(gh auth token)
@@ -114,21 +124,21 @@ GIF_B64=$(base64 -i e2e-tests/_repro-artifacts/before-fix.gif)
 curl -s -X PUT \
   -H "Authorization: token $TOKEN" \
   -H "Accept: application/vnd.github+json" \
-  -d '{"message":"docs: add before-fix recording","content":"'"$GIF_B64"'","branch":"<branch-name>"}' \
-  "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/<workspace>/.github/screenshots/before-fix.gif"
+  -d '{"message":"docs: add before-fix recording","content":"'"$GIF_B64"'","branch":"screenrecordings"}' \
+  "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/screenrecordings/<workspace>-<ISSUE_ID>/before-fix.gif"
 ```
 
 Extract the `download_url` from the JSON response — this is the `raw.githubusercontent.com` URL. Use it in the PR body:
 
 ```markdown
 ## UI before changes
-![Before fix](https://raw.githubusercontent.com/<fork-owner>/<repo>/branch/.github/screenshots/before-fix.gif)
+![Before fix](https://raw.githubusercontent.com/<fork-owner>/<repo>/screenrecordings/screenrecordings/<workspace>-<ISSUE_ID>/before-fix.gif)
 
 ## UI after changes
-![After fix](https://raw.githubusercontent.com/<fork-owner>/<repo>/branch/.github/screenshots/after-fix.gif)
+![After fix](https://raw.githubusercontent.com/<fork-owner>/<repo>/screenrecordings/screenrecordings/<workspace>-<ISSUE_ID>/after-fix.gif)
 ```
 
-The GIF files live on the feature branch only — they never reach `main`. When the PR merges and the branch is deleted, the files disappear. GitHub's camo proxy caches the rendered image permanently in the PR history.
+The GIF files live on the `screenrecordings` branch of the fork only — they never appear in the PR diff and never reach upstream `main`. GitHub's camo proxy caches the rendered images permanently in the PR description, so they remain visible even if the branch is later cleaned up.
 
 ### Fallback — Manual upload
 

@@ -45,7 +45,7 @@ NEVER bypass this skill by running `gh pr create` or `git push` directly. When a
 </principle>
 
 <principle name="recordings_upload_hard_gate">
-When `recordings` caller context is provided, the GIF upload in Step 10.2 is MANDATORY — not optional. You MUST upload both GIF files via the GitHub Contents API and extract real `raw.githubusercontent.com` URLs BEFORE constructing the PR body. NEVER use placeholder URLs, `github.com/user-attachments/assets/` URLs, or any fabricated URLs. If the upload fails, you MUST either retry or inform the user that manual upload is needed — do NOT silently proceed with broken image links.
+When `recordings` caller context is provided, the GIF upload in Step 10.2 is MANDATORY — not optional. You MUST upload both GIF files to the dedicated `screenrecordings` branch on the user's fork via the GitHub Contents API and extract real `raw.githubusercontent.com` URLs BEFORE constructing the PR body. NEVER upload to the feature branch (it pollutes the PR diff and lands on upstream main). NEVER use placeholder URLs, `github.com/user-attachments/assets/` URLs, or any fabricated URLs. If the upload fails, you MUST either retry or inform the user that manual upload is needed — do NOT silently proceed with broken image links.
 </principle>
 
 </essential_principles>
@@ -273,9 +273,11 @@ Where `<issue_url>` is `jira_url` or `github_issue_url` depending on `issue_sour
 git push -u origin HEAD
 ```
 
-2. **Upload recording GIFs to branch [HARD GATE when `recordings` is provided]**:
+2. **Upload recording GIFs to dedicated `screenrecordings` branch [HARD GATE when `recordings` is provided]**:
 
    Skip this sub-step ONLY if `recordings` caller context is NOT provided. When `recordings` IS provided, this sub-step is MANDATORY — do NOT skip, defer, or substitute with placeholder URLs.
+
+   GIFs are uploaded to a dedicated `screenrecordings` branch on the user's fork — NOT the feature branch. This keeps the GIFs out of the PR diff and prevents them from landing on upstream `main` when the PR merges.
 
    a. Verify both local GIF files exist before proceeding:
    ```
@@ -284,28 +286,49 @@ git push -u origin HEAD
    If either file is missing, STOP and inform the user.
 
    b. Determine the fork owner and repo name from the `origin` remote URL (e.g., `its-mitesh-kumar/rhdh-plugins`).
-   c. Get the current branch name: `git branch --show-current`.
-   c2. Extract the committer identity for the `Signed-off-by` trailer (required by DCO checks):
-   ```
-   COMMITTER_NAME=$(git config user.name)
-   COMMITTER_EMAIL=$(git config user.email)
-   ```
-   d. For each GIF file (`recordings.before` and `recordings.after`), upload to the branch via the GitHub Contents API. The commit message MUST include a `Signed-off-by` trailer to pass DCO checks:
+   c. Build the issue-specific upload path to avoid filename collisions across bug fixes:
+   - If `issue_source = jira`: `ISSUE_ID = <jira_key>` (e.g., `RHDHBUGS-2911`)
+   - If `issue_source = github`: `ISSUE_ID = <github_issue_number>` (e.g., `9834`)
+   - If no issue context: `ISSUE_ID = $(date +%Y%m%d-%H%M%S)`
 
+   Upload path: `screenrecordings/<workspace>-<ISSUE_ID>/before-fix.gif` and `.../after-fix.gif`.
+
+   d. Ensure the `screenrecordings` branch exists on the fork. Check and create if needed:
    ```
    TOKEN=$(gh auth token)
+   # Check if branch exists
+   HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+     -H "Authorization: token $TOKEN" \
+     "https://api.github.com/repos/<fork-owner>/<repo-name>/git/ref/heads/screenrecordings")
+   if [ "$HTTP_STATUS" != "200" ]; then
+     # Get the SHA of the default branch HEAD
+     DEFAULT_SHA=$(curl -s -H "Authorization: token $TOKEN" \
+       "https://api.github.com/repos/<fork-owner>/<repo-name>/git/ref/heads/main" | \
+       python3 -c "import sys,json; print(json.load(sys.stdin)['object']['sha'])")
+     # Create the branch
+     curl -s -X POST \
+       -H "Authorization: token $TOKEN" \
+       -H "Accept: application/vnd.github+json" \
+       -d '{"ref":"refs/heads/screenrecordings","sha":"'"$DEFAULT_SHA"'"}' \
+       "https://api.github.com/repos/<fork-owner>/<repo-name>/git/refs"
+   fi
+   ```
+
+   e. For each GIF file (`recordings.before` and `recordings.after`), upload to the `screenrecordings` branch via the GitHub Contents API:
+
+   ```
    GIF_B64=$(base64 -i <local-gif-path>)
    RESPONSE=$(curl -s -X PUT \
      -H "Authorization: token $TOKEN" \
      -H "Accept: application/vnd.github+json" \
-     -d '{"message":"docs: add <before|after>-fix recording\n\nSigned-off-by: '"$COMMITTER_NAME"' <'"$COMMITTER_EMAIL"'>","content":"'"$GIF_B64"'","branch":"<branch-name>"}' \
-     "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/<workspace>/.github/screenshots/<before|after>-fix.gif")
+     -d '{"message":"docs: add <before|after>-fix recording for <workspace>-<ISSUE_ID>","content":"'"$GIF_B64"'","branch":"screenrecordings"}' \
+     "https://api.github.com/repos/<fork-owner>/<repo-name>/contents/screenrecordings/<workspace>-<ISSUE_ID>/<before|after>-fix.gif")
    echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); url=d.get('content',{}).get('download_url',''); print('download_url:', url); exit(0 if url.startswith('https://raw.githubusercontent.com') else 1)"
    ```
 
-   e. Extract the `download_url` from the JSON response — this is the `raw.githubusercontent.com` URL. **Verify** that the URL starts with `https://raw.githubusercontent.com/` — if it does not, the upload failed.
-   f. Store both URLs: `before_gif_url`, `after_gif_url`.
-   g. Echo a verification banner:
+   f. Extract the `download_url` from the JSON response — this is the `raw.githubusercontent.com` URL. **Verify** that the URL starts with `https://raw.githubusercontent.com/` — if it does not, the upload failed.
+   g. Store both URLs: `before_gif_url`, `after_gif_url`.
+   h. Echo a verification banner:
    ```
    echo "✅ GIF upload verified: before=$before_gif_url after=$after_gif_url"
    ```
