@@ -18,7 +18,6 @@ Conventions in this skill: paths are prefixed with the repo they live in — `rh
 
 ## When to Use
 
-- A developer asks "where should I test this?", "should this be an e2e test?", "does this need a cluster?", or "which repo does this test belong in?"
 - A new plugin, plugin version bump, or plugin config change needs test coverage.
 - A bug escaped to a cluster e2e run and the team wants a cheaper regression test.
 - Reviewing a PR that adds a test at the wrong layer (e.g. a cluster e2e for pure UI logic).
@@ -90,7 +89,7 @@ The full per-spec classification of the RHDH e2e suite lives in `rhdh: docs/e2e-
 
 **L4b cluster e2e** (`rhdh: e2e-tests/playwright/e2e/**`) — only when the subject *is* cluster/platform behavior or a real external service. Requirements: `component` annotation in `beforeAll` (see the repo's `ci-e2e-testing` rule), correct config map choice (RBAC vs non-RBAC), project registration in `e2e-tests/playwright/projects.json` if a new project is needed.
 
-**L3 component tests** — page-level RTL compositions, pattern proposed under RHIDP-13235 in [rhdh#4864](https://github.com/redhat-developer/rhdh/pull/4864) (closed, not merged). Check for merged examples before recommending a concrete template; prefer L3 over L4a when no dynamic-plugin loading is involved.
+**L3 component tests** (`rhdh: packages/app/src/**/*.test.tsx`) — page-level RTL compositions, pattern established under RHIDP-13235 in [rhdh#4864](https://github.com/redhat-developer/rhdh/pull/4864). Existing templates to copy: `InfoCard.test.tsx`, `LearningPathsPage.test.tsx`, `CustomSidebarItem.test.tsx` (component compositions) and `getMountPointData.test.ts` (dynamic-UI helper). Prefer L3 over L4a when no dynamic-plugin loading is involved.
 
 **Catalog-index-wide sanity** (nightly, in review — see References) — nothing to write per plugin; it sweeps the whole index.
 
@@ -114,8 +113,8 @@ Answer with a concrete recommendation:
 ## References (PR statuses are as of the last edit — verify before citing as merged)
 
 - Epic **RHIDP-13501** (E2E Test Optimization) — the per-repo responsibility split lives in the epic's comments and its Jira attachment `rhdh-dynamic-plugin-testing-guideline.md` (Jira-only; if unreachable, the decision table above is the summary).
-- Layer matrix: `rhdh: docs/e2e-tests/layer-migration-matrix.md` — in review in [rhdh#5044](https://github.com/redhat-developer/rhdh/pull/5044) (RHIDP-15076); the path resolves on `main` once that PR merges.
+- Layer matrix: [`rhdh: docs/e2e-tests/layer-migration-matrix.md`](https://github.com/redhat-developer/rhdh/blob/main/docs/e2e-tests/layer-migration-matrix.md) — merged in [rhdh#5044](https://github.com/redhat-developer/rhdh/pull/5044) (RHIDP-15076).
 - Cluster-free harness + docs: merged in [rhdh#5005](https://github.com/redhat-developer/rhdh/pull/5005) (RHIDP-15075); expanded to 10 specs / 14 test cases in [rhdh#5057](https://github.com/redhat-developer/rhdh/pull/5057) — the richest set of worked enablement examples (config mirrors, catalog file locations, OCI plugin additions).
 - Overlays native smoke: merged in [overlays#2714](https://github.com/redhat-developer/rhdh-plugin-export-overlays/pull/2714); the per-workspace mode used in Step 4 merged in [overlays#2731](https://github.com/redhat-developer/rhdh-plugin-export-overlays/pull/2731).
 - Catalog-index sanity check: in review in [rhdh#4967](https://github.com/redhat-developer/rhdh/pull/4967).
-- L3 pattern proposal: [rhdh#4864](https://github.com/redhat-developer/rhdh/pull/4864) (closed) under RHIDP-13235.
+- L3 pattern: merged in [rhdh#4864](https://github.com/redhat-developer/rhdh/pull/4864) under RHIDP-13235.
