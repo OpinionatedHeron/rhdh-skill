@@ -4,10 +4,12 @@ description: >-
   Propose where to test a change in the RHDH dynamic-plugin ecosystem: which
   repo (rhdh-plugins, rhdh-plugin-export-overlays, rhdh), which test layer
   (unit, integration, component, cluster-free E2E, cluster E2E), where the
-  test lives, and how to create it. Use when asked "where should I test
-  this", "does this need a cluster", "should this be an e2e test", "which
-  repo does this test belong in", "what test layer", "test placement", or
-  when reviewing a test added at the wrong layer.
+  test lives, and how to create it — then write it by mirroring an existing
+  test in that repo. Use when asked "where should I test this", "does this
+  need a cluster", "should this be an e2e test", "which repo does this test
+  belong in", "what test layer", "test placement", "how do I write a test
+  for this", "write a test for X", "add a unit/integration/component test",
+  or when reviewing a test added at the wrong layer.
 ---
 
 # Test Placement Advisor
@@ -80,6 +82,16 @@ The full per-spec classification of the RHDH e2e suite lives in `rhdh: docs/e2e-
 
 ### `rhdh` — the real app
 
+Authoring reference for L1–L3: **`rhdh: docs/testing.md`** — which utilities to import per layer, what to assert, and the current worked examples. It lives next to the code, so prefer it over any API name written here.
+
+Listed cheapest-first, matching the ladder in Step 3.
+
+**L1 unit** (`rhdh: plugins/*/src/**`, `rhdh: packages/app/src/**`) — pure logic, or a router you construct by hand and drive with `supertest`; no backend boot. Template to copy: `rhdh: plugins/scalprum-backend/src/service/router.test.ts` (table-driven, mock directory for on-disk plugin content).
+
+**L2 backend integration** (`rhdh: plugins/*/src/**`, named `*.integration.test.ts`) — boots the **real plugin** via `startTestBackend` and asserts over HTTP. This is the layer that proves the plugin's wiring — routes, service dependencies, auth policy — which L1 cannot show. Template to copy: `rhdh: plugins/scalprum-backend/src/service/router.integration.test.ts`. Assert the HTTP contract (status, body shape, what an unauthenticated caller gets), *not* that the plugin booted — a successful request already implies that. Booting is slow; allow a generous per-test timeout.
+
+**L3 component tests** (`rhdh: packages/app/src/**/*.test.tsx`) — page-level RTL compositions, pattern established under RHIDP-13235 in [rhdh#4864](https://github.com/redhat-developer/rhdh/pull/4864). Existing templates to copy: `InfoCard.test.tsx`, `LearningPathsPage.test.tsx`, `CustomSidebarItem.test.tsx` (component compositions) and `getMountPointData.test.ts` (dynamic-UI helper). Prefer L3 over L4a when no dynamic-plugin loading is involved.
+
 **L4a cluster-free harness** (config `rhdh: e2e-tests/playwright.legacy-local.config.ts`, docs `rhdh: docs/e2e-tests/local-e2e-harness.md`) — the only cheap place a frontend dynamic plugin can be *rendered*. To enable a spec/test:
 
 1. Plugin not yet installed by the harness? Add its OCI entry to `rhdh: e2e-tests/local-harness/dynamic-plugins.yaml` (tags on `ghcr.io/redhat-developer/rhdh-plugin-export-overlays/<package>`). If its mount-point config is not in the repo's static `app-config.dynamic-plugins.yaml`, attach the plugin's **canonical `pluginConfig`** (source of truth: `plugins: workspaces/<ws>/plugins/<plugin>/app-config.dynamic.yaml`) — the harness loads the generated `dynamic-plugins-root/app-config.dynamic-plugins.yaml` last, exactly like the production container.
@@ -89,9 +101,28 @@ The full per-spec classification of the RHDH e2e suite lives in `rhdh: docs/e2e-
 
 **L4b cluster e2e** (`rhdh: e2e-tests/playwright/e2e/**`) — only when the subject *is* cluster/platform behavior or a real external service. Requirements: `component` annotation in `beforeAll` (see the repo's `ci-e2e-testing` rule), correct config map choice (RBAC vs non-RBAC), project registration in `e2e-tests/playwright/projects.json` if a new project is needed.
 
-**L3 component tests** (`rhdh: packages/app/src/**/*.test.tsx`) — page-level RTL compositions, pattern established under RHIDP-13235 in [rhdh#4864](https://github.com/redhat-developer/rhdh/pull/4864). Existing templates to copy: `InfoCard.test.tsx`, `LearningPathsPage.test.tsx`, `CustomSidebarItem.test.tsx` (component compositions) and `getMountPointData.test.ts` (dynamic-UI helper). Prefer L3 over L4a when no dynamic-plugin loading is involved.
-
 **Catalog-index-wide sanity** (nightly, in review — see References) — nothing to write per plugin; it sweeps the whole index.
+
+## Step 5 — Write the test
+
+Once Steps 2–4 have settled the repo and the layer, write it by **mirroring a real file**, never from memory of an API. The Backstage test surface moves (`@backstage/test-utils` was renamed to `@backstage/frontend-test-utils`), so a package or helper name recalled from training data is likely to be stale — a file on `main` cannot be.
+
+1. **Open the template** named in Step 4 for the chosen layer and read it in full. If the path no longer exists, glob its directory for a sibling `*.test.ts(x)` and use that; if the directory is gone too, say so rather than inventing imports.
+2. **Consult the repo's own authoring reference** — for `rhdh` L1–L3 that is `rhdh: docs/testing.md`, which lists the utilities per layer and what to assert. It is maintained next to the code, so it wins over anything written in this skill.
+3. **Mirror, then adapt** — copy the template's imports, setup and teardown; replace the subject and the assertions. Keep the file next to the code, matching the neighbours' naming (`*.test.ts` for L1, `*.integration.test.ts` for L2).
+4. **Run it** before reporting done:
+
+| Placement | Command |
+| --- | --- |
+| `rhdh` L1 / L2 / L3 | `yarn test --filter=<package>` |
+| `rhdh` L4a | `./e2e-tests/local-harness/populate.sh` then `yarn --cwd e2e-tests e2e:legacy-local` |
+| `rhdh` L4b | `yarn --cwd e2e-tests playwright test --project=<project>` |
+| `rhdh-plugins` | the workspace's `yarn test` |
+| `overlays` native smoke | `yarn smoke --dynamic-plugins <file>` |
+
+5. **Layer checklist** — L2: assert the HTTP contract, not that the plugin booted; allow a generous timeout. L4a: tag `{ tag: "@cluster-free" }` and add the spec to the config's `testMatch` allowlist. L4b: `component` annotation in `beforeAll`, correct RBAC vs non-RBAC config map, and register the project in `projects.json` if new.
+
+**Justify the test by the failure it would catch, not by coverage.** Codecov is `informational: true` on both the project and patch statuses in `rhdh` and `rhdh-plugins`, so no coverage number can block a PR and there is no threshold to reach. A test whose only rationale is a coverage delta will be — and has been — rejected in review.
 
 ## Not possible today (researched — don't burn time)
 
@@ -113,7 +144,8 @@ Answer with a concrete recommendation:
 ## References (PR statuses are as of the last edit — verify before citing as merged)
 
 - Epic **RHIDP-13501** (E2E Test Optimization) — the per-repo responsibility split lives in the epic's comments and its Jira attachment `rhdh-dynamic-plugin-testing-guideline.md` (Jira-only; if unreachable, the decision table above is the summary).
-- Layer matrix: [`rhdh: docs/e2e-tests/layer-migration-matrix.md`](https://github.com/redhat-developer/rhdh/blob/main/docs/e2e-tests/layer-migration-matrix.md) — merged in [rhdh#5044](https://github.com/redhat-developer/rhdh/pull/5044) (RHIDP-15076).
+- Layer matrix: [`rhdh: docs/e2e-tests/layer-migration-matrix.md`](https://github.com/redhat-developer/rhdh/blob/main/docs/e2e-tests/layer-migration-matrix.md) — merged in [rhdh#5044](https://github.com/redhat-developer/rhdh/pull/5044) (RHIDP-15076). This is a *migration* analysis of the existing e2e suite; for **how to write** an L1–L3 test see the next entry.
+- L1–L3 authoring guide: [`rhdh: docs/testing.md`](https://github.com/redhat-developer/rhdh/blob/main/docs/testing.md) — merged in [rhdh#5140](https://github.com/redhat-developer/rhdh/pull/5140) (RHIDP-13234). Utilities per layer, what to assert, and the worked examples Step 4 points at.
 - Cluster-free harness + docs: merged in [rhdh#5005](https://github.com/redhat-developer/rhdh/pull/5005) (RHIDP-15075); expanded to 10 specs / 14 test cases in [rhdh#5057](https://github.com/redhat-developer/rhdh/pull/5057) — the richest set of worked enablement examples (config mirrors, catalog file locations, OCI plugin additions).
 - Overlays native smoke: merged in [overlays#2714](https://github.com/redhat-developer/rhdh-plugin-export-overlays/pull/2714); the per-workspace mode used in Step 4 merged in [overlays#2731](https://github.com/redhat-developer/rhdh-plugin-export-overlays/pull/2731).
 - Catalog-index sanity check: in review in [rhdh#4967](https://github.com/redhat-developer/rhdh/pull/4967).
