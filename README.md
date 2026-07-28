@@ -111,6 +111,18 @@ Track work across the four RHDH Jira projects.
   - **[to-issue](./skills/rhdh-jira/references/to-issue.md)** — Create a Story, Task, Bug, or Spike with automatic type inference. Grills on implementation details and story points.
   - **[update-jira-status](./skills/rhdh-jira/references/update-jira-status.md)** — Update an issue with session progress. Detects the related issue, adds a status comment, proposes transitions, and checks upward cascade to parent Epic/Feature.
 
+### PR Workflow
+
+Automate the full PR lifecycle — build, changeset, commit, push, and create — for plugin monorepos.
+
+- **[raise-pr](./skills/raise-pr/SKILL.md)** — Full PR workflow for `rhdh-plugins` and `community-plugins`: detect workspace from staged changes, run build/validation, generate changesets, commit with sign-off, push, and create the GitHub PR. Auto-detects which repo you're in. Supports `--a` auto-approve mode to skip all approval gates. Accepts an optional Jira key or URL to link the PR — adds Web Link, comment, and transitions the issue to Review.
+
+### Bug Fix
+
+Reproduce, diagnose, fix, and PR RHDH plugin bugs from Jira tickets with automated Playwright-based before/after screen recordings.
+
+- **[bug-fix](./skills/bug-fix/SKILL.md)** — End-to-end bug fix workflow: fetch Jira issue, map component to workspace, write Playwright reproduction test with video recording, diagnose root cause, apply fix, verify, and create PR with before/after recordings embedded. Chains into `raise-pr` for the full PR lifecycle including post-PR Jira updates.
+
 ### PR Review
 
 - **[rhdh-pr-review](./skills/rhdh-pr-review/SKILL.md)** — PR code review with inline comments (GitHub, GitLab planned) and live cluster testing for rhdh-operator PRs. Layered architecture: fetch → analyze → post.
