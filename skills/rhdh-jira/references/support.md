@@ -5,7 +5,7 @@ How support cases flow between RHDHSUPP, RHDHBUGS, and RHDHPLAN.
 ## Key Concepts
 
 - **RHDHSUPP** — Internal project for engineering-support conversations. Not public.
-- **RHDHBUGS** — Public project for product defects. **Never include customer information.**
+- **RHDHBUGS** — Public project for product defects. Prefer support case keys in summary/description; apply `RHDH-Customer` as a Jira label; no customer names in unprotected fields — see `references/fields.md`.
 - **RHDHPLAN** — Public project for feature requests.
 - The engineering support liaison owns the relationship with the support team. Route questions about the support process to them.
 
@@ -65,7 +65,7 @@ When a product defect is identified:
 1. Create `Bug` in **RHDHBUGS** with:
    - Priority, Component (use `Documentation` for doc defects)
    - Bug template filled out (reproduction steps, expected behavior)
-   - **No customer information** — RHDHBUGS is a public project
+   - Prefer support case key in summary/description; apply `RHDH-Customer` as a Jira label; no customer names in unprotected fields (see `references/fields.md`)
    - Link to Customer Case via SFDC Cases Links
 2. Comment on the RHDHSUPP issue with the RHDHBUGS link — this tells the customer when the fix is expected
 
@@ -78,7 +78,7 @@ python scripts/jira-wiki-to-adf.py bug_description.txt "$BUG_ADF"
 acli jira workitem create --project RHDHBUGS --type Bug \
   --summary "Login fails when SSO token expires during session" \
   --description-file "$BUG_ADF" \
-  --label "rhdh-customer" \
+  --label "RHDH-Customer" \
   --assignee "@me"
 
 # Link it to the support issue
@@ -184,4 +184,4 @@ These are internal documents. Do not embed their URLs in agent output or share e
 | RHDHBUGS | Product defects — bugs and doc defects | Yes |
 | RHDHPLAN | Feature requests from customers | Yes |
 
-**Security rule:** Never copy customer-identifying information from RHDHSUPP into RHDHBUGS or RHDHPLAN. Those projects are public.
+**Security rule:** Prefer support-ticket keys + a single `RHDH-Customer` label in RHDHBUGS/RHDHPLAN; put customer-identifying detail only in restricted-visibility comments when needed. Never copy customer names into unprotected fields on those public projects. See `references/fields.md` (authoritative).

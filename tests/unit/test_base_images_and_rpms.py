@@ -22,12 +22,22 @@ def _clean_rhdh_env() -> dict[str, str]:
     return {k: v for k, v in os.environ.items() if k not in RHDH_ENV_VARS}
 
 
+def _shell_script_cmd(script: Path, *args: str) -> list[str]:
+    """Build argv to run a .sh script (via bash on Windows)."""
+    if os.name == "nt":
+        bash = shutil.which("bash")
+        if bash is None:
+            pytest.skip("bash required to run .sh scripts on Windows")
+        return [bash, str(script), *args]
+    return [str(script), *args]
+
+
 def _run_analyze(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     run_env = _clean_rhdh_env()
     if env:
         run_env.update(env)
     return subprocess.run(
-        [str(ANALYZE_SCRIPT), *args],
+        _shell_script_cmd(ANALYZE_SCRIPT, *args),
         capture_output=True,
         text=True,
         env=run_env,
@@ -68,6 +78,7 @@ class TestAnalyzeBaseImagesScript:
         assert result.returncode != 0
         assert "Set RHDH_BUILD_SCRIPTS" in result.stderr
 
+    @pytest.mark.skipif(shutil.which("skopeo") is None, reason="skopeo not installed")
     def test_missing_get_latest_script_exits_nonzero(self, tmp_path: Path) -> None:
         scripts_dir = tmp_path / "scripts"
         scripts_dir.mkdir()
@@ -217,7 +228,7 @@ class TestBaseImagesAndRpmsScript:
 
     def test_main_script_help_lists_analyze(self) -> None:
         result = subprocess.run(
-            [str(MAIN_SCRIPT), "--help"],
+            _shell_script_cmd(MAIN_SCRIPT, "--help"),
             capture_output=True,
             text=True,
             check=False,

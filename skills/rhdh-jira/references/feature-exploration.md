@@ -59,6 +59,7 @@ Components must be accurate — they affect Feature Freeze and Code Freeze queri
 - `rhdh-testday` — if this feature should be tested as part of release test day
 - `rhdh-X.Y-candidate` — candidate for a specific release (e.g., `rhdh-2.1-candidate`)
 - `stretch` — stretch goal for the release (may be descoped)
+- `RHDH-Customer` — if the feature originated from a support case or customer engagement (single label; never also `rhdh-customer`). Prefer support key in summary/description; apply this as a Jira label; identity only in restricted comments — see `references/fields.md`.
 
 ### 7. Create Epics for Each Scrum Team
 

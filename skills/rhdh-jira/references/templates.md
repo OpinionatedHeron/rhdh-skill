@@ -52,6 +52,7 @@ Load `references/workflows.md` for full exit criteria per status. Key fields at 
 ## Notes
 
 - **Feature Request** and **Outcome** templates exist in RHDHPLAN but are not used by the creation sub-commands. See `references/support.md` for Feature Request creation from support cases.
-- **Bugs go to RHDHBUGS**, not RHIDP. Do not include customer information in RHDHBUGS — it's a public project.
+- **Bugs go to RHDHBUGS**, not RHIDP. Prefer support case keys in summary/description; apply `RHDH-Customer` as a Jira label; no customer names in unprotected fields — see `references/fields.md`. RHDHBUGS is public.
+- **Field requirements at creation:** Intentional pointer to `references/workflows.md` for full exit criteria (loaded when needed; not a transitive hop from this file alone).
 - **Spikes** use the Task template with a `SPIKE:` prefix in the summary and a time-boxed story point estimate.
 - **Sub-tasks** are created as children of an existing issue, not standalone. Use `acli jira workitem create --parent KEY` for sub-tasks.

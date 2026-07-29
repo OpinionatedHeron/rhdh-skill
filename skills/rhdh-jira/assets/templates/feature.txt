@@ -24,7 +24,7 @@ High-level list of items that are out of scope.
 
 h3. *Customer Considerations (Optional)*
 
-Provide any additional customer-specific considerations that must be made when designing and delivering the Feature. Initial completion during Refinement status.
+Provide non-identifying customer considerations for designing and delivering the Feature (support-ticket keys, personas, use cases). Do not put customer names in this unprotected field — use the RHDH-Customer label and restricted-visibility comments for identity. Initial completion during Refinement status.
 
 <your text here>
 

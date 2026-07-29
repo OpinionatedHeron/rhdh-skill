@@ -4,6 +4,10 @@ Create an RHIDP Epic from conversation context. Grills the user on delivery scop
 
 ## Workflow
 
+### Step 0 — Grilling prerequisite
+
+Load `references/grill.md` → Grilling prerequisite and Validate before creating. Hard-require grilling before create. Also load `references/sizing.md` and `references/fields.md` before the grill.
+
 ### Step 1 — Determine Context
 
 Two entry modes:
@@ -39,9 +43,13 @@ Synthesize: Draft as many template sections as possible from the conversation (a
 
 If chained from a Feature, pre-fill: Goal (scoped to this team's delivery), Background (link to parent Feature), Dependencies (other Epics in the Feature).
 
+When drafting customer-origin context, one-line check against `references/fields.md`: support case key / persona / use case — no customer names.
+
 Present the draft: "Here's what I have for this Epic. Review and tell me what's missing."
 
-### Step 3 — Fill Gaps
+### Step 3 — Fill Gaps + Challenge
+
+Invoke the installed `grilling` skill once covering Fill Gaps + Challenge (read its SKILL.md and follow it; `/grilling` if host supports slash-commands). Do not re-implement cadence in this skill. Apply domain challenges from `references/grill.md`.
 
 For unfilled sections, ask targeted questions. Adapt based on entry mode:
 
@@ -54,7 +62,7 @@ For unfilled sections, ask targeted questions. Adapt based on entry mode:
 **Standalone (full):**
 
 1. **EPIC Goal** — what are we trying to solve?
-2. **Background/Feature Origin** — where did this come from?
+2. **Background/Feature Origin** — where did this come from? (support case key / persona / use case — no customer names; see `references/fields.md`)
 3. **Why is this important?**
 4. **User Scenarios** — who benefits and how?
 5. **Dependencies** — internal and external
@@ -62,11 +70,7 @@ For unfilled sections, ask targeted questions. Adapt based on entry mode:
 
 Skip questions the draft already answered.
 
-### Step 4 — Challenge
-
-Follow the challenging behavior in `references/grill.md`.
-
-### Step 5 — Infer Fields
+### Step 4 — Infer Fields
 
 Infer all Jira fields per `references/grill.md` Field Inference. If chained, inherit Priority and Team from parent Feature. Key fields: Team, Priority, Size (T-shirt), Component, Assignee (Epic Owner).
 
@@ -74,12 +78,15 @@ Infer all Jira fields per `references/grill.md` Field Inference. If chained, inh
 
 **Dependencies:** Link or note key dependencies on other issues, teams, or upstream work.
 
-### Step 6 — Review
+**Customer identity + labels:** Prefer support key in summary/description; apply `RHDH-Customer` as a Jira label for customer-origin work; put customer-identifying detail only in restricted-visibility comments. Never also apply `rhdh-customer`. See `references/fields.md`.
 
-Render the filled template and inferred fields as a temporary markdown file for user review:
+### Step 5 — Review
+
+Render the filled template and inferred fields as a temporary markdown file for user review. Use a portable temp path (`$TMPDIR` / `%TEMP%` / Python `tempfile`):
 
 ```bash
-cat > /tmp/epic-review.md << 'EOF'
+REVIEW=$(mktemp "${TMPDIR:-/tmp}/epic-review.XXXXXX.md")  # Windows: %TEMP%\epic-review.md or tempfile
+cat > "$REVIEW" << 'EOF'
 ## Epic: {summary}
 
 ### Description
@@ -96,11 +103,13 @@ EOF
 
 Present to the user: "Review the Epic before creating. [approve / edit / cancel]"
 
-### Step 7 — Duplicate Check
+### Step 6 — Duplicate Check
 
 Run the pre-creation check from `references/duplicates.md`. Search RHIDP Epics (`issuetype = Epic`).
 
-### Step 8 — Create Epic
+### Step 7 — Create Epic
+
+Before create: re-check customer identity + label rules per `references/grill.md` → Validate before creating.
 
 Fill the template. Then convert to ADF using the helper script (see Gotcha #6). `acli create` accepts ADF via `--description-file`:
 
@@ -135,13 +144,13 @@ curl -s -X PUT -u "$AUTH" -H "Content-Type: application/json" \
 
 Set Team via REST — follow API preference order in SKILL.md.
 
-### Step 9 — Comments
+### Step 8 — Comments
 
 Follow the comment suggestion behavior from `references/grill.md` — proactively suggest decision trail, elaboration, and abandoned paths as comments.
 
 Add via `acli jira workitem comment --key RHIDP-XXX --comment "text" --yes`.
 
-### Step 10 — Chain Decomposition
+### Step 9 — Chain Decomposition
 
 After the Epic is created:
 
@@ -190,4 +199,4 @@ When decomposing a Feature into multiple Epics (chained creation), run a batch r
 1. **Epic Owner responsibility.** The assignee is the Epic Owner — single point of contact for delivery, works with the Feature Owner to align execution. The Epic Owner is responsible for sizing the Epic.
 2. **Component is required at New status.** Don't skip this during the grill. Validate against `references/fields.md` → Component Validation.
 3. **Multi-team Features create multiple Epics.** When chained from a Feature, each team gets its own Epic. The Feature Owner coordinates across them.
-4. **Size via sizing guide.** Use T-shirt sizing per `references/sizing.md`. If the parent Feature has multiple L or XL Epics, flag for the Feature Owner — the Feature scope may need reassessment.
+4. **Size via sizing guide.** Use T-shirt sizing per `references/sizing.md` (loaded in Step 0). If the parent Feature has multiple L or XL Epics, flag for the Feature Owner — the Feature scope may need reassessment.

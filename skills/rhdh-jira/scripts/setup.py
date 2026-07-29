@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify acli installation and Jira authentication for RHDH projects."""
+"""Verify acli installation, Jira authentication, and grilling skill for RHDH."""
 
 import argparse
 import json
@@ -10,6 +10,10 @@ from pathlib import Path
 
 RHDH_PROJECTS = ["RHIDP", "RHDHPLAN", "RHDHBUGS", "RHDHSUPP"]
 JIRA_CONFIG_RELATIVE = Path(".config", "acli", "jira_config.yaml")
+
+MINIMAL_GRILLING_INSTALL = "npx skills@latest add mattpocock/skills --skill grilling -g -y"
+RECOMMENDED_GRILLING_INSTALL = "npx skills@latest add mattpocock/skills --all -g"
+GRILLING_SKILL_RELATIVE = Path("grilling") / "SKILL.md"
 
 
 def find_acli():
@@ -30,6 +34,40 @@ def find_acli():
                 return str(candidate)
 
     return None
+
+
+def grilling_search_paths(home=None, cwd=None):
+    """Return candidate paths for grilling/SKILL.md (user + project-local)."""
+    home = Path.home() if home is None else Path(home)
+    cwd = Path.cwd() if cwd is None else Path(cwd)
+    return [
+        home / ".claude" / "skills" / GRILLING_SKILL_RELATIVE,
+        home / ".agents" / "skills" / GRILLING_SKILL_RELATIVE,
+        home / ".cursor" / "skills" / GRILLING_SKILL_RELATIVE,
+        cwd / ".claude" / "skills" / GRILLING_SKILL_RELATIVE,
+        cwd / ".agents" / "skills" / GRILLING_SKILL_RELATIVE,
+        cwd / ".cursor" / "skills" / GRILLING_SKILL_RELATIVE,
+    ]
+
+
+def find_grilling(home=None, cwd=None):
+    """Return the first existing grilling/SKILL.md path, or None."""
+    for path in grilling_search_paths(home=home, cwd=cwd):
+        if path.is_file():
+            return path.resolve()
+    return None
+
+
+def check_grilling(home=None, cwd=None):
+    """Build a results dict for grilling skill detection."""
+    found = find_grilling(home=home, cwd=cwd)
+    return {
+        "grilling_found": found is not None,
+        "grilling_path": str(found) if found else None,
+        "minimal_install": MINIMAL_GRILLING_INSTALL,
+        "recommended_install": RECOMMENDED_GRILLING_INSTALL,
+        "overall": "pass" if found else "fail",
+    }
 
 
 def check_config():
@@ -125,13 +163,39 @@ def check_token_file(acli_path):
         return None, f"read error: {e}", warnings
 
 
-def main():
+def _merge_grilling(results, home=None, cwd=None):
+    """Attach grilling detection fields to a full setup results dict."""
+    grilling = check_grilling(home=home, cwd=cwd)
+    results["grilling_found"] = grilling["grilling_found"]
+    results["grilling_path"] = grilling["grilling_path"]
+    results["grilling_minimal_install"] = grilling["minimal_install"]
+    results["grilling_recommended_install"] = grilling["recommended_install"]
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Verify acli installation and Jira authentication for RHDH."
+        description=(
+            "Verify acli installation and Jira authentication for RHDH. "
+            "Also detects Matt Pocock's grilling skill (required for create/grill paths)."
+        )
     )
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument("--quick", action="store_true", help="Skip project accessibility check")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--grilling-only",
+        action="store_true",
+        help=(
+            "Only check for the grilling skill (skip acli/auth). "
+            "Exit non-zero if grilling is missing. Use this from create/grill paths "
+            "so acli failures do not hide the grilling-specific prereq message."
+        ),
+    )
+    args = parser.parse_args(argv)
+
+    if args.grilling_only:
+        results = check_grilling()
+        _output_grilling(results, args.json)
+        sys.exit(0 if results["overall"] == "pass" else 1)
 
     results = {
         "acli_found": False,
@@ -146,6 +210,10 @@ def main():
         "connectivity_detail": None,
         "projects_accessible": [],
         "projects_inaccessible": [],
+        "grilling_found": False,
+        "grilling_path": None,
+        "grilling_minimal_install": MINIMAL_GRILLING_INSTALL,
+        "grilling_recommended_install": RECOMMENDED_GRILLING_INSTALL,
         "overall": "fail",
     }
 
@@ -156,6 +224,7 @@ def main():
         results["acli_path"] = acli_path
     else:
         results["connectivity_detail"] = "acli not found on PATH"
+        _merge_grilling(results)
         _output(results, args.json)
         sys.exit(1)
 
@@ -180,6 +249,7 @@ def main():
     results["connectivity_detail"] = detail
 
     if not ok:
+        _merge_grilling(results)
         _output(results, args.json)
         sys.exit(1)
 
@@ -189,9 +259,47 @@ def main():
         results["projects_accessible"] = accessible
         results["projects_inaccessible"] = [{"project": p, "error": e} for p, e in inaccessible]
 
+    # Step 6: grilling skill (informational in full mode — does not fail overall)
+    _merge_grilling(results)
+
     results["overall"] = "pass"
     _output(results, args.json)
     sys.exit(0)
+
+
+def _output_grilling(results, as_json):
+    """Print grilling-only results in JSON or human-readable format."""
+    if as_json:
+        json.dump(results, sys.stdout, indent=2)
+        print()
+        return
+
+    print("=" * 50)
+    print("RHDH Jira Grilling Check")
+    print("=" * 50)
+    print()
+    print("Hard prerequisite for create/grill paths: Matt Pocock's `grilling` skill.")
+    print("Used for interview cadence (one question at a time).")
+    print()
+
+    if results["grilling_found"]:
+        print(f"  [PASS] grilling found: {results['grilling_path']}")
+    else:
+        print("  [FAIL] grilling skill not found")
+        print("         Looked for grilling/SKILL.md under:")
+        print("           ~/.claude/skills/")
+        print("           ~/.agents/skills/")
+        print("           ~/.cursor/skills/")
+        print("           <cwd>/.claude/skills/")
+        print("           <cwd>/.agents/skills/")
+        print("           <cwd>/.cursor/skills/")
+        print()
+        print("  Install (after user confirms — this script does not install):")
+        print(f"    Minimal (gate installs this): {results['minimal_install']}")
+        print(f"    Recommended (full Matt pack): {results['recommended_install']}")
+
+    print()
+    print(f"Overall: {results['overall'].upper()}")
 
 
 def _output(results, as_json):
@@ -211,6 +319,7 @@ def _output(results, as_json):
     else:
         print("  [FAIL] acli not found on PATH")
         print("         Install from: https://developer.atlassian.com/cloud/acli/")
+        _print_grilling_section(results)
         return
 
     # Config
@@ -245,6 +354,7 @@ def _output(results, as_json):
         print("  [PASS] Jira connectivity verified")
     else:
         print(f"  [FAIL] Jira connectivity failed: {results['connectivity_detail']}")
+        _print_grilling_section(results)
         return
 
     # Projects
@@ -254,8 +364,25 @@ def _output(results, as_json):
         for item in results["projects_inaccessible"]:
             print(f"  [WARN] {item['project']}: {item['error']}")
 
+    _print_grilling_section(results)
+
     print()
     print(f"Overall: {results['overall'].upper()}")
+
+
+def _print_grilling_section(results):
+    """Print grilling status in full setup output (warn if missing; does not fail overall)."""
+    if results.get("grilling_found"):
+        print(f"  [PASS] grilling found: {results['grilling_path']}")
+    else:
+        print("  [WARN] grilling skill not found (required for to-feature / to-epic / to-issue)")
+        print("         Create/grill paths: python scripts/setup.py --grilling-only")
+        print(
+            f"         Minimal: {results.get('grilling_minimal_install', MINIMAL_GRILLING_INSTALL)}"
+        )
+        print(
+            f"         Recommended: {results.get('grilling_recommended_install', RECOMMENDED_GRILLING_INSTALL)}"
+        )
 
 
 if __name__ == "__main__":

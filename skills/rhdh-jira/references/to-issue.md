@@ -4,6 +4,10 @@ Create a Story, Task, Bug, or Spike from conversation context. Automatically inf
 
 ## Workflow
 
+### Step 0 — Grilling prerequisite
+
+Load `references/grill.md` → Grilling prerequisite and Validate before creating. Hard-require grilling before create. Also load `references/sizing.md` and `references/fields.md` before the grill.
+
 ### Step 1 — Determine Context
 
 Two entry modes:
@@ -21,8 +25,8 @@ Determine the issue type from the conversation context:
 |--------|------|---------|-------|
 | User-facing behavior change, UI, API contract | **Story** | RHIDP | Uses Story template |
 | Internal: CI, refactoring, tooling, tests, infra | **Task** | RHIDP | Uses Task template |
-| Something is broken, regression, unexpected behavior | **Bug** | RHDHBUGS | Uses Bug template. **Do not include customer information — RHDHBUGS is public.** |
-| Bug from a support case | **Bug** | RHDHSUPP | Uses Bug template. Support-originated — link to customer case. See `references/support.md`. |
+| Something is broken, regression, unexpected behavior | **Bug** | RHDHBUGS | Uses Bug template. Prefer support key in summary/description; apply `RHDH-Customer` as a Jira label. RHDHBUGS is public — no customer-identifying detail in unprotected fields. See `references/fields.md`. |
+| Bug from a support case | **Bug** | RHDHSUPP | Uses Bug template. Support-originated — link to support case key; apply `RHDH-Customer`. See `references/support.md` and `references/fields.md`. |
 | CVE, vulnerability, security advisory | **Vulnerability** | RHIDP | Requires Security component. Uses Story template and grill questions. |
 | "Investigate", "research", "spike", "explore", "POC", unknown scope | **Task** (spike) | RHIDP | Summary prefixed with `SPIKE:`. Requires time-boxed story points. |
 
@@ -40,16 +44,20 @@ Load the appropriate template and example from `assets/templates/` and `assets/e
 
 Synthesize: Draft as many template sections as possible from the conversation (and parent Epic if chained). If chained, pre-fill Background (link to parent Epic) and Dependencies.
 
+When drafting customer-origin context, one-line check against `references/fields.md`: support case key / persona / use case — no customer names.
+
 Present the draft: "Here's what I have. Review and tell me what's missing."
 
-### Step 4 — Fill Gaps
+### Step 4 — Fill Gaps + Challenge
+
+Invoke the installed `grilling` skill once covering Fill Gaps + Challenge (read its SKILL.md and follow it; `/grilling` if host supports slash-commands). Do not re-implement cadence in this skill. Apply domain challenges from `references/grill.md`.
 
 For unfilled sections, ask targeted questions based on the inferred type:
 
 **Story gaps:**
 
 1. **User story** — "As a \<persona\> trying to \<action\> I want \<outcome\>"
-2. **Background** — context and motivation
+2. **Background** — context and motivation (support case key / persona / use case — no customer names; see `references/fields.md`)
 3. **Out of scope** — what's not included
 4. **Approach** — general technical path, schemas, class definitions
 5. **Dependencies** — linked Stories/Epics, QE/Doc impact
@@ -82,20 +90,19 @@ For unfilled sections, ask targeted questions based on the inferred type:
 
 Skip questions the draft already answered.
 
-### Step 5 — Challenge
-
-Follow the challenging behavior in `references/grill.md`.
-
-### Step 6 — Infer Fields
+### Step 5 — Infer Fields
 
 Infer all Jira fields per `references/grill.md` Field Inference. If chained, inherit Priority, Team, and Component from parent Epic. Key fields: Priority, Component, Assignee, and Story Points (required for Spikes as time-box).
 
-### Step 7 — Review
+**Customer identity + labels:** Prefer support key in summary/description; apply `RHDH-Customer` as a Jira label for customer-origin work; put customer-identifying detail only in restricted-visibility comments. Never also apply `rhdh-customer`. See `references/fields.md`.
 
-Render the filled template and inferred fields as a temporary markdown file for user review:
+### Step 6 — Review
+
+Render the filled template and inferred fields as a temporary markdown file for user review. Use a portable temp path (`$TMPDIR` / `%TEMP%` / Python `tempfile`):
 
 ```bash
-cat > /tmp/issue-review.md << 'EOF'
+REVIEW=$(mktemp "${TMPDIR:-/tmp}/issue-review.XXXXXX.md")  # Windows: %TEMP%\issue-review.md or tempfile
+cat > "$REVIEW" << 'EOF'
 ## {Type}: {summary}
 
 ### Description
@@ -113,11 +120,13 @@ EOF
 
 Present to the user: "Review the issue before creating. [approve / edit / cancel]"
 
-### Step 8 — Duplicate Check
+### Step 7 — Duplicate Check
 
 Run the pre-creation check from `references/duplicates.md`. Scope to the target project and type.
 
-### Step 9 — Create Issue
+### Step 8 — Create Issue
+
+Before create: re-check customer identity + label rules per `references/grill.md` → Validate before creating.
 
 Fill the appropriate template (`assets/templates/story.txt`, `task.txt`, or `bug.txt`) with grill results, then convert to ADF using the helper script (see Gotcha #6). `acli create` accepts ADF via `--description-file`:
 
@@ -171,7 +180,7 @@ curl -s -X PUT -u "$AUTH" -H "Content-Type: application/json" \
 
 Set Story Points via REST if acli fails — follow API preference order in SKILL.md.
 
-### Step 10 — Comments
+### Step 9 — Comments
 
 Follow the comment suggestion behavior from `references/grill.md` — proactively suggest decision trail, elaboration, and abandoned paths as comments.
 
@@ -187,7 +196,7 @@ Follow the comment suggestion behavior from `references/grill.md` — proactivel
 
 ## Caveats
 
-1. **Bugs go to RHDHBUGS.** Never create Bugs in RHIDP. RHDHBUGS is a public project — no customer information in the description.
+1. **Bugs go to RHDHBUGS.** Never create Bugs in RHIDP. RHDHBUGS is a public project — prefer support key in summary/description; apply `RHDH-Customer` as a Jira label; no customer-identifying detail in unprotected fields. See `references/fields.md`.
 2. **Spikes are Tasks, not a separate type.** Identified by the `SPIKE:` prefix in the summary. Always time-boxed.
 3. **No further decomposition.** Stories, Tasks, and Bugs are leaf nodes. If the scope is too large for a single issue, suggest splitting into multiple issues or promoting to an Epic.
 4. **Done Checklist.** Stories include a Done Checklist in the template. Remind the user this is part of the definition of done.

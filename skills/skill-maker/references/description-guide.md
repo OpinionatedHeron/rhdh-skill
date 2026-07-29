@@ -10,6 +10,8 @@ Key insight: agents only consult skills for tasks they can't easily handle on th
 
 ## Writing Effective Descriptions
 
+Leading-word and pruning vocabulary: `skill-quality.md` only — do not restate those essays here.
+
 ### Structure
 
 1. First sentence: what the skill does
@@ -73,7 +75,7 @@ For each query, ask: would the agent correctly decide to load/not-load this skil
 
 ### Step 4: Validate
 
-Write 5-10 fresh queries (never used during optimization) as a holdout test. These tell you whether your changes generalize.
+Write a fresh holdout set of queries never used during optimization. Prefer enough to cover each branch and near-miss (same bar as Step 1). These tell you whether your changes generalize.
 
 ### Step 5: Final check
 
