@@ -165,7 +165,7 @@ Load only what the current task requires.
 | `references/update-jira-status.md` | Update a Jira issue with session progress, status comment, transitions, and upward cascade to parent Epic/Feature. |
 | `references/duplicates.md` | Duplicate detection for pre-creation checks and refinement audits. Shared across creation commands and refine. |
 | `references/grill.md` | Shared create/grill behavior: grilling prereq (SSOT), one-shot `grilling` invoke for Fill Gaps + Challenge, domain challenges, customer/label pre-create checks. |
-| `references/work-breakdown.md` | Decomposing Feature→Epics or Epic→Stories/Tasks — synthesize-then-gap-fill, tracer bullets, blocking edges, quiz before create (inspired by to-spec / to-tickets). |
+| `references/work-breakdown.md` | Decomposing Feature→Epics or Epic→Stories/Tasks — synthesize-then-gap-fill, tracer bullets, blocking edges, quiz before create. |
 | `references/sizing.md` | T-shirt sizing guide for Features/Epics and Fibonacci story points for Stories/Tasks. Used during grills and refinement. |
 
 </reference_index>

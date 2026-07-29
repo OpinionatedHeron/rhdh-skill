@@ -1,12 +1,12 @@
 # Work Breakdown
 
-Vocabulary and rules for turning aligned conversation into Jira work — inspired by Matt Pocock's `to-spec` / `to-tickets`, adapted to RHDH's Feature → Epic → Story/Task hierarchy. **Not a hard dependency** on those skills; optional to install them for code-centric specs outside Jira.
+Vocabulary and rules for turning aligned conversation into Jira work under RHDH's Feature → Epic → Story/Task hierarchy.
 
 Load when decomposing a Feature into Epics, an Epic into Stories/Tasks, or when drafting create descriptions from conversation.
 
 ## Synthesize, then grill gaps
 
-Like `to-spec`: once the conversation (and `/grilling`) has aligned the problem, **synthesize** the draft from what you already know. Do not re-interview settled topics.
+Once the conversation (and grilling) has aligned the problem, **synthesize** the draft from what you already know. Do not re-interview settled topics.
 
 - Prefer filling template sections from context first, then ask only for true gaps.
 - When chained (Feature → Epic → Issue), carry parent scope/AC down; narrow the grill to *this* node's delivery slice.
@@ -15,7 +15,7 @@ Like `to-spec`: once the conversation (and `/grilling`) has aligned the problem,
 
 ## Tracer bullets (vertical slices)
 
-Like `to-tickets`: prefer **tracer bullet** children — narrow but **complete** paths that are demoable or verifiable on their own — over horizontal layers ("backend tickets" / "frontend tickets" / "docs-only" as a fake slice of the same behaviour).
+Prefer **tracer bullet** children — narrow but **complete** paths that are demoable or verifiable on their own — over horizontal layers ("backend tickets" / "frontend tickets" / "docs-only" as a fake slice of the same behaviour).
 
 | Prefer | Avoid |
 |--------|--------|
@@ -57,12 +57,3 @@ Decomposition is done when:
 - Every child has blocking edges stated
 - User approved the batch table
 - Customer-identity / `RHDH-Customer` rules from `fields.md` still hold on every new issue
-
-## Optional: Matt's skills beside Jira
-
-When the user wants a **code-level PRD** or **agent-sized implementation tickets** outside (or after) the Jira hierarchy:
-
-- `/to-spec` — synthesize an engineering spec to their configured tracker
-- `/to-tickets` — break a spec into tracer-bullet tickets with blockers
-
-Those complement `to-feature` / `to-epic` / `to-issue`; they do not replace RHDHPLAN/RHIDP workflows.
