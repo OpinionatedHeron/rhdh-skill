@@ -10,11 +10,13 @@ Load `references/grill.md` → Grilling prerequisite and Validate before creatin
 
 ### Step 1 — Draft from Context
 
-Load `assets/templates/feature.txt` for structure and `assets/examples/feature-example.txt` for tone calibration.
+Load `assets/templates/feature.txt` for structure and `assets/examples/feature-example.txt` for tone calibration. Apply **synthesize, then grill gaps** from `references/work-breakdown.md`: fill from conversation first; do not re-ask settled topics.
 
-Before asking questions, review what the conversation already established. Draft as many template sections as possible from existing context:
+Draft as many template sections as possible from existing context:
 
 - Feature Overview, Goals, AC, Out of Scope, Customer Considerations, Documentation, Upstream engagement
+
+Fold settled **implementation / testing decisions** from the chat into AC or Out of Scope (or note them for a comment after create) so they are not lost. Keep the RHDH Feature template — do not switch to a generic PRD.
 
 When drafting **Customer Considerations**, one-line check against `references/fields.md`: use support case key / persona / use case only — no customer names.
 
@@ -153,13 +155,15 @@ After the Feature is created:
 
 > "Break this Feature into Epics? The RHDH process typically creates Epics per team (Eng, QE, Doc). [y/N]"
 
-If yes:
+If yes, load `references/work-breakdown.md` and:
 
 1. Ask: "Which teams are involved?" Default suggestion: Eng + Doc (QE is often covered within the Eng epic).
-2. For each team, invoke the `to-epic` workflow with context carried down from this Feature:
-   - The Feature's scope, AC, and customer considerations are established — don't re-grill on these
-   - The Epic grill narrows to: delivery scope for *this team*, dependencies, team-specific AC
-3. Each Epic is automatically linked to the parent Feature via `customfield_10018` (cross-project parent link — see Gotcha #16 and to-epic.md Step 7)
+2. Propose the Epic batch **before creating any** (see `to-epic.md` Batch Review). For each Epic, state **blocking edges** (which other Epics must land first) and a team-scoped outcome — not a horizontal tech layer.
+3. Quiz granularity / blockers / merge-split per `work-breakdown.md` → Quiz before create. Only then create.
+4. For each approved Epic, invoke the `to-epic` workflow with context carried down:
+   - Feature scope, AC, and customer considerations are established — don't re-grill on these
+   - Epic grill narrows to: delivery scope for *this team*, dependencies, team-specific AC
+5. Each Epic is linked to the parent Feature via `customfield_10018` (cross-project parent link — see Gotcha #16 and to-epic.md Step 7)
 
 ## Error Handling
 

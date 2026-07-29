@@ -42,7 +42,7 @@ If the user disagrees, adjust. Additional disambiguation questions:
 
 Load the appropriate template and example from `assets/templates/` and `assets/examples/` (see `references/templates.md` for the mapping).
 
-Synthesize: Draft as many template sections as possible from the conversation (and parent Epic if chained). If chained, pre-fill Background (link to parent Epic) and Dependencies.
+Synthesize per `references/work-breakdown.md`: draft from conversation (and parent Epic if chained); do not re-ask settled Epic-level topics. If chained, pre-fill Background (link to parent Epic) and Dependencies / blockers.
 
 When drafting customer-origin context, one-line check against `references/fields.md`: support case key / persona / use case — no customer names.
 
@@ -198,5 +198,5 @@ Follow the comment suggestion behavior from `references/grill.md` — proactivel
 
 1. **Bugs go to RHDHBUGS.** Never create Bugs in RHIDP. RHDHBUGS is a public project — prefer support key in summary/description; apply `RHDH-Customer` as a Jira label; no customer-identifying detail in unprotected fields. See `references/fields.md`.
 2. **Spikes are Tasks, not a separate type.** Identified by the `SPIKE:` prefix in the summary. Always time-boxed.
-3. **No further decomposition.** Stories, Tasks, and Bugs are leaf nodes. If the scope is too large for a single issue, suggest splitting into multiple issues or promoting to an Epic.
+3. **No further decomposition.** Stories, Tasks, and Bugs are leaf nodes. If the scope is too large for a single issue, suggest splitting into multiple issues or promoting to an Epic — use tracer-bullet slices and blocking edges from `references/work-breakdown.md`, not horizontal layer splits.
 4. **Done Checklist.** Stories include a Done Checklist in the template. Remind the user this is part of the definition of done.

@@ -37,11 +37,11 @@ Skip this step for standalone Epics (no parent Feature).
 
 Load `assets/templates/epic.txt` for structure and `assets/examples/epic-example.txt` for tone calibration.
 
-Synthesize: Draft as many template sections as possible from the conversation (and parent Feature if chained):
+Synthesize per `references/work-breakdown.md`: draft from conversation (and parent Feature if chained); do not re-ask settled Feature-level topics:
 
 - EPIC Goal, Background/Feature Origin, Why important, User Scenarios, Dependencies, AC
 
-If chained from a Feature, pre-fill: Goal (scoped to this team's delivery), Background (link to parent Feature), Dependencies (other Epics in the Feature).
+If chained from a Feature, pre-fill: Goal (scoped to this team's delivery), Background (link to parent Feature), Dependencies / **blocking edges** (other Epics in the Feature).
 
 When drafting customer-origin context, one-line check against `references/fields.md`: support case key / persona / use case — no customer names.
 
@@ -156,24 +156,25 @@ After the Epic is created:
 
 > "Break this Epic into Stories/Tasks? [y/N]"
 
-If yes:
+If yes, load `references/work-breakdown.md` and:
 
-1. Discuss the breakdown: what are the deliverable slices?
-2. For each slice, invoke the `to-issue` workflow with context carried down:
-   - The Epic's goal, AC, and dependencies are established
-   - The issue grill narrows to: implementation specifics, story points, approach
-3. Each Story/Task is automatically linked to the parent Epic via `parent` field
-4. Type inference runs per slice (Story if user-facing, Task if internal)
+1. Draft **tracer bullet** slices (vertical, demoable/verifiable) — not horizontal backend/frontend/docs splits for the same behaviour. Prefer a prefactor/spike first when unknowns block slicing.
+2. Present a numbered batch with **Blocked by** per slice. Quiz granularity and edges before creating any issue.
+3. For each approved slice, invoke the `to-issue` workflow with context carried down:
+   - Epic goal, AC, and dependencies are established
+   - Issue grill narrows to: implementation specifics, story points, approach
+4. Link each Story/Task to the parent Epic via `parent`. Type inference per slice (Story if user-facing, Task if internal).
+5. Create in dependency order when practical (blockers first); set `Blocks` / Dependency text when edges are real.
 
 #### Batch Review (Feature → Epics)
 
-When decomposing a Feature into multiple Epics (chained creation), run a batch review before finalizing any of them:
+When decomposing a Feature into multiple Epics (chained creation), run a batch review before finalizing any of them. Apply `references/work-breakdown.md` (blocking edges + quiz before create). RHDH still creates Epics **per team** — tracer-bullet slicing is stricter for Epic → Stories.
 
-1. **Propose all Epics first**: Collect the full set of proposed Epics as a summary table before creating any:
+1. **Propose all Epics first**: Collect the full set as a summary table before creating any:
 
-   | # | Epic Summary | Size | Key Dependencies | Overlaps with |
-   |---|-------------|------|------------------|---------------|
-   | 1 | Entity-Provider SDK | M | upstream catalog API | — |
+   | # | Epic Summary | Size | Blocked by | Overlaps with |
+   |---|-------------|------|------------|---------------|
+   | 1 | Entity-Provider SDK | M | None | — |
    | 2 | OCI Skill Registry | S | #1 (SDK) | — |
    | 3 | Annotation Scheme | XS | #1 (SDK) | #1 (same package) |
 
@@ -183,7 +184,7 @@ When decomposing a Feature into multiple Epics (chained creation), run a batch r
 
 4. **Consolidation check**: If multiple XS/S Epics target the same technical domain, suggest merging: "Epics #1 and #3 both target the SDK package — could #3 be ACs on #1?"
 
-5. **User decides**: Allow the user to merge, drop, or proceed before creation begins. Only create Epics after the batch is approved.
+5. **User decides**: Merge, drop, or proceed before creation begins. Only create Epics after the batch is approved.
 
 ## Error Handling
 
