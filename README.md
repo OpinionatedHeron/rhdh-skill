@@ -61,7 +61,7 @@ Manage plugins in the [rhdh-plugin-export-overlays](https://github.com/redhat-de
 
 Update Konflux task digests and apply `MIGRATION.md` pipeline changes in [rhdh-plugin-catalog](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog) or [rhdh](https://gitlab.cee.redhat.com/rhidp/rhdh) midstream.
 
-- **[konflux-tekton-updates](./skills/konflux-tekton-updates/SKILL.md)** — Run `.tekton/updateDigests.sh --minor --no-push`, apply [build-definitions](https://github.com/konflux-ci/build-definitions) task migrations, update shared pipelines/templates and PLR generators. Repo-specific file lists: [plugin-catalog](./skills/konflux-tekton-updates/references/plugin-catalog.md), [RHDH midstream](./skills/konflux-tekton-updates/references/rhdh-midstream.md).
+- **[konflux-tekton-updates](./skills/konflux-tekton-updates/SKILL.md)** — Run `.tekton/updateDigests.sh --minor --no-push`, apply task migrations from [build-pipeline-tasks](https://github.com/konflux-ci/build-pipeline-tasks) (and related repos; see [migration-urls](./skills/konflux-tekton-updates/references/migration-urls.md)), update shared pipelines/templates and PLR generators. Repo-specific file lists: [plugin-catalog](./skills/konflux-tekton-updates/references/plugin-catalog.md), [RHDH midstream](./skills/konflux-tekton-updates/references/rhdh-midstream.md).
 
 ```bash
 npx skills add redhat-developer/rhdh-skill --skill konflux-tekton-updates
