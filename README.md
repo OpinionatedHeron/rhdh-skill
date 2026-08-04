@@ -199,7 +199,7 @@ npx skills add redhat-developer/rhdh-skill -a claude-code
 ### Update
 
 ```bash
-npx skills update rhdh-skill
+npx skills add -g redhat-developer/rhdh-skill -y
 ```
 
 ### Local Checkout (development)
