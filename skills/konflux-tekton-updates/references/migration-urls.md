@@ -55,42 +55,14 @@ Examples:
 
 `build-pipeline-tasks` keeps a **single** `MIGRATION.md` per task (not per patch tag). Versioned dirs under `build-definitions/external-task/` are thin stubs only.
 
-## `updateDigests.sh` — print/open correct URLs
+## `updateDigests.sh`
 
-Replace the hard-coded `build-definitions/blob/main/task/${url_frag}/MIGRATION.md` assignment with:
-
-```bash
-# major.minor from tag (0.10.7 -> 0.10, 0.4.3 -> 0.4)
-migrationDocURL() {
-	local task_name="$1"
-	local new_tag="$2"
-	local mm
-	mm="$(echo "${new_tag}" | sed -E 's/^([0-9]+\.[0-9]+).*/\1/')"
-	case "${task_name}" in
-		validate-fbc)
-			echo "https://github.com/konflux-ci/konflux-operator-tasks/blob/main/task/${task_name}/${mm}/MIGRATION.md"
-			;;
-		rpms-signature-scan)
-			echo "https://github.com/konflux-ci/tekton-tools/blob/main/tasks/${task_name}/${mm}/MIGRATION.md"
-			;;
-		show-sbom|summary)
-			echo "https://github.com/konflux-ci/build-definitions/tree/main/task/${task_name}/${mm}/migrations"
-			;;
-		buildah|buildah-*|git-clone|git-clone-*|init|prefetch-dependencies|prefetch-dependencies-*|build-image-index|build-image-index-*|push-dockerfile|push-dockerfile-*|source-build|source-build-*|apply-tags)
-			echo "https://github.com/konflux-ci/build-pipeline-tasks/blob/main/task/${task_name}/MIGRATION.md"
-			;;
-		*)
-			echo "https://github.com/konflux-ci/build-pipeline-tasks/blob/main/task/${task_name}/MIGRATION.md"
-			;;
-	esac
-}
-```
-
-When recording a tag bump:
+`.tekton/updateDigests.sh` should call `migrationDocURL` (not hard-code `build-definitions/.../<tag>/MIGRATION.md`). Expected call site on tag bumps:
 
 ```bash
 task_name="${base#*/task-}"
-MIGRATIONS["${task_name}/${newTag}"]="$(migrationDocURL "${task_name}" "${newTag}")"
+url_frag="${task_name}/${newTag}"
+MIGRATIONS["$url_frag"]="$(migrationDocURL "${task_name}" "${newTag}")"
 ```
 
-If an older `updateDigests.sh` still emits 404 `build-definitions/.../<full-tag>/MIGRATION.md` links, **ignore those URLs** and resolve via this map before fetching or opening a browser.
+If a branch still has the old hard-coded URL, apply the same `migrationDocURL` + call-site change (see midstream/plugin-catalog), then re-run. Until then, resolve printed 404s via the table above before fetching or opening a browser.

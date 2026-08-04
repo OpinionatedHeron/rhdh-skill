@@ -53,8 +53,8 @@ cd .tekton
 
 - Updates `tag@sha256` in `.tekton/*.yaml` and `.tekton-templates/*.yaml` (via `TEMPLATEPATH`).
 - On variant B, also updates `.tekton/build-pipeline-rhdh-*.yaml`.
-- Tag changes list `MIGRATION.md` URLs — they must resolve via [references/migration-urls.md](references/migration-urls.md) (not deleted `build-definitions/task/<name>/<tag>/` paths).
-- If `updateDigests.sh` still prints 404 `build-definitions/.../MIGRATION.md` links, patch it with `migrationDocURL` from that reference, then re-run or rewrite the printed URLs before opening a browser.
+- Tag changes list `MIGRATION.md` URLs via `migrationDocURL` in `updateDigests.sh` (see [references/migration-urls.md](references/migration-urls.md)). Do not use deleted `build-definitions/task/<name>/<tag>/` paths.
+- If `updateDigests.sh` still hard-codes those 404 URLs, update it to use `migrationDocURL`, then re-run or rewrite printed links before opening a browser.
 - Digest-only (no tag bump): `./updateDigests.sh --no-push -q`
 
 Review `git diff` for `quay.io/konflux-ci/tekton-catalog/task-*` changes.
