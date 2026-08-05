@@ -50,7 +50,8 @@ EOF
 2. Detects GitHub vs GitLab from `origin`
 3. Runs `gh pr create` or `glab mr create`
 4. Runs `link-pr-mr.js link` (unless `--no-link`)
-5. Opens the diffs page (unless `--no-open`)
+5. Opens the diffs page (unless `--no-open`). Agents must **not** open it again
+   after this script succeeds — that produces a duplicate browser tab.
 
 Flags: `--draft`, `--no-push`, `--no-link`, `--no-open`, `--host github|gitlab`.
 
@@ -150,5 +151,9 @@ instead of hand-rolling remotelink/comment (see
 2. Commit on a feature branch (Jira browse URL + `Generated-by: cursor` in the body).
 3. Run **`create-pr-mr.js`** once. Report `url:` / `diffs:` and the linker summary.
 4. Do **not** also hand-roll `gh`/`glab` create + MCP comments for the same PR/MR.
-5. Fallback: raw create → run `link-pr-mr.js`.
-6. For mark-merged: `link-pr-mr.js mark-merged --issue KEY`.
+5. **Do not open the diffs twice.** `create-pr-mr.js` already opens the browser
+   (look for `[INFO] opened diffs:` or `diffs:` in stdout). Do **not** also run
+   `xdg-open` / `open` / equivalent unless you used raw `gh`/`glab` (or passed
+   `--no-open`).
+6. Fallback: raw create → run `link-pr-mr.js`, then open diffs yourself once.
+7. For mark-merged: `link-pr-mr.js mark-merged --issue KEY`.

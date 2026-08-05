@@ -5,6 +5,9 @@
   Prefer this over raw `gh pr create` / `glab mr create` in agent sessions so one
   shell call covers push, create, Jira link, and opening diffs.
 
+  Agents: do NOT also run xdg-open/open on the diffs URL after this script —
+  it already opens the browser once (unless --no-open). Duplicate opens = two tabs.
+
   Jira comment markup is owned by link-pr-mr.js:
     PR/MR:
     * <a href="{url}">{repo} #{id}: {title}</a>   (same text as the Web link title)
@@ -314,6 +317,7 @@ function main() {
   console.log('---');
   console.log(`url: ${created.url}`);
   console.log(`diffs: ${diffs}`);
+  console.log(`browserOpened: ${args.noOpen ? 'false' : 'true'}`);
   console.log(`issue: ${issue}`);
   console.log(`host: ${host}`);
   console.log(`jiraLink: done`);
