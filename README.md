@@ -115,7 +115,8 @@ Track work across the four RHDH Jira projects.
 
 Automate the full PR lifecycle — build, changeset, commit, push, and create — for plugin monorepos.
 
-- **[raise-pr](./skills/raise-pr/SKILL.md)** — Full PR workflow for `rhdh-plugins` and `community-plugins`: detect workspace from staged changes, run build/validation, generate changesets, commit with sign-off, push, and create the GitHub PR. Auto-detects which repo you're in. Supports `--a` auto-approve mode to skip all approval gates. Accepts an optional Jira key or URL to link the PR — adds Web Link, comment, and transitions the issue to Review.
+- **[raise-pr](./skills/raise-pr/SKILL.md)** — Full PR workflow for `rhdh-plugins` and `community-plugins`: detect workspace from staged changes, run build/validation, generate changesets, commit with sign-off, push, and create the GitHub PR. Auto-detects which repo you're in. Supports `--a` auto-approve mode to skip all approval gates. Accepts an optional Jira key or URL to link the PR — prefers [`jira-pr-mr-link`](./skills/jira-pr-mr-link/SKILL.md) for Web link + comment, then transitions the issue to Review.
+- **[jira-pr-mr-link](./skills/jira-pr-mr-link/SKILL.md)** — Create GitHub PRs / GitLab MRs and link them to Jira (Web link, structured comment, optional missing-field defaults). General-purpose companion to `raise-pr`; use alone for non-plugin-monorepo repos or link-only / mark-merged flows.
 
 ### Bug Fix
 

@@ -365,25 +365,29 @@ EOF
 
 ### If `issue_source` = `jira`
 
-1. **Comment** on the Jira issue documenting the PR submission:
+Prefer the [`jira-pr-mr-link`](../jira-pr-mr-link/SKILL.md) linker for Web link +
+comment instead of hand-rolling REST/MCP (see
+[`jira-pr-mr-link/references/raise-pr-integration.md`](../jira-pr-mr-link/references/raise-pr-integration.md)).
+Use `--no-defaults` so this step can still transition to **Review**.
+
+1. **Link + comment** via `link-pr-mr.js` (preferred) or fall back to MCP/REST:
    ```
-   Use the Jira MCP `add_jira_comment` tool:
-     issueKey: "<jira_key>"
-     body: "PR submitted: <PR_URL>"
+   node "$JIRA_PR_MR_LINK_SKILL/scripts/link-pr-mr.js" link \
+     --issue "<jira_key>" \
+     --url "<PR_URL>" \
+     --title "<repo-short> #<pr_number>: <PR_title>" \
+     --host github \
+     --no-defaults
    ```
+   Fallback if the skill is not installed:
+   - Comment via Jira MCP `add_jira_comment`: `PR submitted: <PR_URL>`
+   - Web link via POST `/rest/api/3/issue/<jira_key>/remotelink` (see `references/jira-input.md`)
 
 2. **Transition** the issue status to "Review" (if ACLI is available):
    ```
    acli jira workitem transition --key "<jira_key>" --status "Review" --yes
    ```
    Query available transitions first: `acli jira workitem getTransitions --key "<jira_key>"`. If "Review" is not available, skip the transition and log a warning.
-
-3. **Add web link** — add the PR URL as a remote link on the Jira issue (if REST auth is available):
-   ```
-   POST /rest/api/3/issue/<jira_key>/remotelink
-   { "object": { "url": "<PR_URL>", "title": "GitHub PR: <PR_title>" } }
-   ```
-   See `references/jira-input.md` for REST API patterns.
 
 **If any Jira call fails:** Log a warning and continue — the PR has been created successfully:
 ```
