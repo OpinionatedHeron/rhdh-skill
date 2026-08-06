@@ -90,6 +90,16 @@ Bump UBI / RHEC base image tags, refresh RPM lockfiles, and align node headers /
 npx skills add redhat-developer/rhdh-skill --skill base-images-and-rpms
 ```
 
+### Yarn
+
+Align Yarn Berry across the RHDH plugin/export/midstream/downstream trees (release binary, `yarnPath`, `packageManager`, Containerfile pins, and `yarn.lock` refresh).
+
+- **[rhdh-bump-yarn](./skills/rhdh-bump-yarn/SKILL.md)** — Bump Yarn (e.g. 4.12/4.14 → 4.17.1) in rhdh-plugins, rhdh, overlays, rhdh downstream, and rhdh-plugin-catalog. Defaults to refreshing lockfiles; use `--scan` / `--dry-run` / `--no-refresh-locks` as needed.
+
+```bash
+npx skills add redhat-developer/rhdh-skill --skill rhdh-bump-yarn
+```
+
 ### Local Testing
 
 Test plugins in a local RHDH instance before deploying.
