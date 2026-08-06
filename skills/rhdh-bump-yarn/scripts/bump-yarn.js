@@ -8,8 +8,8 @@
     - rewrite yarnPath / packageManager / "yarn set version" / ENV YARN= pins
 
   By default, refreshes yarn.lock via `yarn install --mode=skip-build` in
-  touched workspaces (slow; matches Renovate lock metadata bumps).
-  Use --no-refresh-locks to skip.
+  touched workspaces (matches Renovate lock metadata bumps). A full
+  five-repo lock regen can take >45 minutes. Use --no-refresh-locks to skip.
 
   Usage:
     bump-yarn.js --to 4.17.1 [--from 4.12.0,4.14.1] --root PATH [--root PATH ...]
@@ -49,7 +49,8 @@ function usage(exitCode = 0) {
 
 Defaults:
   --from  ${DEFAULT_FROM.join(',')}
-  refresh yarn.lock in touched workspaces (slow); opt out with --no-refresh-locks
+  refresh yarn.lock in touched workspaces (>45 min possible for full set);
+  opt out with --no-refresh-locks
   Binary cache: ${CACHE_DIR}
 
 Examples (RHIDP-16074 five-repo set):

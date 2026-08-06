@@ -48,7 +48,7 @@ node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 \
 
 Defaults:
 - `--from 4.12.0,4.14.1` (versions RHIDP-16074 replaced). Versions **not** in `--from` (e.g. `4.8.1`, `4.9.2`, Yarn 3.x) stay put.
-- **Refresh `yarn.lock`** in every touched workspace that has one (`yarn install --mode=skip-build`). This is slow but matches Renovate lock metadata updates. Opt out with `--no-refresh-locks`.
+- **Refresh `yarn.lock`** in every touched workspace that has one (`yarn install --mode=skip-build`). This matches Renovate lock metadata updates. Regenerating locks across all five repos can take **>45 minutes**; opt out with `--no-refresh-locks` if you only need pins/binaries first.
 
 ### Useful modes
 
@@ -77,7 +77,7 @@ Source URL: `https://raw.githubusercontent.com/yarnpkg/berry/@yarnpkg/cli/<ver>/
    - `"packageManager": "yarn@<from>"` (also strips optional `+sha…` suffixes)
    - `yarn set version <from>`
    - `ENV YARN=…yarn-<from>.cjs`
-3. **yarn.lock** (default) — in dirs with a lockfile whose `package.json`, `.yarnrc.yml`, or release binary was updated, run `yarn install --mode=skip-build` so `__metadata` / builtin patch hashes update like Renovate.
+3. **yarn.lock** (default) — in dirs with a lockfile whose `package.json`, `.yarnrc.yml`, or release binary was updated, run `yarn install --mode=skip-build` so `__metadata` / builtin patch hashes update like Renovate. Expect **>45 minutes** when refreshing every workspace across the five-repo set.
 4. **Report** — remaining `--from` hits (should be none), binaries left alone, lock refresh results.
 
 ## What it does not do
@@ -90,7 +90,7 @@ Source URL: `https://raw.githubusercontent.com/yarnpkg/berry/@yarnpkg/cli/<ver>/
 1. Confirm `--to` / `--from` (or use defaults for a 4.12/4.14 → 4.17.1 style bump).
 2. Resolve local `--root` checkouts for the repos in scope (ask if paths unclear; `rhdh` config keys `plugins`, `rhdh`, `overlay`, `downstream`, `catalog` may help).
 3. `--scan` each root; note versions that will be left alone.
-4. Run the bump (prefer `--dry-run` first if the tree is dirty/unfamiliar). Expect lock refresh to take a while unless `--no-refresh-locks`.
+4. Run the bump (prefer `--dry-run` first if the tree is dirty/unfamiliar). Expect lock refresh to take **>45 minutes** for a full multi-repo run unless `--no-refresh-locks`.
 5. Re-scan or trust script “remaining from-versions: none”; note any failed lock refreshes.
 6. Summarize: binaries replaced, files updated, left-alone versions, lock refresh counts/failures.
 7. Only commit / open PR·MRs when the user requests; link Jira via `jira-pr-mr-link`.
