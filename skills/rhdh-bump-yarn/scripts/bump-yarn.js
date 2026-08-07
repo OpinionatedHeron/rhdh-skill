@@ -7,9 +7,13 @@
     - replace matching .yarn/releases/yarn-<from>.cjs binaries
     - rewrite yarnPath / packageManager / "yarn set version" / ENV YARN= pins
 
-  By default, refreshes yarn.lock via `yarn install --mode=skip-build` in
-  touched workspaces (matches Renovate lock metadata bumps). A full
-  five-repo lock regen can take >45 minutes. Use --no-refresh-locks to skip.
+  By default, refreshes yarn.lock via `yarn install --mode=update-lockfile`
+  for every lock that will run under --to yarn — including nested workspaces
+  that inherit a root yarnPath / packageManager (not only dirs whose pins
+  were rewritten). Skips locks with an explicit pin outside --from/--to
+  (e.g. roadie 4.9.2, backstage 4.8.1, dcm 4.15.0) and dist-dynamic
+  artifacts. New yarn-*.cjs binaries are chmod +x (100755). A full five-repo
+  lock regen can take >45 minutes. Use --no-refresh-locks to skip.
 
   Usage:
     bump-yarn.js --to 4.17.1 [--from 4.12.0,4.14.1] --root PATH [--root PATH ...]
@@ -49,9 +53,9 @@ function usage(exitCode = 0) {
 
 Defaults:
   --from  ${DEFAULT_FROM.join(',')}
-  refresh yarn.lock in touched workspaces (>45 min possible for full set);
-  opt out with --no-refresh-locks
-  Binary cache: ${CACHE_DIR}
+  refresh yarn.lock for all workspaces using --to (incl. inherited root pin);
+  skip explicit older pins and dist-dynamic; opt out with --no-refresh-locks
+  binaries written mode 0755; Binary cache: ${CACHE_DIR}
 
 Examples (RHIDP-16074 five-repo set):
   node skills/rhdh-bump-yarn/scripts/bump-yarn.js --to 4.17.1 \\
@@ -163,18 +167,28 @@ function download(url, dest) {
   });
 }
 
+function makeExecutable(filePath) {
+  try {
+    fs.chmodSync(filePath, 0o755);
+  } catch (err) {
+    console.error(`warn: chmod +x failed for ${filePath}: ${err.message}`);
+  }
+}
+
 function ensureBinary(version, { force = false } = {}) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
   const dest = path.join(CACHE_DIR, `yarn-${version}.cjs`);
   if (!force && fs.existsSync(dest)) {
     const v = spawnSync(process.execPath, [dest, '-v'], { encoding: 'utf8' });
     if (v.status === 0 && String(v.stdout).trim() === version) {
+      makeExecutable(dest);
       return dest;
     }
   }
   const url = yarnReleaseUrl(version);
   console.log(`fetch: ${url}`);
   return download(url, dest).then(() => {
+    makeExecutable(dest);
     const v = spawnSync(process.execPath, [dest, '-v'], { encoding: 'utf8' });
     if (v.status !== 0 || String(v.stdout).trim() !== version) {
       throw new Error(
@@ -289,6 +303,77 @@ function bumpText(content, fromVersions, toVersion) {
   return next;
 }
 
+function readExplicitYarnPin(dir) {
+  // Only packageManager / yarnPath — avoid matching unrelated yarn@x.y.z deps.
+  const pkgPath = path.join(dir, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      const pm = pkg.packageManager;
+      if (typeof pm === 'string') {
+        const m = /^yarn@([0-9]+\.[0-9]+\.[0-9]+)/.exec(pm);
+        if (m) return m[1];
+      }
+    } catch {
+      // ignore malformed package.json
+    }
+  }
+  const rcPath = path.join(dir, '.yarnrc.yml');
+  if (fs.existsSync(rcPath)) {
+    try {
+      const text = fs.readFileSync(rcPath, 'utf8');
+      const m = /(?:^|\n)yarnPath:\s*.*yarn-([0-9]+\.[0-9]+\.[0-9]+)\.cjs/.exec(text);
+      if (m) return m[1];
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
+function shouldSkipLockPath(lockPath) {
+  const parts = lockPath.split(path.sep);
+  if (parts.includes('node_modules')) return true;
+  if (parts.includes('dist-dynamic')) return true;
+  if (parts.includes('.git')) return true;
+  return false;
+}
+
+function collectLockRefreshDirs(root, { from, to }) {
+  const fromSet = new Set(from);
+  const dirs = [];
+  const skipped = [];
+  walk(root, (full, basename) => {
+    if (basename !== 'yarn.lock') return;
+    if (shouldSkipLockPath(full)) return;
+    const dir = path.dirname(full);
+    const pin = readExplicitYarnPin(dir);
+    // Explicit pin outside --from/--to → leave alone (roadie/backstage/dcm, etc.)
+    if (pin && pin !== to && !fromSet.has(pin)) {
+      skipped.push({ dir, pin });
+      return;
+    }
+    dirs.push(dir);
+  });
+  dirs.sort();
+  return { dirs, skipped };
+}
+
+function resolveYarnBin(dir, binaryPath, toVersion) {
+  const newName = `yarn-${toVersion}.cjs`;
+  const local = path.join(dir, '.yarn', 'releases', newName);
+  if (fs.existsSync(local)) return local;
+  let cur = dir;
+  for (let i = 0; i < 8; i += 1) {
+    const candidate = path.join(cur, '.yarn', 'releases', newName);
+    if (fs.existsSync(candidate)) return candidate;
+    const parent = path.dirname(cur);
+    if (parent === cur) break;
+    cur = parent;
+  }
+  return binaryPath;
+}
+
 function bumpRoot(root, { from, to, binaryPath, dryRun, refreshLocks }) {
   const summary = {
     root,
@@ -297,6 +382,7 @@ function bumpRoot(root, { from, to, binaryPath, dryRun, refreshLocks }) {
     skippedReleases: [],
     remaining: [],
     lockRefresh: [],
+    lockRefreshSkipped: [],
   };
 
   const fromSet = new Set(from);
@@ -315,13 +401,11 @@ function bumpRoot(root, { from, to, binaryPath, dryRun, refreshLocks }) {
     summary.binariesReplaced.push({ from: full, to: dest, version: ver });
     if (dryRun) return;
     fs.copyFileSync(binaryPath, dest);
+    makeExecutable(dest);
     if (path.resolve(full) !== path.resolve(dest)) fs.unlinkSync(full);
   });
 
-  // Ensure each releases dir that got a new binary (or still needs one after delete) is ok —
-  // also place binary when yarnPath points at missing to-version under a dir we touched via text.
   // 2) text pins
-  const lockCandidateDirs = new Set();
   walk(root, (full, basename) => {
     if (!isTextCandidate(full, basename)) return;
     let text;
@@ -334,16 +418,8 @@ function bumpRoot(root, { from, to, binaryPath, dryRun, refreshLocks }) {
     const next = bumpText(text, from, to);
     if (next === text) return;
     summary.filesUpdated.push(full);
-    if (basename === 'package.json' || basename === '.yarnrc.yml') {
-      lockCandidateDirs.add(path.dirname(full));
-    }
     if (!dryRun) fs.writeFileSync(full, next);
   });
-
-  for (const b of summary.binariesReplaced) {
-    // …/.yarn/releases/yarn-X.cjs → workspace root
-    lockCandidateDirs.add(path.dirname(path.dirname(path.dirname(b.to))));
-  }
 
   // 3) remaining inventory (from-set only) — skip on dry-run (tree unchanged)
   if (!dryRun) {
@@ -357,33 +433,19 @@ function bumpRoot(root, { from, to, binaryPath, dryRun, refreshLocks }) {
     }
   }
 
-  // 4) lock refresh (default on; --no-refresh-locks to skip)
+  // 4) lock refresh — every yarn.lock that will run under --to (incl. inherited root pin)
   if (refreshLocks && !dryRun) {
-    for (const dir of [...lockCandidateDirs].sort()) {
-      const lock = path.join(dir, 'yarn.lock');
-      if (!fs.existsSync(lock)) continue;
-      // Prefer local yarnPath binary if present
-      let yarnBin = binaryPath;
-      const local = path.join(dir, '.yarn', 'releases', newName);
-      if (fs.existsSync(local)) yarnBin = local;
-      else {
-        // walk up a few levels for a releases binary
-        let cur = dir;
-        for (let i = 0; i < 6; i += 1) {
-          const candidate = path.join(cur, '.yarn', 'releases', newName);
-          if (fs.existsSync(candidate)) {
-            yarnBin = candidate;
-            break;
-          }
-          const parent = path.dirname(cur);
-          if (parent === cur) break;
-          cur = parent;
-        }
-      }
+    const { dirs, skipped } = collectLockRefreshDirs(root, { from, to });
+    summary.lockRefreshSkipped = skipped;
+    for (const s of skipped) {
+      console.log(`refresh-locks: skip ${s.dir} (explicit pin ${s.pin})`);
+    }
+    for (const dir of dirs) {
+      const yarnBin = resolveYarnBin(dir, binaryPath, to);
       console.log(`refresh-locks: ${dir}`);
       const r = spawnSync(
         process.execPath,
-        [yarnBin, 'install', '--mode=skip-build'],
+        [yarnBin, 'install', '--mode=update-lockfile'],
         {
           cwd: dir,
           encoding: 'utf8',
@@ -391,6 +453,22 @@ function bumpRoot(root, { from, to, binaryPath, dryRun, refreshLocks }) {
           stdio: ['ignore', 'pipe', 'pipe'],
         },
       );
+      // Drop untracked .yarnrc.yml yarn may invent during "migration"
+      const rcPath = path.join(dir, '.yarnrc.yml');
+      if (fs.existsSync(rcPath)) {
+        const tracked = spawnSync('git', ['ls-files', '--error-unmatch', rcPath], {
+          cwd: root,
+          encoding: 'utf8',
+        });
+        if (tracked.status !== 0) {
+          try {
+            fs.unlinkSync(rcPath);
+            console.log(`refresh-locks: removed untracked ${rcPath}`);
+          } catch {
+            // ignore
+          }
+        }
+      }
       summary.lockRefresh.push({
         dir,
         status: r.status,
@@ -508,6 +586,15 @@ async function main() {
       const bad = summary.lockRefresh.filter((x) => x.status !== 0);
       console.log(`lock refresh: ${summary.lockRefresh.length} dirs (${bad.length} failed)`);
       if (bad.length) failed = true;
+    }
+    if (summary.lockRefreshSkipped?.length) {
+      console.log(`lock refresh skipped (explicit older pin): ${summary.lockRefreshSkipped.length}`);
+      for (const s of summary.lockRefreshSkipped.slice(0, 20)) {
+        console.log(`  ${s.pin}: ${path.relative(root, s.dir)}`);
+      }
+      if (summary.lockRefreshSkipped.length > 20) {
+        console.log(`  … +${summary.lockRefreshSkipped.length - 20} more`);
+      }
     }
   }
 

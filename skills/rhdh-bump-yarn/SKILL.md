@@ -47,8 +47,9 @@ node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 \
 ```
 
 Defaults:
-- `--from 4.12.0,4.14.1` (versions RHIDP-16074 replaced). Versions **not** in `--from` (e.g. `4.8.1`, `4.9.2`, Yarn 3.x) stay put.
-- **Refresh `yarn.lock`** in every touched workspace that has one (`yarn install --mode=skip-build`). This matches Renovate lock metadata updates. Regenerating locks across all five repos can take **>45 minutes**; opt out with `--no-refresh-locks` if you only need pins/binaries first.
+- `--from 4.12.0,4.14.1` (versions RHIDP-16074 replaced). Versions **not** in `--from` (e.g. `4.8.1`, `4.9.2`, Yarn 3.x, `dcm`’s `4.15.0`) stay put.
+- **Refresh `yarn.lock`** with `yarn install --mode=update-lockfile` for **every** lock that will run under `--to` yarn — including nested workspaces that only inherit a root `yarnPath` / `packageManager` (this is what `yarn install --immutable` CI needs after a root-only Renovate bump). Skips `dist-dynamic/**` and dirs with an explicit pin outside `--from`/`--to`. Regenerating locks across all five repos can take **>45 minutes**; opt out with `--no-refresh-locks` if you only need pins/binaries first.
+- **Binaries** are written `chmod +x` (`100755`) so `yarnPath` stays runnable.
 
 ### Useful modes
 
@@ -71,14 +72,14 @@ Source URL: `https://raw.githubusercontent.com/yarnpkg/berry/@yarnpkg/cli/<ver>/
 
 ## What the script changes
 
-1. **Binaries** — for each `.yarn/releases/yarn-<from>.cjs`, write `yarn-<to>.cjs` and remove the old file.
+1. **Binaries** — for each `.yarn/releases/yarn-<from>.cjs`, write `yarn-<to>.cjs` (mode `0755`) and remove the old file.
 2. **Text pins** in `package.json`, `.yarnrc.yml`, `Containerfile` / `*.Containerfile`, `Dockerfile`, `run-e2e.sh` (and similar):
    - `yarnPath: …/yarn-<from>.cjs`
    - `"packageManager": "yarn@<from>"` (also strips optional `+sha…` suffixes)
    - `yarn set version <from>`
    - `ENV YARN=…yarn-<from>.cjs`
-3. **yarn.lock** (default) — in dirs with a lockfile whose `package.json`, `.yarnrc.yml`, or release binary was updated, run `yarn install --mode=skip-build` so `__metadata` / builtin patch hashes update like Renovate. Expect **>45 minutes** when refreshing every workspace across the five-repo set.
-4. **Report** — remaining `--from` hits (should be none), binaries left alone, lock refresh results.
+3. **yarn.lock** (default) — discover every `yarn.lock` under the root (except `dist-dynamic` / `node_modules`) whose effective Yarn is `--to` (local `packageManager`/`yarnPath` is `--to` or was in `--from`, **or** there is no local pin and the workspace inherits the bumped root). Run `yarn install --mode=update-lockfile` so `__metadata` (e.g. v8→v10) and builtin patch hashes update; without this, CI `yarn install --immutable` fails with YN0028. Expect **>45 minutes** when refreshing every workspace across the five-repo set.
+4. **Report** — remaining `--from` hits (should be none), binaries left alone, lock refresh results, locks skipped for explicit older pins.
 
 ## What it does not do
 
@@ -101,5 +102,6 @@ Source URL: `https://raw.githubusercontent.com/yarnpkg/berry/@yarnpkg/cli/<ver>/
 - [ ] `--from` covers every version intended to move; others stay put.
 - [ ] All in-scope roots scanned and bumped.
 - [ ] No unexpected remaining `--from` pins.
-- [ ] Lock refresh completed (or `--no-refresh-locks` was intentional); failures investigated.
+- [ ] Lock refresh completed for inheriting workspaces too (or `--no-refresh-locks` was intentional); failures investigated.
+- [ ] New `yarn-*.cjs` binaries are executable (`100755`).
 - [ ] PR/MR + Jira only after user asks.
