@@ -1,43 +1,41 @@
 ---
 name: rhdh-bump-yarn
 description: >-
-  Bumps Yarn Berry (release binary, yarnPath, packageManager, Containerfile pins,
-  and yarn.lock via install) across RHDH-related repos: rhdh-plugins, rhdh midstream,
-  rhdh-plugin-export-overlays, rhdh downstream, and rhdh-plugin-catalog. Use when
-  aligning Yarn versions (e.g. RHIDP-16074 / rhdh-plugins#2918 yarn 4.17.1), scanning
-  checkouts for yarn pins, or mirroring a Renovate yarn bump into midstream/downstream trees.
+  Bumps Yarn Berry across RHDH-related repos (rhdh-plugins, rhdh midstream,
+  rhdh-plugin-export-overlays, rhdh downstream, rhdh-plugin-catalog) using
+  `yarn set version` for workspaces, plus Containerfile / Fullsend / inherited
+  lock refresh. Use for RHIDP-16074-style upgrades or scanning yarn pins.
 ---
 
 # RHDH multi-repo Yarn bump
 
 ## Goal
 
-Propagate a Yarn Berry version bump (reference: [rhdh-plugins#2918](https://github.com/redhat-developer/rhdh-plugins/pull/2918), [RHIDP-16074](https://redhat.atlassian.net/browse/RHIDP-16074)) across the five related trees:
+Propagate a Yarn Berry bump (e.g. [rhdh-plugins#2918](https://github.com/redhat-developer/rhdh-plugins/pull/2918), [RHIDP-16074](https://redhat.atlassian.net/browse/RHIDP-16074)) across:
 
-| Repo | Host | Typical shape |
-|------|------|----------------|
-| `redhat-developer/rhdh-plugins` | GitHub | root `.yarn/releases` + `packageManager` + `yarnPath` |
-| `redhat-developer/rhdh` | GitHub | root + `.ci` + `dynamic-plugins` + `e2e-tests` + `build/containerfiles/Containerfile` |
-| `redhat-developer/rhdh-plugin-export-overlays` | GitHub | many `packageManager` pins (e2e/smoke/validate); few/no release binaries |
-| `rhidp/rhdh` | GitLab | `distgit/containers/rhdh-hub` binary + `Containerfile` `ENV YARN=` |
-| `rhidp/rhdh-plugin-catalog` | GitLab | per-workspace `.yarn/releases` + `builder.Containerfile` (`yarn set version`) + `overlay-repo` pins |
+| Repo | Notes |
+|------|--------|
+| `redhat-developer/rhdh-plugins` | root workspace + Fullsend helper |
+| `redhat-developer/rhdh` | root + nested workspaces + Containerfile |
+| `redhat-developer/rhdh-plugin-export-overlays` | many `packageManager` pins |
+| `rhidp/rhdh` | distgit binary + `ENV YARN=` |
+| `rhidp/rhdh-plugin-catalog` | per-workspace pins + Containerfiles |
 
-## Script location
+## Prefer Yarn’s own bump
 
-Scripts live under this skill’s `scripts/` directory. Resolve that path from the
-installed skill root (or this checkout):
+Workspace `packageManager` / `yarnPath` / `.yarn/releases` are updated with:
 
 ```bash
-SKILL="$(dirname "$(realpath "$0")")/.."   # when already in scripts/
-# or, from repo checkout:
-SKILL="skills/rhdh-bump-yarn"
+yarn set version <to>    # exact version, not `stable`
+yarn install --mode=update-lockfile
 ```
 
-**Execute** [scripts/bump-yarn.js](scripts/bump-yarn.js); do not reimplement the workflow inline.
+Do **not** hand-download Berry binaries or regex-rewrite `package.json` / `.yarnrc.yml` for normal workspaces. Use an exact `--to` so trees match the Renovate/reference PR.
 
-## Run the script (preferred)
+## Script
 
 ```bash
+SKILL="skills/rhdh-bump-yarn"   # or installed skill root
 node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 \
   --root /path/to/rhdh-plugins \
   --root /path/to/rhdh \
@@ -47,73 +45,35 @@ node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 \
 ```
 
 Defaults:
-- `--from 4.12.0,4.14.1` (versions RHIDP-16074 replaced). Versions **not** in `--from` (e.g. `4.8.1`, `4.9.2`, Yarn 3.x, `dcm`’s `4.15.0`) stay put.
-- **Refresh `yarn.lock`** with `yarn install --mode=update-lockfile` for **every** lock that will run under `--to` yarn — including nested workspaces that only inherit a root `yarnPath` / `packageManager` (this is what `yarn install --immutable` CI needs after a root-only Renovate bump). Skips `dist-dynamic/**` and dirs with an explicit pin outside `--from`/`--to`. Regenerating locks across all five repos can take **>45 minutes**; opt out with `--no-refresh-locks` if you only need pins/binaries first.
-- **Binaries** are written `chmod +x` (`100755`) so `yarnPath` stays runnable.
-
-### Useful modes
+- `--from 4.12.0,4.14.1` — only those move; `4.8.1` / `4.9.2` / Yarn 3.x / dcm `4.15.0` stay
+- For each matching `packageManager`: run `yarn set version <to>`
+- Rewrite **extra** pins Yarn cannot see: Containerfile / Dockerfile / `ENV YARN=` / embedded `yarn set version` / Fullsend `.fullsend/**/bin/yarn`
+- Replace orphan `.yarn/releases` binaries (e.g. distgit) with no `packageManager`
+- Refresh every `yarn.lock` that will run under `--to` (including inherited root pins); skip `dist-dynamic` and explicit older pins. Full five-repo regen can take **>45 minutes**; use `--no-refresh-locks` to skip
 
 ```bash
-# Inventory pins / binaries
 node "$SKILL/scripts/bump-yarn.js" --scan --root /path/to/repo
-
-# Preview pins/binaries only (does not run install)
 node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 --root /path/to/repo --dry-run
-
-# Cache the Berry CLI binary only
-node "$SKILL/scripts/bump-yarn.js" --fetch-only --to 4.17.1
-
-# Skip lock refresh (pins + binaries only)
 node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 --root /path/to/repo --no-refresh-locks
 ```
 
-Binary cache: `~/.cache/rhdh-bump-yarn/yarn-<ver>.cjs`  
-Source URL: `https://raw.githubusercontent.com/yarnpkg/berry/@yarnpkg/cli/<ver>/packages/yarnpkg-cli/bin/yarn.js`
+### Fullsend (rhdh-plugins only)
 
-## What the script changes
-
-1. **Binaries** — for each `.yarn/releases/yarn-<from>.cjs`, write `yarn-<to>.cjs` (mode `0755`) and remove the old file.
-2. **Text pins** in `package.json`, `.yarnrc.yml`, `Containerfile` / `*.Containerfile`, `Dockerfile`, `run-e2e.sh` (and similar):
-   - `yarnPath: …/yarn-<from>.cjs`
-   - `"packageManager": "yarn@<from>"` (also strips optional `+sha…` suffixes)
-   - `yarn set version <from>`
-   - `ENV YARN=…yarn-<from>.cjs`
-3. **yarn.lock** (default) — discover every `yarn.lock` under the root (except `dist-dynamic` / `node_modules`) whose effective Yarn is `--to` (local `packageManager`/`yarnPath` is `--to` or was in `--from`, **or** there is no local pin and the workspace inherits the bumped root). Run `yarn install --mode=update-lockfile` so `__metadata` (e.g. v8→v10) and builtin patch hashes update; without this, CI `yarn install --immutable` fails with YN0028. Expect **>45 minutes** when refreshing every workspace across the five-repo set.
-4. **Fullsend helper (rhdh-plugins)** — scan/bump `.fullsend/**/bin/yarn` (extensionless). If it still hardcodes `yarn-<from>.cjs`, rewrite to `yarn-<to>.cjs` as a safety net and warn that the durable pattern is **yarnPath derivation** (see below).
-5. **Report** — remaining `--from` hits (should be none), binaries left alone, lock refresh results, locks skipped for explicit older pins.
-
-### Fullsend (rhdh-plugins)
-
-`.fullsend/` in `redhat-developer/rhdh-plugins` is a **per-repo** Fullsend install for **rhdh-plugins only** — not for `redhat-developer/rhdh` (which has no `.fullsend`). The sandbox `FULLSEND_TARGET_REPO_DIR` is the rhdh-plugins checkout.
-
-After bumping Yarn on rhdh-plugins, verify [`.fullsend/rhdh/bin/yarn`](https://github.com/redhat-developer/rhdh-plugins/blob/main/.fullsend/rhdh/bin/yarn):
-
-- **Prefer** deriving the binary from `${FULLSEND_TARGET_REPO_DIR}/.yarnrc.yml` `yarnPath` (with a fallback only when there is exactly one `.yarn/releases/yarn-*.cjs`). See [rhdh-plugins#4199](https://github.com/redhat-developer/rhdh-plugins/pull/4199).
-- **Do not** reintroduce a hardcoded `yarn-X.Y.Z.cjs` path; that breaks Fullsend on the next Yarn filename bump.
-- The bump script will rewrite a leftover hardcode matching `--from` → `--to` and print a one-line warning recommending yarnPath derivation.
-
-## What it does not do
-
-- **Commits / PRs / MRs** — after the bump, commit and open with [`jira-pr-mr-link`](../jira-pr-mr-link/SKILL.md) when the user asks (cite the Jira key they name).
-- **rhdh-cli Yarn 3.x** — out of scope unless `--from` includes those versions.
+Prefer deriving the binary from `${FULLSEND_TARGET_REPO_DIR}/.yarnrc.yml` `yarnPath` ([rhdh-plugins#4199](https://github.com/redhat-developer/rhdh-plugins/pull/4199)). The script only rewrites leftover `yarn-<from>.cjs` hardcodes and warns.
 
 ## Agent workflow
 
-1. Confirm `--to` / `--from` (or use defaults for a 4.12/4.14 → 4.17.1 style bump).
-2. Resolve local `--root` checkouts for the repos in scope (ask if paths unclear; `rhdh` config keys `plugins`, `rhdh`, `overlay`, `downstream`, `catalog` may help).
-3. `--scan` each root; note versions that will be left alone.
-4. Run the bump (prefer `--dry-run` first if the tree is dirty/unfamiliar). Expect lock refresh to take **>45 minutes** for a full multi-repo run unless `--no-refresh-locks`.
-5. Re-scan or trust script “remaining from-versions: none”; note any failed lock refreshes.
-6. Summarize: binaries replaced, files updated, left-alone versions, lock refresh counts/failures.
-7. Only commit / open PR·MRs when the user requests; link Jira via `jira-pr-mr-link`.
+1. Confirm `--to` / `--from`.
+2. Resolve local `--root` checkouts.
+3. `--scan`, then bump (`--dry-run` first if unfamiliar).
+4. Summarize set-version dirs, extra files, orphan binaries, lock refresh.
+5. Commit / PR·MR only when the user asks ([`jira-pr-mr-link`](../jira-pr-mr-link/SKILL.md)).
 
 ## Checklist
 
-- [ ] `--to` matches the reference PR (e.g. 4.17.1).
-- [ ] `--from` covers every version intended to move; others stay put.
-- [ ] All in-scope roots scanned and bumped.
-- [ ] No unexpected remaining `--from` pins.
-- [ ] Lock refresh completed for inheriting workspaces too (or `--no-refresh-locks` was intentional); failures investigated.
-- [ ] New `yarn-*.cjs` binaries are executable (`100755`).
-- [ ] rhdh-plugins: Fullsend `.fullsend/rhdh/bin/yarn` uses yarnPath derivation (or at least matches `--to`).
-- [ ] PR/MR + Jira only after user asks.
+- [ ] Exact `--to` matches the reference bump
+- [ ] `--from` covers intended versions only
+- [ ] `yarn set version` used for workspaces (not custom binary rewrite)
+- [ ] Containerfile / distgit / Fullsend extras checked
+- [ ] Inherited lock refresh done (or `--no-refresh-locks` intentional)
+- [ ] New `yarn-*.cjs` binaries executable (`100755`)
