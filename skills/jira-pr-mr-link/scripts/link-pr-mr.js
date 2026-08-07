@@ -688,9 +688,10 @@ function parsePrMrUrl(url) {
   if (m) {
     return { kind: 'github', owner: m[1], repo: m[2], id: m[3] };
   }
-  m = url.match(/gitlab[^/]*\/(.+?)\/-\/merge_requests\/(\d+)/i);
+  // Capture host so glab targets gitlab.cee.redhat.com (not default gitlab.com).
+  m = url.match(/https?:\/\/(gitlab[^/]*)\/(.+?)\/-\/merge_requests\/(\d+)/i);
   if (m) {
-    return { kind: 'gitlab', project: m[1], id: m[2] };
+    return { kind: 'gitlab', host: m[1], project: m[2], id: m[3] };
   }
   return null;
 }
@@ -705,11 +706,12 @@ function isMerged(ref) {
     return out.status === 0 && String(out.stdout).trim() === 'true';
   }
   const project = encodeURIComponent(ref.project);
-  const out = spawnSync(
-    'glab',
-    ['api', `projects/${project}/merge_requests/${ref.id}`],
-    { encoding: 'utf8' },
-  );
+  const glabArgs = ['api'];
+  if (ref.host) {
+    glabArgs.push('--hostname', ref.host);
+  }
+  glabArgs.push(`projects/${project}/merge_requests/${ref.id}`);
+  const out = spawnSync('glab', glabArgs, { encoding: 'utf8' });
   if (out.status !== 0) {
     return false;
   }
