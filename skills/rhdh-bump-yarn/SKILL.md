@@ -79,7 +79,18 @@ Source URL: `https://raw.githubusercontent.com/yarnpkg/berry/@yarnpkg/cli/<ver>/
    - `yarn set version <from>`
    - `ENV YARN=…yarn-<from>.cjs`
 3. **yarn.lock** (default) — discover every `yarn.lock` under the root (except `dist-dynamic` / `node_modules`) whose effective Yarn is `--to` (local `packageManager`/`yarnPath` is `--to` or was in `--from`, **or** there is no local pin and the workspace inherits the bumped root). Run `yarn install --mode=update-lockfile` so `__metadata` (e.g. v8→v10) and builtin patch hashes update; without this, CI `yarn install --immutable` fails with YN0028. Expect **>45 minutes** when refreshing every workspace across the five-repo set.
-4. **Report** — remaining `--from` hits (should be none), binaries left alone, lock refresh results, locks skipped for explicit older pins.
+4. **Fullsend helper (rhdh-plugins)** — scan/bump `.fullsend/**/bin/yarn` (extensionless). If it still hardcodes `yarn-<from>.cjs`, rewrite to `yarn-<to>.cjs` as a safety net and warn that the durable pattern is **yarnPath derivation** (see below).
+5. **Report** — remaining `--from` hits (should be none), binaries left alone, lock refresh results, locks skipped for explicit older pins.
+
+### Fullsend (rhdh-plugins)
+
+`.fullsend/` in `redhat-developer/rhdh-plugins` is a **per-repo** Fullsend install for **rhdh-plugins only** — not for `redhat-developer/rhdh` (which has no `.fullsend`). The sandbox `FULLSEND_TARGET_REPO_DIR` is the rhdh-plugins checkout.
+
+After bumping Yarn on rhdh-plugins, verify [`.fullsend/rhdh/bin/yarn`](https://github.com/redhat-developer/rhdh-plugins/blob/main/.fullsend/rhdh/bin/yarn):
+
+- **Prefer** deriving the binary from `${FULLSEND_TARGET_REPO_DIR}/.yarnrc.yml` `yarnPath` (with a fallback only when there is exactly one `.yarn/releases/yarn-*.cjs`). See [rhdh-plugins#4199](https://github.com/redhat-developer/rhdh-plugins/pull/4199).
+- **Do not** reintroduce a hardcoded `yarn-X.Y.Z.cjs` path; that breaks Fullsend on the next Yarn filename bump.
+- The bump script will rewrite a leftover hardcode matching `--from` → `--to` and print a one-line warning recommending yarnPath derivation.
 
 ## What it does not do
 
@@ -104,4 +115,5 @@ Source URL: `https://raw.githubusercontent.com/yarnpkg/berry/@yarnpkg/cli/<ver>/
 - [ ] No unexpected remaining `--from` pins.
 - [ ] Lock refresh completed for inheriting workspaces too (or `--no-refresh-locks` was intentional); failures investigated.
 - [ ] New `yarn-*.cjs` binaries are executable (`100755`).
+- [ ] rhdh-plugins: Fullsend `.fullsend/rhdh/bin/yarn` uses yarnPath derivation (or at least matches `--to`).
 - [ ] PR/MR + Jira only after user asks.

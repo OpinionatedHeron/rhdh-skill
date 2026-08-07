@@ -12,8 +12,10 @@
   that inherit a root yarnPath / packageManager (not only dirs whose pins
   were rewritten). Skips locks with an explicit pin outside --from/--to
   (e.g. roadie 4.9.2, backstage 4.8.1, dcm 4.15.0) and dist-dynamic
-  artifacts. New yarn-*.cjs binaries are chmod +x (100755). A full five-repo
-  lock regen can take >45 minutes. Use --no-refresh-locks to skip.
+  artifacts. New yarn-*.cjs binaries are chmod +x (100755). Also scans
+  .fullsend/<profile>/bin/yarn (rhdh-plugins Fullsend helper): rewrites leftover
+  yarn-<from>.cjs hardcodes and warns to prefer yarnPath derivation.
+  A full five-repo lock regen can take >45 minutes. Use --no-refresh-locks to skip.
 
   Usage:
     bump-yarn.js --to 4.17.1 [--from 4.12.0,4.14.1] --root PATH [--root PATH ...]
@@ -240,12 +242,20 @@ function walk(root, onFile) {
   }
 }
 
+function isFullsendYarnHelper(full, basename) {
+  // Extensionless helper: .fullsend/<profile>/bin/yarn (rhdh-plugins Fullsend)
+  if (basename !== 'yarn') return false;
+  const norm = full.split(path.sep).join('/');
+  return norm.includes('/.fullsend/') && norm.endsWith('/bin/yarn');
+}
+
 function isTextCandidate(full, basename) {
   if (TEXT_BASENAMES.has(basename)) return true;
   if (basename.endsWith('.Containerfile')) return true;
   if (basename.endsWith('.Dockerfile')) return true;
   // Embedded packageManager JSON snippets sometimes live in shell helpers
   if (basename.endsWith('.sh') && /e2e|yarn|packageManager/i.test(basename + full)) return true;
+  if (isFullsendYarnHelper(full, basename)) return true;
   return false;
 }
 
@@ -405,7 +415,7 @@ function bumpRoot(root, { from, to, binaryPath, dryRun, refreshLocks }) {
     if (path.resolve(full) !== path.resolve(dest)) fs.unlinkSync(full);
   });
 
-  // 2) text pins
+  // 2) text pins (incl. .fullsend/**/bin/yarn hardcodes)
   walk(root, (full, basename) => {
     if (!isTextCandidate(full, basename)) return;
     let text;
@@ -418,6 +428,13 @@ function bumpRoot(root, { from, to, binaryPath, dryRun, refreshLocks }) {
     const next = bumpText(text, from, to);
     if (next === text) return;
     summary.filesUpdated.push(full);
+    if (isFullsendYarnHelper(full, basename) && /yarn-[0-9]+\.[0-9]+\.[0-9]+\.cjs/.test(next)) {
+      console.warn(
+        `warn: ${full} still hardcodes a yarn-*.cjs path after bump; ` +
+          'prefer deriving yarnPath from ${FULLSEND_TARGET_REPO_DIR}/.yarnrc.yml ' +
+          '(see rhdh-plugins#4199)',
+      );
+    }
     if (!dryRun) fs.writeFileSync(full, next);
   });
 
