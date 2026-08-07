@@ -3,8 +3,8 @@ name: rhdh-bump-yarn
 description: >-
   Bumps Yarn Berry across RHDH-related repos (rhdh-plugins, rhdh midstream,
   rhdh-plugin-export-overlays, rhdh downstream, rhdh-plugin-catalog) using
-  `yarn set version` for workspaces, plus Containerfile / Fullsend / inherited
-  lock refresh. Use for RHIDP-16074-style upgrades or scanning yarn pins.
+  `yarn set version` + install, plus Containerfile / ENV YARN= extras.
+  Use for RHIDP-16074-style upgrades or scanning yarn pins.
 ---
 
 # RHDH multi-repo Yarn bump
@@ -15,27 +15,33 @@ Propagate a Yarn Berry bump (e.g. [rhdh-plugins#2918](https://github.com/redhat-
 
 | Repo | Notes |
 |------|--------|
-| `redhat-developer/rhdh-plugins` | root workspace + Fullsend helper |
+| `redhat-developer/rhdh-plugins` | root workspace (+ Fullsend if hardcoded) |
 | `redhat-developer/rhdh` | root + nested workspaces + Containerfile |
 | `redhat-developer/rhdh-plugin-export-overlays` | many `packageManager` pins |
-| `rhidp/rhdh` | distgit binary + `ENV YARN=` |
+| `rhidp/rhdh` | distgit binary + `ENV YARN=` (copy binary from GH bump) |
 | `rhidp/rhdh-plugin-catalog` | per-workspace pins + Containerfiles |
 
-## Prefer Yarn’s own bump
+## What actually changes
 
-Workspace `packageManager` / `yarnPath` / `.yarn/releases` are updated with:
+For each matching workspace:
 
 ```bash
-yarn set version <to>    # exact version, not `stable`
+yarn set version <to>                 # packageManager + yarnPath + .yarn/releases
+chmod +x .yarn/releases/yarn-<to>.cjs
 yarn install --mode=update-lockfile
 ```
 
-Do **not** hand-download Berry binaries or regex-rewrite `package.json` / `.yarnrc.yml` for normal workspaces. Use an exact `--to` so trees match the Renovate/reference PR.
+Plus pins Yarn cannot see: `ENV YARN=`, Containerfile / Dockerfile / embedded `yarn set version`.
+
+**No binary download.** Bump GitHub repos first (`yarn set version` produces `yarn-<to>.cjs`). For GitLab/distgit trees that only ship a checked-in release + `ENV YARN=`, copy that same `yarn-<to>.cjs` into `.yarn/releases/` (and remove the old `yarn-<from>.cjs`), then run the script so text pins update.
+
+Use an **exact** `--to` (not `stable`) so every repo matches the Renovate/reference PR.
 
 ## Script
 
 ```bash
-SKILL="skills/rhdh-bump-yarn"   # or installed skill root
+SKILL="skills/rhdh-bump-yarn"
+# GH first, then GL (after copying yarn-<to>.cjs into distgit if needed)
 node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 \
   --root /path/to/rhdh-plugins \
   --root /path/to/rhdh \
@@ -45,11 +51,8 @@ node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 \
 ```
 
 Defaults:
-- `--from 4.12.0,4.14.1` — only those move; `4.8.1` / `4.9.2` / Yarn 3.x / dcm `4.15.0` stay
-- For each matching `packageManager`: run `yarn set version <to>`
-- Rewrite **extra** pins Yarn cannot see: Containerfile / Dockerfile / `ENV YARN=` / embedded `yarn set version` / Fullsend `.fullsend/**/bin/yarn`
-- Replace orphan `.yarn/releases` binaries (e.g. distgit) with no `packageManager`
-- Refresh every `yarn.lock` that will run under `--to` (including inherited root pins); skip `dist-dynamic` and explicit older pins. Full five-repo regen can take **>45 minutes**; use `--no-refresh-locks` to skip
+- `--from 4.12.0,4.14.1` — only those move (`4.8.1` / `4.9.2` / Yarn 3.x / dcm `4.15.0` stay)
+- Lock refresh for every `yarn.lock` under `--to` (incl. inherited root pin); skip `dist-dynamic` and explicit older pins. Full five-repo regen can take **>45 minutes**; use `--no-refresh-locks` to skip
 
 ```bash
 node "$SKILL/scripts/bump-yarn.js" --scan --root /path/to/repo
@@ -57,23 +60,20 @@ node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 --root /path/to/repo --dry-run
 node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 --root /path/to/repo --no-refresh-locks
 ```
 
-### Fullsend (rhdh-plugins only)
-
-Prefer deriving the binary from `${FULLSEND_TARGET_REPO_DIR}/.yarnrc.yml` `yarnPath` ([rhdh-plugins#4199](https://github.com/redhat-developer/rhdh-plugins/pull/4199)). The script only rewrites leftover `yarn-<from>.cjs` hardcodes and warns.
-
 ## Agent workflow
 
 1. Confirm `--to` / `--from`.
-2. Resolve local `--root` checkouts.
-3. `--scan`, then bump (`--dry-run` first if unfamiliar).
-4. Summarize set-version dirs, extra files, orphan binaries, lock refresh.
-5. Commit / PR·MR only when the user asks ([`jira-pr-mr-link`](../jira-pr-mr-link/SKILL.md)).
+2. Resolve local `--root` checkouts; bump **GitHub** roots first.
+3. For GitLab/distgit: copy `yarn-<to>.cjs` from a GH bump into `.yarn/releases/` (drop old `--from` binary).
+4. `--scan`, then bump (`--dry-run` first if unfamiliar).
+5. Summarize set-version dirs, extras, lock refresh.
+6. Commit / PR·MR only when the user asks ([`jira-pr-mr-link`](../jira-pr-mr-link/SKILL.md)).
 
 ## Checklist
 
 - [ ] Exact `--to` matches the reference bump
 - [ ] `--from` covers intended versions only
-- [ ] `yarn set version` used for workspaces (not custom binary rewrite)
-- [ ] Containerfile / distgit / Fullsend extras checked
-- [ ] Inherited lock refresh done (or `--no-refresh-locks` intentional)
+- [ ] GH bumped before GL; distgit binary copied (no curl)
+- [ ] Containerfile / `ENV YARN=` extras checked
+- [ ] Lock refresh done (or `--no-refresh-locks` intentional)
 - [ ] New `yarn-*.cjs` binaries executable (`100755`)
