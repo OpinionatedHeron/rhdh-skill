@@ -2,8 +2,8 @@
 name: rhdh-bump-yarn
 description: >-
   Bumps Yarn Berry across RHDH-related repos (rhdh-plugins, rhdh midstream,
-  rhdh-plugin-export-overlays, rhdh downstream, rhdh-plugin-catalog) using
-  `yarn set version` + install, plus Containerfile / ENV YARN= extras.
+  rhdh-plugin-export-overlays, rhdh-cli, rhdh downstream, rhdh-plugin-catalog)
+  using `yarn set version` + install, plus Containerfile / ENV YARN= extras.
   Use for RHIDP-16074-style upgrades or scanning yarn pins.
 ---
 
@@ -18,6 +18,7 @@ Propagate a Yarn Berry bump (e.g. [rhdh-plugins#2918](https://github.com/redhat-
 | `redhat-developer/rhdh-plugins` | root workspace (+ Fullsend if hardcoded) |
 | `redhat-developer/rhdh` | root + nested workspaces + Containerfile |
 | `redhat-developer/rhdh-plugin-export-overlays` | many `packageManager` pins |
+| `redhat-developer/rhdh-cli` | Yarn **3.8.6** → use `--from 3.8.6` (not in default `--from`) |
 | `rhidp/rhdh` | distgit binary + `ENV YARN=` (copy binary from GH bump) |
 | `rhidp/rhdh-plugin-catalog` | per-workspace pins + Containerfiles |
 
@@ -41,18 +42,22 @@ Use an **exact** `--to` (not `stable`) so every repo matches the Renovate/refere
 
 ```bash
 SKILL="skills/rhdh-bump-yarn"
-# GH first, then GL (after copying yarn-<to>.cjs into distgit if needed)
+# GH first (4.12/4.14 defaults), then GL (after copying yarn-<to>.cjs into distgit if needed)
 node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 \
   --root /path/to/rhdh-plugins \
   --root /path/to/rhdh \
   --root /path/to/overlays \
   --root /path/to/rhdh-downstream \
   --root /path/to/rhdh-plugin-catalog
+
+# rhdh-cli is still on Yarn 3.8.6 — pass --from explicitly
+node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 --from 3.8.6 \
+  --root /path/to/rhdh-cli
 ```
 
 Defaults:
-- `--from 4.12.0,4.14.1` — only those move (`4.8.1` / `4.9.2` / Yarn 3.x / dcm `4.15.0` stay)
-- Lock refresh for every `yarn.lock` under `--to` (incl. inherited root pin); skip `dist-dynamic` and explicit older pins. Full five-repo regen can take **>45 minutes**; use `--no-refresh-locks` to skip
+- `--from 4.12.0,4.14.1` — only those move (`4.8.1` / `4.9.2` / dcm `4.15.0` stay). **`rhdh-cli` needs `--from 3.8.6`.**
+- Lock refresh for every `yarn.lock` under `--to` (incl. inherited root pin); skip `dist-dynamic` and explicit older pins. Full multi-repo regen can take **>45 minutes**; use `--no-refresh-locks` to skip
 
 ```bash
 node "$SKILL/scripts/bump-yarn.js" --scan --root /path/to/repo
@@ -72,7 +77,7 @@ node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 --root /path/to/repo --no-refresh
 ## Checklist
 
 - [ ] Exact `--to` matches the reference bump
-- [ ] `--from` covers intended versions only
+- [ ] `--from` covers intended versions only (`3.8.6` for rhdh-cli; default 4.12/4.14 otherwise)
 - [ ] GH bumped before GL; distgit binary copied (no curl)
 - [ ] Containerfile / `ENV YARN=` extras checked
 - [ ] Lock refresh done (or `--no-refresh-locks` intentional)
