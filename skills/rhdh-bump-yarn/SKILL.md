@@ -15,10 +15,10 @@ Propagate a Yarn Berry bump (e.g. [rhdh-plugins#2918](https://github.com/redhat-
 
 | Repo | Notes |
 |------|--------|
-| `redhat-developer/rhdh-plugins` | root workspace (+ Fullsend if hardcoded) |
-| `redhat-developer/rhdh` | root + nested workspaces + Containerfile |
-| `redhat-developer/rhdh-plugin-export-overlays` | many `packageManager` pins |
-| `redhat-developer/rhdh-cli` | Yarn **3.8.6** → use `--from 3.8.6` (not in default `--from`) |
+| [`redhat-developer/rhdh-plugins`](https://github.com/redhat-developer/rhdh-plugins) | root workspace (+ Fullsend if hardcoded) |
+| [`redhat-developer/rhdh`](https://github.com/redhat-developer/rhdh) | root + nested workspaces + Containerfile |
+| [`redhat-developer/rhdh-plugin-export-overlays`](https://github.com/redhat-developer/rhdh-plugin-export-overlays) | many `packageManager` pins |
+| [`redhat-developer/rhdh-cli`](https://github.com/redhat-developer/rhdh-cli) | Yarn **3.8.6** → use `--from 3.8.6` (not in default `--from`) |
 | [`gitlab.cee.redhat.com/rhidp/rhdh`](https://gitlab.cee.redhat.com/rhidp/rhdh) | distgit binary + `ENV YARN=` (copy binary from GH bump) |
 | [`gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog`](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog) | per-workspace pins + Containerfiles |
 
