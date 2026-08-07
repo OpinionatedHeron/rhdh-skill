@@ -216,6 +216,14 @@ What would you like to do?
 
 **To route:** Read `../backstage-upgrade/SKILL.md` and follow its intake process.
 
+### Midstream propagate Routes
+
+| Response | Skill |
+|----------|-------|
+| "propagate plugin", "Version Packages", "midstream sync", "surgical catalog", "bump overlays source.json", "plugin_builds PLR", "2.0.0--", "promote to catalog" | Route to `rhdh-plugin-midstream-propagate` skill |
+
+**To route:** Read `../rhdh-plugin-midstream-propagate/SKILL.md` and follow its three-step chain.
+
 ### General Routes
 
 | Response | Action |
@@ -359,6 +367,7 @@ Todos must be **self-contained**—a new session should understand the task with
 | Skill | Purpose | Path |
 |-------|---------|------|
 | overlay | Manage plugins in rhdh-plugin-export-overlays | `../overlay/SKILL.md` |
+| rhdh-plugin-midstream-propagate | Promote rhdh-plugins → overlays → catalog (npm, Version Packages SHA, surgical PLR bump) | `../rhdh-plugin-midstream-propagate/SKILL.md` |
 | create-plugin | Create, export, package, and wire RHDH dynamic plugins | `../create-plugin/SKILL.md` |
 | rhdh-local | Enable/disable/test plugins in local RHDH | `../rhdh-local/SKILL.md` |
 | rhdh-pr-review | PR code review and live cluster testing | `../rhdh-pr-review/SKILL.md` |
