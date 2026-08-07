@@ -8,7 +8,8 @@
  *   rewrite extras Yarn cannot see (ENV YARN= / Containerfile / embedded set version)
  *
  * No binary download. Bump GitHub workspaces first; copy yarn-<to>.cjs into
- * GitLab/distgit trees that only pin via ENV YARN= / checked-in releases.
+ * gitlab.cee.redhat.com midstream/distgit trees (rhidp/rhdh,
+ * rhidp/rhdh-plugin-catalog) that only pin via ENV YARN= / checked-in releases.
  *
  *   bump-yarn.js --to 4.17.1 --root PATH... [--from V1,V2] [--dry-run] [--no-refresh-locks]
  *   bump-yarn.js --scan --root PATH

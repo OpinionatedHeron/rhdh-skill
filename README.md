@@ -94,7 +94,7 @@ npx skills add redhat-developer/rhdh-skill --skill base-images-and-rpms
 
 Align Yarn Berry across the RHDH plugin/export/midstream/downstream trees via `yarn set version` + install (plus Containerfile / `ENV YARN=`).
 
-- **[rhdh-bump-yarn](./skills/rhdh-bump-yarn/SKILL.md)** — Bump Yarn (e.g. 4.12/4.14 → 4.17.1; rhdh-cli 3.8.6 with `--from 3.8.6`) in rhdh-plugins, rhdh, overlays, rhdh-cli, rhdh downstream, and rhdh-plugin-catalog. Lock refresh can take **>45 minutes** for a full multi-repo run; use `--scan` / `--dry-run` / `--no-refresh-locks` as needed.
+- **[rhdh-bump-yarn](./skills/rhdh-bump-yarn/SKILL.md)** — Bump Yarn (e.g. 4.12/4.14 → 4.17.1; rhdh-cli 3.8.6 with `--from 3.8.6`) in rhdh-plugins, rhdh, overlays, rhdh-cli, plus GitLab CEE midstream ([rhdh](https://gitlab.cee.redhat.com/rhidp/rhdh), [rhdh-plugin-catalog](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog)). Lock refresh can take **>45 minutes** for a full multi-repo run; use `--scan` / `--dry-run` / `--no-refresh-locks` as needed.
 
 ```bash
 npx skills add redhat-developer/rhdh-skill --skill rhdh-bump-yarn
