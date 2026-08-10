@@ -1,6 +1,12 @@
 # Code Review Perspectives
 
-Examples of review perspectives and the signals that suggest them. These are starting points, not a fixed roster — choose perspectives that fit the PR's actual content. Invent new ones when the PR calls for it (e.g., devil's advocate, agile coach, skill expert, domain specialist).
+Thin router for review focus. Examples of perspectives and the signals that suggest them — starting points, not a fixed roster. Choose perspectives that fit the PR's actual content. Invent new ones when the PR calls for it.
+
+**Do not hardcode specialist skill names here.** Specialist domain knowledge lives in whatever skill the user names when asked.
+
+## Specialist skills (always ask)
+
+Early in the review — after fetch/context, before deep analysis — **always ask** the user which installed skills (if any) to invoke for this review. "None" is a valid answer. Then invoke only what they named; do not invent a default specialist list.
 
 ## Common perspectives
 

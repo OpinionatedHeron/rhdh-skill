@@ -24,8 +24,16 @@ Reviews follow a three-layer pipeline: **fetch** (forge-specific) → **analyze*
 Reviewers will produce false positives. Verify every finding against actual code at HEAD before including it. Drop findings that reference non-existent code, duplicate existing comments, misread the code, or conflict with codebase conventions.
 </principle>
 
+<principle name="draft_craft">
+Prefer inlines over top-level duplication. Top-level is for important merge blockers, not a roll-up of inlines. Guide, don't dictate — ask why before alternatives when design is unclear. Use GitHub `suggestion` blocks only for small, obvious one-hunk fixes. No performative praise.
+</principle>
+
+<principle name="humanizer_required">
+Every `review-code.md` draft path (including analysis-only) hard-requires the `humanizer` skill. Load `references/humanizer.md` → Humanizer prerequisite (`setup.py --humanizer-only`), then invoke humanizer on top-level + inlines before presenting the draft. Do not re-implement humanizer here.
+</principle>
+
 <principle name="user_confirms_before_posting">
-Present the full review draft — summary, inline comments with file:line, and event type — to the user before posting. Proceed only after confirmation.
+Present the full **humanized** review draft — summary, inline comments with file:line, and event type — to the user before posting. Proceed only after confirmation.
 </principle>
 
 <principle name="deploy_full_bundle">
@@ -79,6 +87,25 @@ When GitLab support is added: `fetch-gitlab.md` and `post-to-gitlab.md` will slo
 
 </routing>
 
+## Prerequisites
+
+Run `scripts/setup.py` to verify the humanizer skill is available:
+
+```bash
+python scripts/setup.py --humanizer-only --json
+```
+
+### Humanizer skill gate (all review-code drafts)
+
+Load `references/humanizer.md` → Humanizer prerequisite. Every `review-code.md` path (including analysis-only) hard-requires humanizer before presenting a draft. Full install dialogue and invoke criterion live only in `humanizer.md`. Cluster-testing-only routes that never draft review prose do not need this gate.
+
+## Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/setup.py` | Detect humanizer skill. `--json` for structured output. `--humanizer-only` for the review-code draft gate (exit non-zero if humanizer missing). |
+| `scripts/fetch_pr_context.py` | Fetch GitHub PR context into the context artifact. |
+
 <artifact_contracts>
 
 ## Context artifact (fetch → analyze / cluster test)
@@ -124,7 +151,8 @@ findings artifact
 
 | Reference | Purpose | Load when... | Path |
 |-----------|---------|--------------|------|
-| review-perspectives | Review perspective examples and signal hints | Running `review-code.md` | `references/review-perspectives.md` |
+| humanizer | Humanizer prereq (SSOT) + invoke before show-user | Running `review-code.md` (any draft path) | `references/humanizer.md` |
+| review-perspectives | Perspective router; always ask which specialist skills | Running `review-code.md` | `references/review-perspectives.md` |
 | operator-pr-images | CI image extraction and validation | Running `review-operator-pr.md` | `references/operator-pr-images.md` |
 | github-reference | gh CLI patterns, PR queries | Running any GitHub workflow | `../rhdh/references/github-reference.md` (if available) |
 | rhdh-repos | RHDH ecosystem repository map | Cluster testing | `../rhdh/references/rhdh-repos.md` (if available) |
@@ -144,10 +172,12 @@ findings artifact
 ### Code review
 
 - [ ] PR context fetched (metadata, diff, linked issues, existing comments)
+- [ ] User asked which specialist skills (if any) to invoke; "None" accepted
 - [ ] Review perspectives chosen based on PR content
 - [ ] Findings verified against actual code at HEAD
 - [ ] False positives dropped with reasoning shown
-- [ ] Review draft presented to user with event type choice
+- [ ] Humanizer gate passed (`setup.py --humanizer-only`); draft humanized before show-user
+- [ ] Review draft presented to user with event type choice (top-level = merge blockers, not inline roll-up)
 - [ ] Review posted to forge (if posting route selected)
 
 ### Cluster testing

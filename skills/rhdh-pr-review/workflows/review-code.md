@@ -2,21 +2,27 @@
 
 Platform-agnostic code analysis. Consumes a **context artifact** (from `fetch-github.md` or a future `fetch-gitlab.md`), produces a **findings artifact** consumed by a posting workflow.
 
-This workflow works primarily from the context artifact. The one exception is reading full file contents at HEAD to verify findings, which requires forge-specific commands (see Step 2).
+This workflow works primarily from the context artifact. The one exception is reading full file contents at HEAD to verify findings, which requires forge-specific commands (see Step 3).
 
 ## Mindset
 
 You are a senior team member reviewing a contribution. Your goal is to help the author ship confidently, not demonstrate expertise. Every comment should either prevent a real problem or teach something useful — if it does neither, don't leave it.
 
-## Step 1: Choose review perspectives
+## Step 0: Humanizer prerequisite
 
-Read `../references/review-perspectives.md` for examples of review perspectives and the signals that suggest them. Pick the perspectives that fit this PR — the reference is a starting point, not a mandatory checklist. Invent new perspectives when the PR calls for it.
+Load `../references/humanizer.md` and run the Humanizer prerequisite before drafting. Hard-stop until `humanizer_found` is true. This applies to every draft path, including analysis-only.
+
+## Step 1: Ask which specialist skills to invoke
+
+Read `../references/review-perspectives.md`. After fetch/context is available and **before deep analysis**, always ask the user which installed skills (if any) to invoke for this review. "None" is valid. Do not invent a hardcoded specialist roster — use whatever the user names, then follow those skills for domain knowledge.
+
+Also choose review perspectives from the reference (Correctness, Security, etc.) as a thin router. The reference is a starting point, not a mandatory checklist. Invent new perspectives when the PR calls for it.
 
 For small PRs, reviewing directly from a single perspective is often enough. For larger or more complex PRs, multiple perspectives help catch different classes of issues.
 
 ## Step 2: Analyze the diff
 
-Review the diff through each chosen perspective. When dispatching subagent reviewers, each receives:
+Review the diff through each chosen perspective (and any user-named specialist skills). When dispatching subagent reviewers, each receives:
 
 - The diff from the context artifact
 - Linked requirements (`linked_issues`)
@@ -55,25 +61,33 @@ Present verified findings and dropped findings (with reasoning) to the user befo
 
 The posted review should read like a person wrote it, not a report generator. The structured presentation in Step 3 helps the user decide what to include; the actual GitHub comments use a different voice.
 
+Prefer **inline comments** for findings. Put substance on the line; do not duplicate inline content in the top-level comment.
+
 ### Top-level comment
 
-Keep it short and direct — frame what the inline comments are about so the author knows the scope at a glance. Include a requirements coverage note if linked issues were checked. Skip performative praise; it reads as filler.
+Reserved for **important issues to resolve before merge** — not a summary or roll-up of the inlines. Do not restate what is already inline. A brief thanks is fine when needed. No performative praise.
 
-If `existing_reviews` shows you've already left a top-level comment on this PR, a new one is often unnecessary — consider posting only the inline findings. A follow-up summary is still warranted if the scope of feedback changed significantly or the prior review was on a different revision.
+If `existing_reviews` shows you've already left a top-level comment on this PR, a new one is often unnecessary — consider posting only the inline findings. A follow-up top-level is still warranted if there are new merge-blocking issues or the prior review was on a different revision.
 
 ### Inline comments
 
 Post one inline comment per finding worth raising — no artificial cap. Never leave a comment just to show you noticed something. Not every finding needs the same weight — substantial issues get a full comment, nits can be grouped into a single comment as one-liners.
 
-Write each comment as natural prose — a short paragraph explaining the issue and why it matters. Avoid bullet lists, bold headers, and over-structured formatting. Keep just enough information for the author to understand the problem and act on it. Code suggestions and code blocks are fine since they're functional, not formatting.
+Write each comment as natural prose — a short paragraph explaining the issue and why it matters. Avoid bullet lists, bold headers, and over-structured formatting.
 
-Assume deliberate choices. Ask why before suggesting alternatives. Explain reasoning only when the fix isn't obvious. Call out specific things done well when genuine — name the pattern or decision, not generic praise.
+**Guide, don't dictate.** Assume deliberate choices. When the design intent is unclear, ask why before proposing alternatives. Explain reasoning only when the fix isn't obvious.
 
-**If nothing significant survives verification**, that's a valid outcome. Produce a short approving review. Don't manufacture issues.
+**GitHub `suggestion` blocks:** use them **only** when the fix is small and obvious — one clear replacement hunk the author can apply as-is. Otherwise leave a question or guidance without a suggestion block.
+
+**If nothing significant survives verification**, that's a valid outcome. Produce a short approving review. Don't manufacture issues. Simple thanks is enough; no performative praise.
+
+### Humanize before show-user
+
+After drafting top-level + inlines, follow `../references/humanizer.md` → When to invoke. Run humanizer on the full draft, then present the humanized draft. Never show pre-humanizer prose as the review draft.
 
 ## Step 5: Choose event type
 
-Present the draft to the user and ask which event type to use:
+Present the **humanized** draft to the user and ask which event type to use:
 
 | Event | When |
 |-------|------|
