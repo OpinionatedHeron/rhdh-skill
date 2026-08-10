@@ -1,10 +1,7 @@
-"""Generic utility functions shared inside the platform-support skill.
+"""Version sorting, date helpers, and endoflife.date filtering.
 
-Provides URL fetching, date parsing, version sorting, and endoflife.date
-helpers used by the lifecycle scripts.
-
-Usage:
-    from rhdh_lifecycle.utils import fetch_json, ver_sort_key
+Consolidated from two copies. One was a strict subset of the other, so this is
+the superset.
 """
 
 from __future__ import annotations
@@ -19,8 +16,7 @@ import urllib.request
 def fetch_json(url):
     """Fetch JSON from a URL.
 
-    Returns the parsed JSON, or None on failure. Shared by all lifecycle
-    scripts that consume external APIs (endoflife.date, AKS, EKS, etc.).
+    Returns the parsed JSON, or None on failure.
     """
     req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skill"})
     try:

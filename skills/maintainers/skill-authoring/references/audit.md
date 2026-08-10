@@ -52,7 +52,8 @@ Check each category. Note issues as you go. Map structural/content findings to f
 - [ ] Promoted membership, invocation mode, dependencies, and artifacts match the machine catalog
 - [ ] Named skill handoffs use declared `Type/vN` artifacts with the shared envelope
 - [ ] Human-invoked skills are limited to the approved wayfinding and setup entry points
-- [ ] Domain skills return `SetupRequired/v1` instead of installing or authenticating
+- [ ] Domain skills return `SetupRequired/v1` and stop the affected branch instead of installing, authenticating, or proceeding without the precondition
+- [ ] Material shared with another skill is extracted, enforced, or documented — not copied (see `references/architecture-patterns.md` → Duplication between skills)
 - [ ] Tests exercise scripts, contracts, adapters, and clean installs rather than prose shape
 
 **Scripts** (if present):

@@ -14,8 +14,9 @@ Jira, lifecycle, and release facts.
 
 ## Interfaces
 
-- Consumes from `rhdh-jira`: `JiraCapabilities/v1`, `JiraQueryResult/v1`, and,
-  for approved publishing only, `MutationReceipt/v1`.
+- Consumes from `rhdh-jira`: `IssueContext/v1` for the plan issue,
+  `JiraCapabilities/v1`, `JiraQueryResult/v1`, and, for approved publishing only,
+  `MutationReceipt/v1`.
 - Consumes from `rhdh-platform-support`: `LifecycleAssessment/v1`.
 - Consumes from `rhdh-release`: `ReleaseSnapshot/v1` or `ReleaseSchedule/v1`.
 - Produces: `TestPlanDelta/v1`; may propose `MutationPlan/v1` for `rhdh-jira`.
@@ -78,3 +79,15 @@ Do not edit Jira as part of the read-only review. If the user asks to publish th
 review, invoke `rhdh-jira` with a `MutationPlan/v1` whose targets, comment body,
 field changes, risks, rollback, and verification are explicit. Wait for approval,
 then consume and surface its `MutationReceipt/v1` in the final review.
+
+## Completion
+
+Complete when every rubric dimension in `workflows/review-test-plan.md` carries a
+verdict in `data.findings`, every material finding cites the issue key, sheet
+range, or lifecycle source behind it, and each dimension the review could not
+verify appears in `unverified` naming the skill or source that was unavailable.
+Absent coverage belongs in `gaps` and missing evidence belongs in `unverified`; a
+dimension may not be omitted from both. When publishing was requested, complete
+only after `rhdh-jira` returns a `MutationReceipt/v1` whose outcomes cover every
+operation in the approved `MutationPlan/v1` and that receipt appears in the
+review.

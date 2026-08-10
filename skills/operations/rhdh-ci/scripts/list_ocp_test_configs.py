@@ -1,7 +1,10 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.9"
-# dependencies = ["ruamel.yaml"]
+# dependencies = ["rhdh-common[yaml]"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
 # ///
 """List OCP versions used in RHDH CI test configs.
 
@@ -15,9 +18,9 @@ from __future__ import annotations
 import argparse
 import sys
 
-from rhdh_prow.repo import resolve_repo_root
-from rhdh_prow.utils import ver_sort_key
-from rhdh_prow.yaml import extract_branch, fetch_yaml, list_yaml_files
+from rhdh_common.openshift_release.repo import resolve_repo_root
+from rhdh_common.openshift_release.yaml import extract_branch, fetch_yaml, list_yaml_files
+from rhdh_common.versions import ver_sort_key
 
 CONFIG_DIR = "ci-operator/config/redhat-developer/rhdh"
 PREFIX = "redhat-developer-rhdh-"

@@ -16,12 +16,12 @@ Generate a Slack message announcing Feature Freeze status update.
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json slack feature-freeze-update {{RELEASE_VERSION}}
+uv run scripts/release.py --json slack feature-freeze-update {{RELEASE_VERSION}}
 ```
 
 Use its `slack_message` field directly. This workflow depends on the
 Rich Filter for both release-note and Feature Freeze JQL. If either template is
-unavailable, run `python scripts/release.py --json check`, configure the Rich
+unavailable, run `uv run scripts/release.py --json check`, configure the Rich
 Filter as shown in `references/config.md`, and retry. Do not use the
 hardcoded queries as substitutes.
 

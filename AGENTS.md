@@ -45,14 +45,8 @@ project-specific knowledge in the owning skill reference.
 
 ## Skill architecture
 
-The promoted catalog contains exactly 16 skills:
-
-- `skills/engineering/`: product engineering and the two human entry skills.
-- `skills/operations/`: Jira, lifecycle, test-plan, release, CI, and base-image
-  operations.
-- `skills/maintainers/`: repository and skill maintenance.
-
-These folders are editorial. Compose through `/skill-name` prose and versioned
+The `skills/engineering/`, `skills/operations/`, and `skills/maintainers/`
+folders are editorial. Compose through `/skill-name` prose and versioned
 artifacts, never through sibling category paths.
 
 Only `ask-rhdh` and `setup-rhdh-skills` are human-invoked. They carry
@@ -85,8 +79,10 @@ Do not add them to promoted manifests or catalogs.
   parallel credential store.
 - `/rhdh-context` owns shared repository and version context.
 - Cross-skill handoffs use typed artifacts with `contract`, `id`, `createdAt`,
-  and contract-specific `data`. The version is part of `contract`, and
-  cross-session artifacts live under the gitignored `.rhdh/artifacts/` path.
+  and contract-specific `data`. The version is part of `contract`. Artifacts
+  persist under the operating system temporary directory, so a cross-session
+  handoff may expire; the store reports the expiry and names the producing skill
+  to re-run.
 - External mutations require a user-approved `MutationPlan` before an adapter
   executes. Every operation declares `order`, `ownerSkill`, `adapter`,
   `operation`, `target`, `preview`, `preconditions`, `checks`, and `recovery`.
@@ -102,6 +98,14 @@ Do not add them to promoted manifests or catalogs.
 
 Keep shared behavior behind the owning skill interface. Do not reach into
 another skill's references or scripts.
+
+When the same material would appear in two skills, decide which module owns it:
+**extract** a foundation skill when nothing does, **enforce** the existing
+interface when a module already does, or **document** the rule once here and in
+`skill-authoring` when it is a rule rather than a capability. Copying is not a
+fourth option. Shared runtime *code* is the one case no skill can serve: it
+lives in the versioned `rhdh_common` package, declared as a dependency, never in
+hand-synced copies between skills. See ADR-0006.
 
 ## Testing
 
@@ -125,8 +129,10 @@ After merging changes to behavior, scripts, or `SKILL.md` files, create and push
 an appropriate semantic-version tag. Use patch for behavior fixes, minor for new
 backward-compatible capabilities, and major for breaking changes.
 
-The 24-to-16 architecture migration is one major breaking cutover. Do not add
-compatibility aliases or partial dual catalogs.
+No tag exists yet, so both the pack and the `rhdh-common` git source resolve the
+default branch. Tag them together: the first release tag must land in the same
+change that pins `rhdh-common` in every PEP-723 block, or scripts will import a
+runtime from a different commit than the skill that calls them.
 
 ## Agent project configuration
 

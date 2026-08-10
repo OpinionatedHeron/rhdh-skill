@@ -34,6 +34,9 @@ staged checkout or `ChangeHandoff/v1`; do not diagnose or modify product code.
   opens the PR, uploads supplied recordings, and updates linked GitHub issues.
   Jira reads and writes belong to `/rhdh-jira` and cross this boundary only as
   `IssueContext/v1`, `MutationPlan/v1`, and `MutationReceipt/v1` artifacts.
+- GitHub issue reads belong to `/rhdh-forge`, which returns the same
+  `IssueContext/v1` with `data.source: github`. Load
+  `references/github-input.md` when the request supplies an issue URL or number.
 - It does not implement fixes or features. If validation exposes a product-code
   failure, return failed `VerificationEvidence/v1` to
   `/rhdh-plugin-development` with the command and evidence.
@@ -61,66 +64,31 @@ data:
     data: {subject: change-id, checks: [], result: pass}
 ```
 
+`data.files` is the change set. The producing skill does not stage, so those
+paths arrive unstaged or untracked: verify them against the working tree, keep
+them out of the pre-existing baseline, and stage exactly them alongside the
+build-generated files at the workflow's staging gate. An empty index is a stop
+condition only when no artifact was supplied.
+
 When no artifact is supplied, derive these fields from the staged diff and ask
 only for unresolved issue context or release intent.
 
 ## Mutation contract
 
-Read-only inspection, builds, and draft construction do not approve a write.
-Before a push, recording upload, PR creation, or GitHub issue update, construct
-the exact external batch as this artifact:
+Read-only inspection, builds, and draft construction do not approve a write. A
+push, recording upload, PR creation, or GitHub issue update is a mutation:
+invoke the named skill `rhdh-artifacts` and follow its plan, approval hash, and
+receipt protocol rather than restating it here.
 
-```yaml
-contract: MutationPlan/v1
-id: pr-publication-plan-id
-createdAt: ISO-8601
-data:
-  summary: Publish the prepared plugin change
-  operations:
-    - order: 1
-      ownerSkill: rhdh-pull-request
-      adapter: github
-      operation: git.push | github.contents.create | github.pull-request.create | github.issue.comment
-      target: owner/repository-or-resource
-      preview: {commandOrRequest: exact-structured-input}
-      preconditions: []
-      checks: []
-      recovery: []
-  materialHash: sha256:<canonical-plan-data-hash>
-```
-
-Compute `materialHash` from the UTF-8 JSON encoding of the complete `data`
-object after removing `materialHash`, with keys sorted and separators `,` and
-`:`. This binds the summary and every material operation field. Present the
-complete plan and exact hash. Execute only after the user approves that hash.
-If an earlier operation produces material needed by a later one (for example
-an uploaded recording URL used in the PR body), close the first batch with a
-receipt, build a new exact plan, and obtain a new approval. A prior request to
-publish is intent, not plan approval. Reject legacy `--a` as unsupported.
-
-After each approved batch, return:
-
-```yaml
-contract: MutationReceipt/v1
-id: pr-publication-receipt-id
-createdAt: ISO-8601
-data:
-  planId: pr-publication-plan-id
-  materialHash: sha256:<approved-hash>
-  outcomes:
-    - order: 1
-      ownerSkill: rhdh-pull-request
-      adapter: <same-as-plan-operation>
-      operation: <same-as-plan-operation>
-      target: <same-as-plan-operation>
-      status: completed | failed | skipped
-```
-
-Return exactly one ordered outcome for every planned operation, including
-failures and operations skipped after a failure. Its order, owner, adapter,
-operation, and target must match the plan. Also record the changed resource or
-URL, verification, and remaining recovery action. Never execute an operation
-absent from the approved plan.
+Operations use `ownerSkill: rhdh-pull-request` with adapter `git` or `github`,
+and operation `git.push`, `github.contents.create`,
+`github.pull-request.create`, or `github.issue.comment`. Stage exactly the paths
+in the approved plan, derived from `ChangeHandoff/v1` `data.files` when a
+handoff supplied them. If an earlier operation produces material a later one
+needs, such as an uploaded recording URL used in the PR body, close the first
+batch with its receipt, build a new exact plan, and obtain a new approval.
+Reject legacy `--a` as unsupported. Outcomes also record the changed resource or
+URL, verification, and remaining recovery action.
 
 ## Output contract
 

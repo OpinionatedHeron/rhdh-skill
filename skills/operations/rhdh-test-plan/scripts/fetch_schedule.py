@@ -1,33 +1,24 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
+# ///
 """Fetch RHDH milestone dates (Feature Freeze, Code Freeze, GA) from the RHDH schedule Google Sheet."""
 
 import argparse
 import json
-import os
 import re
 import shutil
 import subprocess
 import sys
 from datetime import datetime
 
-_no_color = os.environ.get("NO_COLOR") is not None
-_is_tty = sys.stderr.isatty() and not _no_color
+from rhdh_common.jsonio import error_exit, log
+
 DEFAULT_SHEET_ID = "1knVzlMW0l0X4c7gkoiuaGql1zuFgEGwHHBsj-ygUTnc"
-
-
-def log(msg):
-    """Write to stderr — keeps stdout clean for JSON output."""
-    if _is_tty:
-        print(msg, file=sys.stderr)
-
-
-def error_exit(error_key, extra=None):
-    result = {"error": error_key}
-    if extra:
-        result.update(extra)
-    json.dump(result, sys.stdout, indent=2)
-    print()
-    sys.exit(1)
 
 
 def get_sheets_client():
@@ -35,7 +26,7 @@ def get_sheets_client():
     if not gog:
         error_exit(
             "gog_not_found",
-            {"hint": "Run /setup-rhdh-skills google-workspace"},
+            extra={"hint": "Run /setup-rhdh-skills google-workspace"},
         )
     return SheetsClient(gog)
 
@@ -69,14 +60,14 @@ def _sheets_error(error, spreadsheet_id):
     if "not found" in str(error).lower():
         error_exit(
             "spreadsheet_not_found",
-            {
+            extra={
                 "spreadsheet_id": spreadsheet_id,
                 "hint": "The spreadsheet was not found. Pass the correct ID with --sheet-id or share the sheet URL.",
             },
         )
     error_exit(
         "sheets_api_error",
-        {
+        extra={
             "spreadsheet_id": spreadsheet_id,
             "hint": "Verify Google Sheets access with /setup-rhdh-skills google-workspace",
         },
@@ -243,7 +234,7 @@ def main():
 
     tab = find_schedule_tab(tabs)
     if not tab:
-        error_exit("no_schedule_tab_found", {"tabs": tabs, "spreadsheet_id": sheet_id})
+        error_exit("no_schedule_tab_found", extra={"tabs": tabs, "spreadsheet_id": sheet_id})
 
     log(f"Reading tab: {tab}")
     rows = get_sheet_values(client, sheet_id, tab)
@@ -253,7 +244,7 @@ def main():
     if not milestones.get("code_freeze") and not milestones.get("ga_date"):
         error_exit(
             "version_not_found",
-            {
+            extra={
                 "version": version,
                 "tab": tab,
                 "spreadsheet_id": sheet_id,

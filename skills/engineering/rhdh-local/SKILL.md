@@ -18,9 +18,9 @@ use this skill's standalone CLI; another skill does not need to be installed.
 
 ## Capability gate
 
-1. Run `python scripts/rhdh-local --help`.
+1. Run `uv run scripts/rhdh-local --help`.
 2. Locate `rhdh-local-setup` through `RHDH_LOCAL_SETUP_DIR` or by walking from
-   the current directory. Run `python scripts/rhdh-local --json status`.
+   the current directory. Run `uv run scripts/rhdh-local --json status`.
 3. If the setup is absent, state the required environment variable or checkout
    layout and stop only the runtime branch.
 4. Never read secrets from `.env` into conversation context. Ask only for
@@ -34,11 +34,11 @@ use this skill's standalone CLI; another skill does not need to be installed.
 | Disable a plugin | `workflows/disable-plugin.md` |
 | Switch pristine/customized mode | `workflows/switch-mode.md` |
 | Verify a plugin end to end | `workflows/test-plugin.md` and `references/dynamic-plugin-testing.md` |
-| Inspect status or enabled packages | Run `python scripts/rhdh-local --json status` or `python scripts/rhdh-local --json plugins list` |
-| Apply customizations | Run `python scripts/rhdh-local --json apply` |
-| Start or stop | Run `python scripts/rhdh-local --json up [flags]` or `python scripts/rhdh-local --json down` |
-| Check health | Run `python scripts/rhdh-local --json health` |
-| Back up or restore | Run `python scripts/rhdh-local --json backup` or `python scripts/rhdh-local restore <archive>`; restore is a dry run until `--force` |
+| Inspect status or enabled packages | Run `uv run scripts/rhdh-local --json status` or `uv run scripts/rhdh-local --json plugins list` |
+| Apply customizations | Run `uv run scripts/rhdh-local --json apply` |
+| Start or stop | Run `uv run scripts/rhdh-local --json up [flags]` or `uv run scripts/rhdh-local --json down` |
+| Check health | Run `uv run scripts/rhdh-local --json health` |
+| Back up or restore | Run `uv run scripts/rhdh-local --json backup` or `uv run scripts/rhdh-local restore <archive>`; restore is a dry run until `--force` |
 | Troubleshoot startup, networking, or 504s | `references/troubleshooting.md` |
 | Configure environment variables | `references/env-reference.md` |
 

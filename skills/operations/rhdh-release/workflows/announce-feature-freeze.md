@@ -15,11 +15,11 @@ Generate a Slack message announcing that Feature Freeze milestone has been reach
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json slack feature-freeze {{RELEASE_VERSION}}
+uv run scripts/release.py --json slack feature-freeze {{RELEASE_VERSION}}
 ```
 
 Use its `slack_message` field directly. If it reports that `release_notes` is
-unavailable, run `python scripts/release.py --json check`, configure the Rich
+unavailable, run `uv run scripts/release.py --json check`, configure the Rich
 Filter as shown in `references/config.md`, and retry. Do not use a hardcoded
 release-notes query because the Rich Filter is the source of truth.
 

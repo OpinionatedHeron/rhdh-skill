@@ -45,9 +45,9 @@ If the plugin required environment variables in `rhdh-customizations/.env`, remo
 ## Step 4: Apply and Restart
 
 ```bash
-python scripts/rhdh-local apply
-python scripts/rhdh-local down
-python scripts/rhdh-local up --customized
+uv run scripts/rhdh-local apply
+uv run scripts/rhdh-local down
+uv run scripts/rhdh-local up --customized
 ```
 
 Add `--lightspeed`, `--orchestrator`, or `--both` flags if those components are enabled.
@@ -57,7 +57,7 @@ Add `--lightspeed`, `--orchestrator`, or `--both` flags if those components are 
 <success_criteria>
 
 - [ ] Plugin entry shows `disabled: true` or is removed from `dynamic-plugins.override.yaml`
-- [ ] `python scripts/rhdh-local apply` ran without errors
+- [ ] `uv run scripts/rhdh-local apply` ran without errors
 - [ ] RHDH starts cleanly — no errors referencing the disabled plugin
 - [ ] Plugin no longer appears in the Extensions Catalog or entity pages
 </success_criteria>

@@ -28,23 +28,23 @@
       "requiresSkills": [],
       "requiresExternalSkills": [],
       "consumes": [],
-      "produces": [
-        "RhdhIntent/v1"
-      ]
+      "produces": []
     },
     {
       "name": "setup-rhdh-skills",
       "category": "engineering",
       "invocation": "human",
-      "requiresSkills": [],
+      "requiresSkills": [
+        "rhdh-artifacts"
+      ],
       "requiresExternalSkills": [],
       "consumes": [
-        "MutationPlan/v1"
+        "MutationPlan/v1",
+        "SetupRequired/v1"
       ],
       "produces": [
         "SetupStatus/v1",
         "SetupReceipt/v1",
-        "SetupRequired/v1",
         "MutationPlan/v1",
         "MutationReceipt/v1"
       ]
@@ -62,11 +62,37 @@
       ]
     },
     {
-      "name": "rhdh-plugin-development",
+      "name": "rhdh-artifacts",
       "category": "engineering",
       "invocation": "model",
       "requiresSkills": [
         "rhdh-context"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [],
+      "produces": []
+    },
+    {
+      "name": "rhdh-forge",
+      "category": "engineering",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-artifacts"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [],
+      "produces": [
+        "IssueContext/v1"
+      ]
+    },
+    {
+      "name": "rhdh-plugin-development",
+      "category": "engineering",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context",
+        "rhdh-artifacts",
+        "rhdh-forge"
       ],
       "optionalSkills": [
         "rhdh-jira"
@@ -78,7 +104,9 @@
       ],
       "produces": [
         "ChangeHandoff/v1",
-        "VerificationEvidence/v1"
+        "VerificationEvidence/v1",
+        "MutationPlan/v1",
+        "MutationReceipt/v1"
       ]
     },
     {
@@ -86,12 +114,16 @@
       "category": "engineering",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-context"
+        "rhdh-artifacts"
+      ],
+      "optionalSkills": [
+        "rhdh-local",
+        "rhdh-forge"
       ],
       "requiresExternalSkills": [],
       "consumes": [
         "ChangeHandoff/v1",
-        "RhdhContext/v1"
+        "VerificationEvidence/v1"
       ],
       "produces": [
         "OverlayChange/v1",
@@ -104,16 +136,12 @@
       "name": "rhdh-local",
       "category": "engineering",
       "invocation": "model",
-      "requiresSkills": [
-        "rhdh-context"
-      ],
+      "requiresSkills": [],
       "requiresExternalSkills": [],
       "consumes": [
-        "ChangeHandoff/v1",
-        "RhdhContext/v1"
+        "ChangeHandoff/v1"
       ],
       "produces": [
-        "LocalRuntimeStatus/v1",
         "VerificationEvidence/v1"
       ]
     },
@@ -122,7 +150,8 @@
       "category": "engineering",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-context"
+        "rhdh-artifacts",
+        "rhdh-forge"
       ],
       "optionalSkills": [
         "rhdh-jira"
@@ -144,14 +173,15 @@
       "category": "engineering",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-context"
+        "rhdh-artifacts"
+      ],
+      "optionalSkills": [
+        "rhdh-forge"
       ],
       "requiresExternalSkills": [
         "humanizer"
       ],
-      "consumes": [
-        "RhdhContext/v1"
-      ],
+      "consumes": [],
       "produces": [
         "ReviewContext/v1",
         "ReviewFindings/v1",
@@ -164,7 +194,9 @@
       "name": "rhdh-jira",
       "category": "operations",
       "invocation": "model",
-      "requiresSkills": [],
+      "requiresSkills": [
+        "rhdh-artifacts"
+      ],
       "requiresExternalSkills": [
         "grilling"
       ],
@@ -203,13 +235,16 @@
       "requiresExternalSkills": [],
       "consumes": [
         "IssueContext/v1",
+        "JiraCapabilities/v1",
         "JiraQueryResult/v1",
         "LifecycleAssessment/v1",
+        "MutationReceipt/v1",
         "ReleaseSchedule/v1",
         "ReleaseSnapshot/v1"
       ],
       "produces": [
-        "TestPlanDelta/v1"
+        "TestPlanDelta/v1",
+        "MutationPlan/v1"
       ]
     },
     {
@@ -218,13 +253,17 @@
       "invocation": "model",
       "requiresSkills": [
         "rhdh-jira",
-        "rhdh-platform-support"
+        "rhdh-artifacts"
+      ],
+      "optionalSkills": [
+        "rhdh-ci"
       ],
       "requiresExternalSkills": [],
       "consumes": [
         "IssueContext/v1",
+        "JiraCapabilities/v1",
         "JiraQueryResult/v1",
-        "LifecycleAssessment/v1",
+        "KonfluxUpdateReport/v1",
         "MutationPlan/v1"
       ],
       "produces": [
@@ -243,20 +282,20 @@
       "category": "operations",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-context",
-        "rhdh-platform-support"
+        "rhdh-platform-support",
+        "rhdh-artifacts"
       ],
       "requiresExternalSkills": [],
       "consumes": [
         "LifecycleAssessment/v1",
-        "MutationPlan/v1",
-        "RhdhContext/v1"
+        "MutationPlan/v1"
       ],
       "produces": [
         "CiCoverageReport/v1",
         "CiInventory/v1",
         "KonfluxUpdateReport/v1",
         "ProwRunReceipt/v1",
+        "SetupRequired/v1",
         "MutationPlan/v1",
         "MutationReceipt/v1"
       ]
@@ -266,11 +305,10 @@
       "category": "operations",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-context"
+        "rhdh-artifacts"
       ],
       "requiresExternalSkills": [],
       "consumes": [
-        "RhdhContext/v1",
         "MutationPlan/v1"
       ],
       "produces": [
@@ -290,9 +328,7 @@
       "consumes": [
         "RhdhContext/v1"
       ],
-      "produces": [
-        "ReadinessReport/v1"
-      ]
+      "produces": []
     },
     {
       "name": "skill-authoring",
@@ -304,9 +340,7 @@
       ],
       "consumes": [],
       "produces": [
-        "SkillDesign/v1",
-        "SkillAudit/v1",
-        "SkillPackageReport/v1"
+        "SetupRequired/v1"
       ]
     }
   ]

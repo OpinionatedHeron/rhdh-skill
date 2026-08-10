@@ -4,7 +4,7 @@ Expose every query-bearing entry in the configured Rich Filter export.
 
 <prerequisites>
 
-Run `python scripts/release.py --json check` and require the Rich Filter contract check to pass.
+Run `uv run scripts/release.py --json check` and require the Rich Filter contract check to pass.
 
 </prerequisites>
 
@@ -13,19 +13,19 @@ Run `python scripts/release.py --json check` and require the Rich Filter contrac
 First list the catalog:
 
 ```bash
-python scripts/release.py --json rich-filter inventory
+uv run scripts/release.py --json rich-filter inventory
 ```
 
 Then query an entry by kind. Smart-filter clauses require their group name;
 `--version` adds release scope and `--count` executes the composed JQL.
 
 ```bash
-python scripts/release.py --json rich-filter query static demo --version {{RELEASE_VERSION}} --count
-python scripts/release.py --json rich-filter query smart AI --group "Scrum Team" --version {{RELEASE_VERSION}} --count
-python scripts/release.py --json rich-filter query queue "RNs Proposed" --version {{RELEASE_VERSION}} --count
-python scripts/release.py --json rich-filter query time-series "Last week" --version {{RELEASE_VERSION}} --count
-python scripts/release.py --json rich-filter query ratio-numerator "1.10 Plan to Commit" --count
-python scripts/release.py --json rich-filter query ratio-denominator "1.10 Plan to Commit" --count
+uv run scripts/release.py --json rich-filter query static demo --version {{RELEASE_VERSION}} --count
+uv run scripts/release.py --json rich-filter query smart AI --group "Scrum Team" --version {{RELEASE_VERSION}} --count
+uv run scripts/release.py --json rich-filter query queue "RNs Proposed" --version {{RELEASE_VERSION}} --count
+uv run scripts/release.py --json rich-filter query time-series "Last week" --version {{RELEASE_VERSION}} --count
+uv run scripts/release.py --json rich-filter query ratio-numerator "1.10 Plan to Commit" --count
+uv run scripts/release.py --json rich-filter query ratio-denominator "1.10 Plan to Commit" --count
 ```
 
 Inventory output also lists dynamic fields and view columns as presentation

@@ -18,26 +18,20 @@ If Jira capability is missing, surface `SetupRequired/v1` and direct the human t
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json dates
+uv run scripts/release.py --json dates
 ```
 
 If the CLI succeeds, use its output directly. If it fails, follow the manual steps below.
 
 ## Step 2 (fallback): Find active release issues
 
-Use the `active_release` JQL from `references/jql-release.md`:
-
-```bash
-acli jira workitem search --jql "project=rhdhplan AND issuetype=feature AND component=release AND status != closed" --limit 500 --json
-```
+Invoke `rhdh-jira` with the `active_release` JQL from `references/jql-release.md`
+and consume `JiraQueryResult/v1`.
 
 ## Step 3 (fallback): Extract dates from each release issue
 
-For each release issue returned, fetch full details:
-
-```bash
-acli jira workitem view {{ISSUE_KEY}} --json
-```
+For each release issue returned, ask `rhdh-jira` for the full issue including its
+description, and consume `JiraQueryResult/v1`.
 
 Extract from the description:
 

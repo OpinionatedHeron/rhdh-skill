@@ -1,15 +1,20 @@
-"""Output formatting for rhdh CLI.
+"""Output formatting for RHDH CLIs.
 
 Auto-detects output format based on context:
 - TTY (terminal) → Human-readable with colors
 - Not TTY (piped/Claude) → JSON for machine parsing
 
 Override with --human or --json flags.
+
+Consolidated from three copies. Where they disagreed the safer behaviour won:
+NO_COLOR is honoured (it was only in one copy), and human-mode error output
+goes entirely to stderr so stdout stays parseable.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -53,14 +58,20 @@ class OutputFormatter:
     verbose: bool = False
     _debug_info: dict[str, Any] = field(default_factory=dict)
     _has_human_output: bool = field(default=False, repr=False)
+    _color: bool = field(default=True, repr=False)
 
     def __post_init__(self):
         if self.mode == "auto":
             self.mode = detect_output_mode()
+        self._color = os.environ.get("NO_COLOR") is None
 
     @property
     def is_human(self) -> bool:
         return self.mode == "human"
+
+    def _paint(self, code: str, text: str) -> str:
+        """Wrap text in an ANSI code unless NO_COLOR is set."""
+        return f"{code}{text}{NC}" if self._color else text
 
     def add_debug(self, key: str, value: Any) -> None:
         """Add debug information (included if verbose=True)."""
@@ -112,9 +123,9 @@ class OutputFormatter:
             self._render_data(data)
 
         if next_steps:
-            print(f"\n{BOLD}Next steps:{NC}")
+            print(f"\n{self._paint(BOLD, 'Next steps:')}")
             for step in next_steps:
-                print(f"  {BLUE}{step}{NC}")
+                print(f"  {self._paint(BLUE, step)}")
 
     def _render_data(self, data: dict[str, Any], indent: int = 0) -> None:
         """Recursively render data in human-readable format."""
@@ -126,11 +137,11 @@ class OutputFormatter:
             elif key == "items" and isinstance(value, list):
                 self._render_items(value, prefix)
             elif isinstance(value, dict):
-                print(f"{prefix}{BOLD}{key}:{NC}")
+                print(f"{prefix}{self._paint(BOLD, f'{key}:')}")
                 self._render_data(value, indent + 1)
             elif isinstance(value, list):
                 if value:
-                    print(f"{prefix}{BOLD}{key}:{NC}")
+                    print(f"{prefix}{self._paint(BOLD, f'{key}:')}")
                     for item in value:
                         if isinstance(item, dict):
                             self._render_data(item, indent + 1)
@@ -138,7 +149,7 @@ class OutputFormatter:
                         else:
                             print(f"{prefix}  - {item}")
             elif isinstance(value, bool):
-                icon = f"{GREEN}✓{NC}" if value else f"{RED}✗{NC}"
+                icon = self._paint(GREEN, "✓") if value else self._paint(RED, "✗")
                 print(f"{prefix}{icon} {key}")
             else:
                 print(f"{prefix}{key}: {value}")
@@ -151,11 +162,11 @@ class OutputFormatter:
             message = check.get("message", "")
 
             if status == "pass":
-                icon = f"{GREEN}✓{NC}"
+                icon = self._paint(GREEN, "✓")
             elif status == "warn":
-                icon = f"{YELLOW}⚠{NC}"
+                icon = self._paint(YELLOW, "⚠")
             else:
-                icon = f"{RED}✗{NC}"
+                icon = self._paint(RED, "✗")
 
             if message:
                 print(f"{prefix}{icon} {name}: {message}")
@@ -167,7 +178,7 @@ class OutputFormatter:
         for item in items:
             name = item.get("name", "unknown")
             detail = item.get("detail", "")
-            print(f"{prefix}  {BLUE}{name:<30}{NC} {detail}")
+            print(f"{prefix}  {self._paint(BLUE, f'{name:<30}')} {detail}")
 
     # =========================================================================
     # Error Output
@@ -211,13 +222,13 @@ class OutputFormatter:
         message: str,
         next_steps: list[str] | None,
     ) -> None:
-        """Render error as human-readable text."""
-        print(f"{RED}Error [{code}]:{NC} {message}", file=sys.stderr)
+        """Render error as human-readable text, entirely on stderr."""
+        print(f"{self._paint(RED, f'Error [{code}]:')} {message}", file=sys.stderr)
 
         if next_steps:
-            print(f"\n{BOLD}To fix:{NC}")
+            print(f"\n{self._paint(BOLD, 'To fix:')}", file=sys.stderr)
             for step in next_steps:
-                print(f"  - {step}")
+                print(f"  - {step}", file=sys.stderr)
 
     # =========================================================================
     # Convenience Methods (human-style logging)
@@ -226,31 +237,31 @@ class OutputFormatter:
     def header(self, text: str) -> None:
         """Print a section header (human mode only, ignored in JSON)."""
         if self.is_human:
-            print(f"\n{BOLD}{text}{NC}")
+            print(f"\n{self._paint(BOLD, text)}")
             self._has_human_output = True
 
     def log_ok(self, message: str) -> None:
         """Log success message (human mode only)."""
         if self.is_human:
-            print(f"  {GREEN}✓{NC} {message}")
+            print(f"  {self._paint(GREEN, '✓')} {message}")
             self._has_human_output = True
 
     def log_warn(self, message: str) -> None:
         """Log warning message (human mode only)."""
         if self.is_human:
-            print(f"  {YELLOW}⚠{NC} {message}")
+            print(f"  {self._paint(YELLOW, '⚠')} {message}")
             self._has_human_output = True
 
     def log_fail(self, message: str) -> None:
         """Log failure message (human mode only)."""
         if self.is_human:
-            print(f"  {RED}✗{NC} {message}")
+            print(f"  {self._paint(RED, '✗')} {message}")
             self._has_human_output = True
 
     def log_info(self, message: str) -> None:
         """Log info message (human mode only)."""
         if self.is_human:
-            print(f"  {BLUE}→{NC} {message}")
+            print(f"  {self._paint(BLUE, '→')} {message}")
             self._has_human_output = True
 
     # =========================================================================
@@ -300,7 +311,7 @@ class OutputFormatter:
 
         color = YELLOW if style == "warn" else BLUE
         print()
-        print(f"{color}{message}{NC}")
+        print(self._paint(color, message))
         if call_to_action:
             print(f"  {call_to_action}")
         self._has_human_output = True

@@ -154,13 +154,13 @@ Fine-tuning RHDH runtime behavior.
 3. Apply and restart:
 
    ```bash
-   python scripts/rhdh-local apply
-   python scripts/rhdh-local down
-   python scripts/rhdh-local up --customized
+   uv run scripts/rhdh-local apply
+   uv run scripts/rhdh-local down
+   uv run scripts/rhdh-local up --customized
    ```
 
 **Security note:** `.env` files often contain secrets (tokens, passwords). They
-are gitignored by default. Use `python scripts/rhdh-local backup` to archive
+are gitignored by default. Use `uv run scripts/rhdh-local backup` to archive
 them; the backup command warns about credential files. Never load their values
 into model context.
 

@@ -30,24 +30,41 @@ Split a new skill only when it has independent invocation value or a distinct
 leading phrase users naturally request. Put branch-only knowledge in an owned
 reference and deterministic work in a script.
 
+When the same material appears in two skills, do not copy it a third time. Ask
+which module owns it and pick one of three answers: **extract** it into a
+foundation skill when nothing owns it, **enforce** the existing seam when a
+module owns it and a caller copied past its interface, or **document** it once
+in `skills/maintainers/skill-authoring/` and `AGENTS.md` when it is a rule
+rather than a capability. Shared runtime *code* is none of those — it belongs in
+the versioned `rhdh_common` package under `packages/`. See
+[ADR-0006](docs/adr/0006-foundation-skills.md).
+
 Draft work belongs under `internal/in-progress/`, outside the promoted discovery
 root. Retired history belongs under `internal/deprecated/`. Neither ships.
 
 ## Add or change a promoted skill
 
-1. Keep `name` lowercase and equal to the skill directory name.
+1. Create the skill at `skills/<category>/<name>/SKILL.md`, where `<category>` is
+   `engineering`, `operations`, or `maintainers`. Keep the frontmatter `name`
+   lowercase and equal to the directory name.
 2. Write a description that states the capability and genuine trigger branches
    in fewer than 1024 characters.
 3. Keep the `SKILL.md` interface concise and disclose branch-only material.
 4. Add `agents/openai.yaml` with display name and short description.
 5. Use human-only metadata only for `ask-rhdh` and `setup-rhdh-skills`.
 6. Invoke other skills by name. Exchange structured data through a versioned
-   artifact under `.rhdh/artifacts/`.
+   artifact whose shape is registered in
+   `skills/engineering/rhdh-context/scripts/artifact-contracts.json`. Add the
+   contract there before any skill declares that it produces or consumes it.
 7. For external writes, produce a `MutationPlan`, obtain approval, execute the
    selected adapter, and write a hash-matched mutation receipt. Setup may also
    return `SetupReceipt`, but it never replaces the mutation receipt.
-8. Update the machine-readable catalog, README, and migration documentation
-   when membership or naming changes.
+8. Add the skill to `skills/engineering/setup-rhdh-skills/assets/catalog.json`
+   with its category, invocation, required skills, and produced and consumed
+   artifacts. A skill missing from that file fails
+   `scripts/validate_skill_catalog.py`, and nothing installs it. Update
+   `README.md` and `docs/architecture-migration.md` in the same change whenever
+   membership or naming changes.
 9. Add script, artifact, adapter, and catalog contract tests as applicable.
 10. Run `uv run pytest`.
 
@@ -62,7 +79,7 @@ explicitly changes them:
 - `~/.config/rhdh-skill/config.json`
 - `.rhdh/worklog.jsonl`
 - `.rhdh/TODO.md`
-- `.rhdh/artifacts/`
+- the artifact store under the operating system temporary directory
 
 Keep the existing `rhdh` and `rhdh-local` CLI behavior compatible. Update setup
 routing rather than introducing a second configuration source.
@@ -94,7 +111,7 @@ Git tags are authoritative. Do not add a version file.
 - Minor tag: new backward-compatible skill or capability.
 - Major tag: breaking rename, removal, interface, or artifact change.
 
-The 24-to-16 catalog migration ships as one major cutover. Old skill aliases and
+The 24-to-18 catalog migration ships as one major cutover. Old skill aliases and
 a mixed old/new catalog are intentionally excluded.
 
 After the breaking branch is merged and tagged, a maintainer signs in at

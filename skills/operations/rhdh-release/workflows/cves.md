@@ -15,14 +15,12 @@ Compile all CVE issues for a release.
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json cves {{RELEASE_VERSION}}
+uv run scripts/release.py --json cves {{RELEASE_VERSION}}
 ```
 
 If the CLI succeeds, use its output directly. If it fails, follow the manual steps below.
 
 ## Step 2 (fallback): Query CVE issues
-
-Use the `cves` JQL from `references/jql-release.md`:
 
 Invoke `rhdh-jira` with the `cves` JQL from `references/jql-release.md`.
 Consume enriched `JiraQueryResult/v1` fields for key, summary, type, status,
@@ -30,9 +28,8 @@ priority, and assignee.
 
 ## Step 3 (fallback): Get count
 
-```bash
-acli jira workitem search --jql 'project IN (RHIDP, rhdhbugs) AND fixVersion = "{{RELEASE_VERSION}}" and issuetype in (weakness, Vulnerability, bug) and summary ~ "CVE*"' --count
-```
+Take the count from the same `JiraQueryResult/v1`. Check `truncated` before
+reporting it as a total.
 
 ## Step 4 (fallback): Format output
 

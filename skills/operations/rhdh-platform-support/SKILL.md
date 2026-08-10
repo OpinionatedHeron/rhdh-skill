@@ -61,5 +61,15 @@ configured version is supported.
 
 Other skills invoke the named skill `rhdh-platform-support` and consume
 `LifecycleAssessment/v1`. They must not import `rhdh_lifecycle` or locate this
-skill on disk. The `rhdh_lifecycle` package is a private, local adapter so this
-skill remains independently installable.
+skill on disk: `rhdh_lifecycle` is a private, local adapter.
+
+## Completion
+
+Complete when every product and version named in the request appears in
+`data.versions` with the support phase and the source date the script returned,
+`data.sources` names each endpoint the answer rests on, and every version the
+script could not classify appears in `data.warnings` rather than being dropped or
+estimated. A version found only in `openshift/release` appears under
+`data.configuredVersions` and is never reported as supported. If a lifecycle
+source was unreachable, name the product that remains unassessed instead of
+returning the partial list as the answer.

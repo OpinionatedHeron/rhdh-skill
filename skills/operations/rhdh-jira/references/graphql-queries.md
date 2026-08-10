@@ -48,10 +48,17 @@ adapter response to a temporary file and query only the relevant type names prog
 
 ### Search issues
 
+`issueSearchStable` is a beta endpoint, and three things about it fail the whole request rather
+than degrading. The JQL goes inside an `issueSearchInput` object, not a top-level `jql` argument.
+The request needs the header `X-ExperimentalApi: JiraIssueSearch`; without it the endpoint returns
+`BetaHeaderOptInException`. The adapter sends that header — if it cannot, use paginated `acli`
+instead. And the operation must be named: anonymous `query { ... }` documents are rejected.
+
 ```graphql
-query SearchIssues($cloudId: ID!, $jql: String!, $first: Int!, $after: String) {
+query SearchIssues($cloudId: ID!, $input: JiraIssueSearchInput!, $first: Int!, $after: String) {
   jira {
-    issueSearchStable(cloudId: $cloudId, jql: $jql, first: $first, after: $after) {
+    issueSearchStable(cloudId: $cloudId, issueSearchInput: $input, first: $first, after: $after) {
+      totalCount
       edges {
         node {
           key
@@ -72,8 +79,11 @@ query SearchIssues($cloudId: ID!, $jql: String!, $first: Int!, $after: String) {
 }
 ```
 
-Paginate until `hasNextPage` is false. Store only normalized issue data in `JiraQueryResult/v1`;
-never store raw connector metadata.
+Variables are `{"input": {"jql": "project = RHIDP AND status = \"In Progress\""}, "first": 50}`.
+`first` sits on the connection, never inside `issueSearchInput`. Compare `totalCount` against the
+rows collected to know whether a result set was truncated. Paginate with `pageInfo.endCursor` until
+`hasNextPage` is false. Store only normalized issue data in `JiraQueryResult/v1`; never store raw
+connector metadata.
 
 ### Single issue
 
@@ -97,6 +107,51 @@ query GetIssue($cloudId: ID!, $key: String!) {
 }
 ```
 
+Custom fields arrive as typed nodes under `fields`. Select them with inline fragments:
+
+| `__typename` | Fragment | Returns |
+|---|---|---|
+| `JiraNumberField` | `... on JiraNumberField { number }` | Story Points and the DEV/QE/DOC point fields |
+| `JiraSingleSelectField` | `... on JiraSingleSelectField { fieldOption { value } }` | Size, Ready, Blocked, Release Note Type |
+| `JiraSprintField` | `... on JiraSprintField { selectedSprintsConnection { edges { node { name state } } } }` | Sprint name and state |
+| `JiraLabelsField` | `... on JiraLabelsField { labels { edges { node { name } } } }` | Labels |
+| `JiraComponentsField` | `... on JiraComponentsField { components { edges { node { name } } } }` | Components |
+| `JiraRichTextField` | introspect for sub-fields | Description, Acceptance Criteria, Release Note Text |
+| `JiraTeamViewField` | `... on JiraTeamViewField { selectedTeam { jiraSuppliedName fullTeam { members(first: 50) { nodes { member { name accountId } state role } } } } }` | Team name and roster — see Team roster below |
+
+Introspect any `__typename` not listed here rather than guessing its shape.
+
+### Team roster
+
+Query team membership directly instead of inferring a roster from issue assignees.
+
+```graphql
+query GetTeamRoster($teamId: ID!, $siteId: ID!, $first: Int!, $after: String) {
+  team {
+    teamV2(id: $teamId, siteId: $siteId) {
+      displayName
+      members(first: $first, after: $after) {
+        nodes { member { name accountId } state role }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}
+```
+
+`siteId` is the same cloud id used elsewhere; `teamId` is the Jira team UUID, which the caller
+supplies. Never infer a team from member names. Each node carries `state` — `FULL_MEMBER`,
+`INVITED`, or `ALUMNI` — and `role`, either `REGULAR` or `ADMIN`. Keep `FULL_MEMBER` only:
+`INVITED` members have not accepted and `ALUMNI` have left, so counting either inflates capacity
+and produces recommendations for people who cannot take the work. Page past the first 50 members
+with `pageInfo.endCursor`.
+
+A team can also be reached from an issue through `JiraTeamViewField`, whose
+`selectedTeam.fullTeam.members` returns the same node shape. Prefer `teamV2` when a team id is
+known; it avoids fetching an issue to reach the roster.
+
+`references/assign.md` consumes this roster for expertise and capacity analysis.
+
 ## Fallback rules
 
 | Need | Adapter |
@@ -104,6 +159,7 @@ query GetIssue($cloudId: ID!, $key: String!) {
 | Normal or bulk JQL search | `acli jira workitem search --paginate --json` |
 | Single issue with custom fields | `acli jira workitem view KEY --fields '*all' --json` |
 | Relationship-heavy bulk read | Authenticated host GraphQL adapter |
+| Team roster by team id | Authenticated host GraphQL adapter, `team.teamV2` |
 | Unsupported custom-field read or write | [rest-api-fallback.md](rest-api-fallback.md) |
 | No capable authenticated adapter | `SetupRequired/v1` |
 

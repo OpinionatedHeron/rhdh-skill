@@ -30,7 +30,7 @@ With no branch in the request, show this table and wait for the user's selection
 Run the setup doctor before every branch:
 
 ```bash
-python scripts/setup.py doctor --json
+uv run scripts/setup.py doctor --json
 ```
 
 Consume the complete `SetupStatus/v1` response. Reuse it during the session unless setup changes.
@@ -38,18 +38,22 @@ The doctor reports capability status and configuration locations; it does not re
 
 ## Mutation contract
 
-Before installation or configuration changes, present one complete `MutationPlan/v1`. Its `data`
-contains `summary`, `operations`, and `materialHash`. Every operation contains ordered
-`ownerSkill`, `adapter`, `operation`, `target`, `preview`, `preconditions`, `checks`, and `recovery`
-fields. The hash binds the summary and complete operation array. Apply the plan only after the user
-approves that hash. Re-plan and ask again when any bound material changes or when a new irreversible
-action appears. Finish every applied plan with `MutationReceipt/v1`, carrying the approved `planId`
-and `materialHash`. `SetupReceipt/v1` may additionally summarize the resulting capability status; it
-never replaces the mutation receipt.
+Installation and configuration changes are mutations. Invoke the named skill `rhdh-artifacts` and
+follow its `MutationPlan/v1` approval hash and `MutationReceipt/v1` protocol rather than restating
+it here. Installation operations use `ownerSkill: setup-rhdh-skills` with the `skills-cli/v1` adapter;
+`scripts/setup.py install-plan` builds the plan and `scripts/setup.py apply` executes it against the
+hash the user approved. `SetupReceipt/v1` may additionally summarize the resulting capability
+status; it never replaces the mutation receipt.
 
 Credentials remain in the owning tool's credential store or OS keyring. Pass secrets directly to
 the tool without placing them in conversation, configuration JSON, artifacts, or pack content.
 
-Setup is complete when the doctor reports every promoted skill plus `grilling` and `humanizer`, and
-the selected branch's smoke check succeeds. Tell the user to restart or rescan the agent after new
-skills are installed.
+## Completion
+
+A branch is complete when the doctor reports every promoted skill in `assets/catalog.json` plus
+`grilling` and `humanizer` as installed, the branch's own capability reads `true` in that same
+`SetupStatus/v1`, and the branch reference's smoke check has been run with its output shown. An
+install branch additionally requires one recorded outcome for every operation in the approved
+`MutationPlan/v1`, and the user told to restart or rescan the agent. When a model skill sent the
+user here with `SetupRequired/v1`, every capability in its `data.missing` must report installed
+before the branch closes. Name any capability still `false` as unresolved instead of closing on it.

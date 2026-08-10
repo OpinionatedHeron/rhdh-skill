@@ -6,7 +6,7 @@ source of truth for the promoted skill set and its two required external depende
 1. Create the installation plan:
 
    ```bash
-   python scripts/setup.py install-plan --agent <agent-id> --scope global --json
+   uv run scripts/setup.py install-plan --agent <agent-id> --scope global --json
    ```
 
    Use `--pack-url <url>` to bootstrap a release before its URL is recorded in the catalog. When no
@@ -18,10 +18,10 @@ source of truth for the promoted skill set and its two required external depende
    hash, save the exact plan JSON to a temporary file and apply it:
 
    ```bash
-   python scripts/setup.py apply --plan <plan.json> --approved-material-hash <sha256:...> --json
+   uv run scripts/setup.py apply --plan <plan.json> --approved-material-hash <sha256:...> --json
    ```
 
-3. Run `python scripts/setup.py doctor --json`. Repair only the skills still reported missing.
+3. Run `uv run scripts/setup.py doctor --json`. Repair only the skills still reported missing.
 4. Ask the user to restart or rescan the agent so newly installed descriptions are loaded.
 
 The adapter validates every operation before running the first one and executes argument arrays

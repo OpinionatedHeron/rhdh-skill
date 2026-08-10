@@ -30,7 +30,7 @@ EOF
 ISSUE_ADF=$(mktemp)
 python scripts/jira-wiki-to-adf.py issue-desc.txt "$ISSUE_ADF"
 
-# Create the issue (note: --yes does not exist on create, see Gotcha #18)
+# Create the issue (note: --yes does not exist on create, see `references/acli-commands.md` → Create)
 acli jira workitem create --project RHIDP --type Epic \
   --summary "SSO Integration for Admin Console" \
   --description-file "$ISSUE_ADF" \

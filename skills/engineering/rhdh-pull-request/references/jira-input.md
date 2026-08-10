@@ -39,6 +39,10 @@ data:
   url: https://redhat.atlassian.net/browse/RHDHBUGS-1934
 ```
 
+`/rhdh-forge` returns the same contract for a GitHub issue with
+`data.source: github`, so downstream steps read `data.key`, `data.summary`, and
+`data.source` without branching on which skill answered.
+
 If the named skill cannot provide the artifact, retain the key and URL, leave
 the summary unresolved, and return `SetupRequired/v1` for the Jira enrichment
 branch. Never inspect a credential file as a fallback.

@@ -2,7 +2,7 @@
 
 Lessons learned from building skills that wrap CLIs, REST APIs, and GraphQL APIs. Read this when the skill interacts with external services or APIs.
 
-For general reference architecture patterns (transitive loading, error placement, decision tables, agent-only audience), see `spec-guide.md` → Reference Architecture.
+For general reference architecture patterns (transitive loading, error placement, decision tables, agent-only audience), see `spec-guide.md` → Reference Architecture. For the gate contract every capability check follows, see `architecture-patterns.md` → Setup and capability gates.
 
 ## Credential handling
 
@@ -17,8 +17,9 @@ Skills that authenticate against external services must handle credentials caref
    substitution, command arguments, request previews, logs, receipts, or artifacts for secrets.
 3. **Separate setup from use.** A human-invoked setup skill owns installation, login, repair, and
    browser consent. A model-invoked consumer performs only a non-secret capability check.
-4. **Add a capability gate.** If the required adapter is unavailable, emit `SetupRequired/v1` with
-   the owning setup route and stop only the affected branch.
+4. **Add a capability gate.** Adapter readiness is a gate like any other; follow the gate contract
+   in `architecture-patterns.md` → Setup and capability gates. Check readiness without inspecting
+   credential material.
 5. **Keep setup single-sourced.** Consumer references explain the required capability, not how to
    install a tool or create credentials.
 6. **Test the boundary.** Tests assert capability detection, safe failure, and secret exclusion;

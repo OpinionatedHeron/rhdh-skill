@@ -21,7 +21,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from rhdh_lifecycle.utils import is_date, to_date, ver_sort_key  # noqa: F401
+from rhdh_common.versions import is_date, to_date, ver_sort_key  # noqa: F401
 
 LIFECYCLE_API_URL = "https://access.redhat.com/product-life-cycles/api/v1/products"
 

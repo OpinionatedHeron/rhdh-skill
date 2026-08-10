@@ -18,8 +18,9 @@ whether to continue in quick mode. Never construct credentials or raw HTTP reque
 
 ## Deep analysis
 
-1. Fetch the team roster through the host adapter. Keep full members only. Capture display name and
-   account ID; paginate past 50 members.
+1. Fetch the team roster through the host adapter with the `GetTeamRoster` query in
+   `graphql-queries.md` → Team roster. Keep members whose `state` is `FULL_MEMBER`; drop `INVITED`
+   and `ALUMNI`. Capture display name and account ID; paginate past 50 members.
 2. For each member, fetch up to 90 days of recent work:
 
    ```bash
@@ -65,6 +66,11 @@ the exact `acli` command, then obtain approval for its material hash.
 ```bash
 acli jira workitem assign --key RHIDP-1234 --assignee "ACCOUNT_ID" --yes
 ```
+
+`assign` takes `--key`, not a positional issue key, and hangs on an interactive prompt without
+`--yes`. `acli-commands.md` → Key Syntax Rules covers both, plus the flag differences between
+`assign`, `edit`, and `transition`. There is no GraphQL mutation for assignment; `acli` and the
+authenticated adapter are the only two paths.
 
 For a batch, use the supported `--from-file` form and include the complete redacted file content in
 the plan preview. If `acli` cannot perform a required assignment, use the authenticated host adapter

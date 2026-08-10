@@ -15,24 +15,20 @@ Compile all open Engineering EPICs not in Dev Complete or Release Pending.
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json epics {{RELEASE_VERSION}}
+uv run scripts/release.py --json epics {{RELEASE_VERSION}}
 ```
 
 If the CLI succeeds, use its output directly. If it fails, follow the manual steps below.
 
 ## Step 2 (fallback): Count outstanding EPICs
 
-Use the `epics` JQL from `references/jql-release.md`:
-
-```bash
-acli jira workitem search --jql 'project IN (RHIDP) AND fixVersion = "{{RELEASE_VERSION}}" and issuetype = epic and status not in (closed, "Release Pending", "Dev Complete")' --count
-```
+Invoke `rhdh-jira` with the `epics` JQL from `references/jql-release.md` and take
+the count from `JiraQueryResult/v1`.
 
 ## Step 3 (fallback): Get EPIC details (if needed)
 
-Invoke `rhdh-jira` with the `epics` JQL from `references/jql-release.md`.
-Consume enriched `JiraQueryResult/v1` fields for key, summary, status, and
-assignee.
+Consume `key`, `summary`, `status`, and `assignee` from the same
+`JiraQueryResult/v1`.
 
 ## Step 4 (fallback): Format output
 

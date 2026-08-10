@@ -11,16 +11,16 @@ The most effective debugging pattern is **comparative testing**: isolate whether
 
 ```bash
 # 1. Stop and switch to pristine
-python scripts/rhdh-local down
-python scripts/rhdh-local up --baseline
+uv run scripts/rhdh-local down
+uv run scripts/rhdh-local up --baseline
 
 # 2. Test at http://localhost:7007
 # If it works → issue is in your customizations
 # If it doesn't → issue is in RHDH itself (or rhdh-local)
 
 # 3. Restore customized mode
-python scripts/rhdh-local down
-python scripts/rhdh-local up --customized
+uv run scripts/rhdh-local down
+uv run scripts/rhdh-local up --customized
 ```
 
 | Symptom | Works in Baseline? | Root Cause |
@@ -91,7 +91,7 @@ podman compose ps db
 podman compose logs db
 ```
 
-If using `--volumes` on `python scripts/rhdh-local down`, the database is wiped — this is expected.
+If using `--volumes` on `uv run scripts/rhdh-local down`, the database is wiped — this is expected.
 
 </common_errors>
 
@@ -101,14 +101,14 @@ If using `--volumes` on `python scripts/rhdh-local down`, the database is wiped 
 
 ```bash
 # Full health check
-python scripts/rhdh-local health
+uv run scripts/rhdh-local health
 
 # Manual checks
 curl http://localhost:7007/api/catalog/health    # Catalog backend
 curl http://localhost:7007                        # Frontend
 ```
 
-### What `python scripts/rhdh-local health` checks
+### What `uv run scripts/rhdh-local health` checks
 
 1. **Container runtime** — podman/docker available
 2. **Port 7007** — RHDH accessible
@@ -123,17 +123,17 @@ curl http://localhost:7007                        # Frontend
 
 ```bash
 # 1. Stop
-python scripts/rhdh-local down
+uv run scripts/rhdh-local down
 
 # 2. Pull upstream changes
 cd rhdh-local-setup/rhdh-local && git pull && cd ../..
 
 # 3. Start pristine to verify update works
-python scripts/rhdh-local up --baseline
+uv run scripts/rhdh-local up --baseline
 
 # 4. If pristine works, switch to customized
-python scripts/rhdh-local down
-python scripts/rhdh-local up --customized
+uv run scripts/rhdh-local down
+uv run scripts/rhdh-local up --customized
 
 # 5. Check for deprecation warnings
 cd rhdh-local-setup/rhdh-local && podman compose logs rhdh 2>&1 | grep -i deprecat

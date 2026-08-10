@@ -6,11 +6,9 @@ Resolution order:
   3. Walk up from cwd looking for the ci-operator sentinel directory
   4. Fall back to REMOTE mode (GitHub API via gh CLI)
 
-Usage (inside this skill):
-    from rhdh_prow.repo import resolve_repo_root
-
-This is a local adapter. It deliberately has no cross-skill imports so the
-rhdh-ci skill remains independently installable.
+Usage:
+    from rhdh_common.openshift_release.repo import resolve_repo_root
+    root, is_remote = resolve_repo_root()
 """
 
 import os

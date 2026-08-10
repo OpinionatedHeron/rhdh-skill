@@ -1,6 +1,6 @@
 # Architecture migration and skill catalog
 
-This reference maps the former 24-skill layout to the promoted 16-skill pack and
+This reference maps the former 24-skill layout to the promoted 18-skill pack and
 records the compatibility rules for the breaking cutover.
 
 ## Entry points
@@ -8,7 +8,7 @@ records the compatibility rules for the breaking cutover.
 - Invoke `/setup-rhdh-skills` once after installation or when repository paths,
   tools, or authentication change.
 - Invoke `/ask-rhdh` when you want a recommendation. It performs no work.
-- Describe a concrete task normally to trigger one of the 14 model-invoked
+- Describe a concrete task normally to trigger one of the 16 model-invoked
   skills.
 
 ## Migration map
@@ -18,7 +18,7 @@ records the compatibility rules for the breaking cutover.
 | `agent-ready` | `/rhdh-agent-readiness` |
 | `backstage-upgrade` | `/rhdh-plugin-development` |
 | `base-images-and-rpms` | `/rhdh-base-images` |
-| `bug-fix` | `/rhdh-pull-request` |
+| `bug-fix` | `/rhdh-plugin-development` (`/rhdh-pull-request` for the PR at the end) |
 | `compute-plugin-package-overlay-cve-list` | `/rhdh-release` |
 | `create-plugin` | `/rhdh-plugin-development` |
 | `cursor-mcp-auth` | `/setup-rhdh-skills` auth route |
@@ -46,13 +46,48 @@ records the compatibility rules for the breaking cutover.
 The old names are removed in one major release. No redirect skills or aliases
 ship with the new catalog.
 
+Two promoted skills have no row above. `/rhdh-artifacts` and `/rhdh-forge` are
+foundation skills: they exist because several promoted skills would otherwise
+carry copies of the same material. See
+[ADR-0006](adr/0006-foundation-skills.md).
+
+## Upgrading an existing installation
+
+Installing the new pack does not uninstall the old one. A skill directory whose
+name changed is still on disk and still discoverable, so an agent that has both
+sees two candidates for the same request and may route to the retired copy.
+Remove the old directories yourself.
+
+`/setup-rhdh-skills` deliberately does not do this. It installs and verifies; it
+does not delete skills it did not install, because it cannot tell a stale copy
+of `overlay` from one you wrote and kept.
+
+Four names survive the rename — `rhdh-jira`, `rhdh-local`, `rhdh-pr-review`, and
+`rhdh-release`. Installing the pack replaces those in place. Do not remove them
+after installing, or you will delete the new skill. The other twenty are gone:
+
+```bash
+npx skills@latest remove agent-ready backstage-upgrade base-images-and-rpms \
+  bug-fix compute-plugin-package-overlay-cve-list create-plugin cursor-mcp-auth \
+  konflux-release-data-rpa konflux-tekton-updates lifecycle nfs-migration \
+  overlay prow prow-trigger-nightly raise-pr rhdh rhdh-coding \
+  rhdh-test-plan-review skill-maker test-placement -g -y
+```
+
+Run it either before or after installing the new pack; the list and the pack do
+not overlap. Restart the agent client afterwards so the discovery cache reflects
+the new set, then invoke `/setup-rhdh-skills`. Existing
+`~/.config/rhdh-skill/config.json` and `.rhdh/` worklog and todo state carry
+over untouched.
+
 ## Composition contract
 
 Skills compose by stable name. A caller may invoke `/rhdh-context`; it must not
 open `../engineering/rhdh-context/references/...` directly. This keeps category
 moves editorial.
 
-Cross-skill data is a typed artifact under `.rhdh/artifacts/` with:
+Cross-skill data is a typed artifact in the artifact store under the operating
+system temporary directory, with:
 
 - `contract`, including its version (for example `RhdhContext/v1`)
 - `id`
@@ -62,7 +97,9 @@ Cross-skill data is a typed artifact under `.rhdh/artifacts/` with:
 Consumers reject unsupported contracts with a clear migration message.
 Common artifacts cover setup state, issue context, change handoff, evidence,
 mutation plans and receipts, lifecycle snapshots, release snapshots, and CI
-requests/results.
+requests/results. Because the store is temporary, a handoff can expire between
+sessions; the store reports the expiry and names the skill to re-run rather than
+returning stale data.
 
 ## Mutation approval
 
@@ -102,8 +139,9 @@ references.
 ## Compatibility
 
 The cutover preserves the `rhdh` and `rhdh-local` CLI behavior,
-`~/.config/rhdh-skill/config.json`, and existing worklog/todo state. The
-`.rhdh/` ignore rule also covers new artifacts.
+`~/.config/rhdh-skill/config.json`, and existing worklog/todo state. Cross-skill
+artifacts moved out of the checkout entirely, so no ignore rule is needed for
+them.
 
 Git tags are authoritative for both skill and artifact producer versions. The
 cutover is published once under the next major tag.

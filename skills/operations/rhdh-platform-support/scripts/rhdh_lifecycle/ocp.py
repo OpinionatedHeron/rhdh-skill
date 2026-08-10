@@ -12,7 +12,7 @@ Usage:
 
 import re
 
-from rhdh_lifecycle.utils import is_date, to_date, ver_sort_key
+from rhdh_common.versions import is_date, to_date, ver_sort_key
 
 
 def classify_ocp_versions(api_data, today):

@@ -7,7 +7,7 @@ Fetch PR metadata, diff, linked issues, existing comments, and CI status from Gi
 Run the fetch script to collect all PR context in one call:
 
 ```bash
-python scripts/fetch_pr_context.py <PR_URL_OR_NUMBER> [--repo owner/repo]
+uv run scripts/fetch_pr_context.py <PR_URL_OR_NUMBER> [--repo owner/repo]
 ```
 
 The path is relative to the skill directory.
@@ -48,6 +48,14 @@ ReviewContext/v1
     └── ciStatus: "pass" | "fail" | "pending" | "unknown"
 ```
 
+## Linked issues
+
+`data.linkedIssues` carries the title, body, labels, and state of each GitHub
+issue the PR body references — enough for most reviews. When a review needs the
+full issue envelope, including its comment thread and resolved workspace, invoke
+`/rhdh-forge` with the issue reference and consume `IssueContext/v1`. Do not add
+issue parsing to this workflow.
+
 ## Jira keys
 
 The script extracts Jira keys (for example, `RHIDP-1234`) from the PR body but
@@ -55,6 +63,13 @@ does not fetch them. When Jira detail affects the review, invoke `/rhdh-jira`
 with the keys and consume `IssueContext/v1` or `JiraQueryResult/v1`. Otherwise
 retain the keys and continue. Do not select a Jira transport or inspect Jira
 credentials from this workflow.
+
+## CI status
+
+`data.ciStatus` comes from the check rollup, which serves a cached view. Before
+reporting a check as failing or missing in the review, confirm it against the
+runs on the head branch. `/rhdh-forge` owns those `gh` read patterns and the
+failed-log commands.
 
 ## After fetching
 

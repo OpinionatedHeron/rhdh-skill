@@ -2,7 +2,7 @@
 
 Usage:
     from rhdh_lifecycle.configured_versions import print_configured_versions
-    from rhdh_lifecycle.repo import resolve_repo_root
+    from rhdh_common.openshift_release.repo import resolve_repo_root
 
     root, is_remote = resolve_repo_root()
     print_configured_versions(config_dir, test_pattern, root, is_remote)
@@ -13,8 +13,13 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from rhdh_lifecycle.repo import resolve_repo_root  # noqa: F401
-from rhdh_lifecycle.yaml import extract_branch, fetch_yaml, fetch_yaml_text, list_yaml_files
+from rhdh_common.openshift_release.repo import resolve_repo_root  # noqa: F401
+from rhdh_common.openshift_release.yaml import (
+    extract_branch,
+    fetch_yaml,
+    fetch_yaml_text,
+    list_yaml_files,
+)
 
 
 def print_configured_versions(

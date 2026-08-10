@@ -15,14 +15,12 @@ Compile all open blocker bugs for a release.
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json blockers {{RELEASE_VERSION}}
+uv run scripts/release.py --json blockers {{RELEASE_VERSION}}
 ```
 
 If the CLI succeeds, use its output directly. If it fails, follow the manual steps below.
 
 ## Step 2 (fallback): Query blocker bugs
-
-Use the `open_issues` JQL from `references/jql-release.md` with a priority filter:
 
 Invoke `rhdh-jira` with the `blockers` JQL from
 `references/jql-release.md`. Consume enriched `JiraQueryResult/v1` fields for

@@ -7,8 +7,9 @@ behind a small set of task-oriented interfaces.
 
 ## Install the complete pack
 
-The complete setup is the 16 promoted RHDH skills plus two required external
-skills:
+The complete setup is the 18 promoted RHDH skills plus two required external
+skills. `--all` is the only supported way to install this repository: the skills
+reach each other by name, so a hand-picked subset is not a working pack.
 
 ```bash
 npx skills@latest add redhat-developer/rhdh-skill --all -g -y
@@ -16,8 +17,8 @@ npx skills@latest add mattpocock/skills --skill grilling -g -y
 npx skills@latest add blader/humanizer -g -y
 ```
 
-To bootstrap through the setup router instead, install only that entry skill,
-restart the agent client so it is discovered, and invoke
+To bootstrap through the setup router instead, install that entry skill on its
+own, restart the agent client so it is discovered, and invoke
 `/setup-rhdh-skills install`:
 
 ```bash
@@ -25,7 +26,12 @@ npx skills@latest add redhat-developer/rhdh-skill --skill setup-rhdh-skills -g -
 ```
 
 The setup router then installs the complete pack (or its catalog-listed direct
-sources) and tells you when another client restart is required.
+sources) and tells you when another client restart is required. That single
+skill is a bootstrap step, not a supported end state.
+
+Upgrading from the previous 24-skill layout? Installing the new pack does not
+remove the old directories. See
+[the architecture migration reference](docs/architecture-migration.md#upgrading-an-existing-installation).
 
 - `/grilling` supplies the interview discipline required by skill authoring and
   Jira creation flows.
@@ -35,7 +41,7 @@ After installation, invoke `/setup-rhdh-skills` once to discover repository
 checkouts, verify tools and authentication, and preserve the existing RHDH CLI
 state. Invoke `/ask-rhdh` whenever you want help choosing a flow.
 
-The two entry skills are human-invoked. The other 14 skills are model-invoked
+The two entry skills are human-invoked. The other 16 skills are model-invoked
 and can also be invoked explicitly.
 
 ## Skill catalog
@@ -56,6 +62,11 @@ Model-invoked:
 
 - [`rhdh-context`](skills/engineering/rhdh-context/SKILL.md) — repository map,
   version compatibility, workspace lookup, and general RHDH ecosystem context.
+- [`rhdh-artifacts`](skills/engineering/rhdh-artifacts/SKILL.md) — the artifact
+  envelope, mutation plan and receipt protocol, setup handoffs, and credential
+  redaction shared by every skill.
+- [`rhdh-forge`](skills/engineering/rhdh-forge/SKILL.md) — read GitHub issues,
+  pull requests, checks, and files on behalf of the other skills.
 - [`rhdh-plugin-development`](skills/engineering/rhdh-plugin-development/SKILL.md)
   — create and change plugins, upgrade Backstage, migrate to NFS, and place
   tests.
@@ -93,8 +104,8 @@ Model-invoked:
 - [`skill-authoring`](skills/maintainers/skill-authoring/SKILL.md) — create,
   audit, and consolidate Agent Skills.
 
-Draft and retired material lives outside the promoted discovery root under
-`internal/in-progress/` and `internal/deprecated/`. It is not part of the pack.
+Draft and retired material belongs outside the promoted discovery root, under
+`internal/in-progress/` and `internal/deprecated/`. Neither ships with the pack.
 
 ## How skills compose
 
@@ -102,10 +113,12 @@ A skill invokes another skill by its stable name, such as `/rhdh-context` or
 `/rhdh-jira`. Category paths are not part of the interface.
 
 When a flow crosses a real seam, the producing skill writes a versioned artifact
-under `.rhdh/artifacts/`. Each artifact carries `contract` (for example,
-`ChangeHandoff/v1`), `id`, `createdAt`, and contract-specific `data`. Consumers
-validate the contract before use. The repository already ignores `.rhdh/`, so
-these session artifacts are local state rather than source files.
+to the operating system temporary directory, namespaced by project root. Each
+artifact carries `contract` (for example, `ChangeHandoff/v1`), `id`, `createdAt`,
+and contract-specific `data`. Consumers validate the contract before use. No
+artifact is written into a checkout, so none can reach a commit; the price is
+that a cross-session artifact expires when the operating system purges temporary
+files, which the store reports along with the skill to re-run.
 
 Every external mutation is represented by a `MutationPlan`. The plan names the
 operation, target, preview, checks, and recovery information. A user approves
@@ -113,9 +126,13 @@ the plan before the selected adapter executes it; the result is captured as a
 mutation receipt. Read-only discovery and analysis do not require mutation
 approval.
 
-See [the architecture migration and catalog reference](docs/architecture-migration.md)
-and [ADR-0005](docs/adr/0005-composable-skill-distribution.md) for the complete
-contracts.
+Skills share prose through foundation skills invoked by name, and share runtime
+code through one versioned package, `rhdh_common`, in `packages/rhdh-common/`.
+Neither is reached by walking the filesystem.
+
+See [the architecture migration and catalog reference](docs/architecture-migration.md),
+[ADR-0005](docs/adr/0005-composable-skill-distribution.md), and
+[ADR-0006](docs/adr/0006-foundation-skills.md) for the complete contracts.
 
 ## CLI and state compatibility
 
@@ -125,10 +142,13 @@ or state formats:
 - `rhdh` and `rhdh-local` command behavior remains compatible.
 - Repository configuration remains at `~/.config/rhdh-skill/config.json`.
 - Worklog and todo state remains under `.rhdh/`.
-- New cross-skill artifacts use `.rhdh/artifacts/`.
+- New cross-skill artifacts live in the operating system temporary directory.
 
-The skill rename is delivered as one breaking cutover. Old skill directories
-and aliases are removed; existing CLI configuration and local state are reused.
+The skill rename is delivered as one breaking cutover. No aliases ship, and the
+old skill directories are dropped from this repository — but an installation
+that already has them keeps them until you remove them yourself, as described in
+[the migration reference](docs/architecture-migration.md#upgrading-an-existing-installation).
+Existing CLI configuration and local state are reused.
 
 ## Development
 

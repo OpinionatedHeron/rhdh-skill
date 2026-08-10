@@ -113,14 +113,14 @@ Run the pre-creation check from `references/duplicates.md`. Search RHIDP Epics (
 
 Before create: re-check customer identity + label rules per `references/grill.md` → Validate before creating.
 
-Fill the template. Then convert to ADF using the helper script (see Gotcha #6). `acli create` accepts ADF via `--description-file`:
+Fill the template. Then convert to ADF using the helper script (`acli-commands.md` → Formatted descriptions need ADF). `acli create` accepts ADF via `--description-file`:
 
 ```bash
 EPIC_ADF=$(mktemp)  # on Windows: use %TEMP% or Python tempfile
 python scripts/jira-wiki-to-adf.py epic-filled.txt "$EPIC_ADF"
 ```
 
-Create the issue — note `--priority`, `--component`, and `--yes` do not exist on `create` (see Gotcha #18):
+Create the issue — note `--priority`, `--component`, and `--yes` do not exist on `create` (`acli-commands.md` → Create):
 
 ```bash
 acli jira workitem create --project RHIDP --type Epic \
@@ -131,7 +131,9 @@ acli jira workitem create --project RHIDP --type Epic \
 
 Then set priority, components, size, and parent Feature link through the authenticated host adapter.
 Cross-project parent links accept either `customfield_10018` or `parent.key` — do not use
-`issuelinks` (see Gotcha #16). Include this redacted payload in the approved mutation plan:
+`issuelinks`, which returns nothing for a cross-project parent and produces false "no child Epics"
+reports (`references/fields.md` → Parent Link). Include this redacted payload in the approved
+mutation plan:
 
 ```json
 {
@@ -144,7 +146,8 @@ Cross-project parent links accept either `customfield_10018` or `parent.key` —
 }
 ```
 
-Set Team via REST — follow API preference order in SKILL.md.
+Team is one of the fields `acli` cannot set. Follow the adapter order in `references/auth.md` →
+API preference and use the Team payload in `references/rest-api-fallback.md`.
 
 ### Step 8 — Comments
 
@@ -194,7 +197,7 @@ When decomposing a Feature into multiple Epics (chained creation), run a batch r
 |-------|--------|
 | RHIDP project inaccessible | Stop. User lacks project access. |
 | Parent Feature key invalid | Warn. Create Epic without parent link. |
-| `acli create` fails | Fall back to REST API. |
+| `acli create` fails | Retry through the authenticated adapter in `references/rest-api-fallback.md`, replanning the mutation if the payload changes. |
 | Parent link update fails | Report failure. Epic is created — user can link manually. |
 
 ## Caveats

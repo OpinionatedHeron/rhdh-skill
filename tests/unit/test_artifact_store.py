@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -14,14 +16,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ARTIFACT_STORE = (
     PROJECT_ROOT / "skills" / "engineering" / "rhdh-context" / "scripts" / "artifact_store.py"
 )
+SHARED_PACKAGE = PROJECT_ROOT / "packages" / "rhdh-common"
 
 
 def run_store(*args: str) -> subprocess.CompletedProcess[str]:
+    # The store depends on rhdh_common (ADR-0006); uv resolves it from the
+    # PEP-723 block, and this subprocess resolves it from the source checkout.
     return subprocess.run(
         [sys.executable, str(ARTIFACT_STORE), *args],
         capture_output=True,
         text=True,
         check=False,
+        env={**os.environ, "PYTHONPATH": str(SHARED_PACKAGE)},
     )
 
 
@@ -50,6 +56,13 @@ def mutation_plan() -> dict:
         "createdAt": "2026-08-10T12:00:00Z",
         "data": data,
     }
+
+
+def canonical_rehash(artifact: dict) -> dict:
+    material = {key: value for key, value in artifact["data"].items() if key != "materialHash"}
+    canonical = json.dumps(material, separators=(",", ":"), sort_keys=True)
+    artifact["data"]["materialHash"] = f"sha256:{hashlib.sha256(canonical.encode()).hexdigest()}"
+    return artifact
 
 
 def mutation_outcomes(plan: dict) -> list[dict]:
@@ -83,9 +96,118 @@ def test_validated_artifact_can_be_persisted_outside_source_control(tmp_path):
     )
     assert persistence.returncode == 0, persistence.stderr or persistence.stdout
     receipt = json.loads(persistence.stdout)
-    persisted = tmp_path / receipt["path"]
-    assert persisted == tmp_path / ".rhdh" / "artifacts" / "mutation-plan" / "plan-123.json"
+    persisted = Path(receipt["path"])
+    assert Path(tempfile.gettempdir()).resolve() in persisted.resolve().parents
+    assert tmp_path.resolve() not in persisted.resolve().parents
+    assert persisted.parent.name == "mutation-plan"
+    assert persisted.name == "plan-123.json"
     assert json.loads(persisted.read_text(encoding="utf-8")) == mutation_plan()
+
+
+def test_persisted_artifacts_are_namespaced_by_project_root(tmp_path):
+    artifact_file = tmp_path / "plan.json"
+    artifact_file.write_text(json.dumps(mutation_plan()), encoding="utf-8")
+    other_root = tmp_path / "other-checkout"
+    other_root.mkdir()
+
+    first = json.loads(
+        run_store("persist", str(artifact_file), "--project-root", str(tmp_path), "--json").stdout
+    )
+    second = json.loads(
+        run_store("persist", str(artifact_file), "--project-root", str(other_root), "--json").stdout
+    )
+
+    assert first["path"] != second["path"]
+
+
+def test_reading_a_purged_artifact_reports_expiry_and_names_the_producer(tmp_path):
+    result = run_store(
+        "read",
+        "MutationPlan/v1",
+        "plan-123",
+        "--project-root",
+        str(tmp_path),
+        "--producer",
+        "rhdh-pull-request",
+        "--json",
+    )
+
+    assert result.returncode == 1
+    error = json.loads(result.stdout)["errors"][0]
+    assert error["code"] == "ARTIFACT_EXPIRED"
+    assert "rhdh-pull-request" in error["message"]
+    assert "Traceback" not in result.stderr
+
+
+def test_receipt_persistence_reports_an_expired_plan_rather_than_a_missing_file(tmp_path):
+    plan = mutation_plan()
+    receipt = {
+        "contract": "MutationReceipt/v1",
+        "id": "receipt-expired",
+        "createdAt": "2026-08-10T12:01:00Z",
+        "data": {
+            "planId": plan["id"],
+            "materialHash": plan["data"]["materialHash"],
+            "outcomes": mutation_outcomes(plan),
+        },
+    }
+    receipt_file = tmp_path / "receipt.json"
+    receipt_file.write_text(json.dumps(receipt), encoding="utf-8")
+
+    result = run_store("persist", str(receipt_file), "--project-root", str(tmp_path), "--json")
+
+    assert result.returncode == 1
+    error = json.loads(result.stdout)["errors"][0]
+    assert error["code"] == "ARTIFACT_EXPIRED"
+    assert "/rhdh-pull-request" in error["message"]
+
+
+@pytest.mark.parametrize(
+    "prose",
+    [
+        "basic auth is required",
+        "a basic example of the bearer flow",
+        "basic block layout",
+        "basic auth-token setup notes",
+    ],
+)
+def test_artifact_store_accepts_prose_that_mentions_basic_or_bearer(tmp_path, prose):
+    artifact = mutation_plan()
+    artifact["data"]["operations"][0]["preview"]["commandOrRequest"]["body"] = prose
+    canonical_rehash(artifact)
+    artifact_file = tmp_path / "prose-plan.json"
+    artifact_file.write_text(json.dumps(artifact), encoding="utf-8")
+
+    result = run_store("validate", str(artifact_file), "--json")
+
+    assert result.returncode == 0, result.stdout
+    assert json.loads(result.stdout)["valid"] is True
+
+
+@pytest.mark.parametrize(
+    "secret",
+    [
+        # PEM headers only, no key material: these assert the scanner rejects them.
+        "-----BEGIN OPENSSH PRIVATE KEY-----",  # gitleaks:allow
+        "-----BEGIN EC PRIVATE KEY-----",  # gitleaks:allow
+        "-----BEGIN PGP PRIVATE KEY BLOCK-----",  # gitleaks:allow
+        "Authorization: Bearer abc123",
+        "Bearer eyJhbGciOi.J9x_1",
+    ],
+)
+def test_artifact_store_rejects_private_keys_and_authorization_headers(tmp_path, secret):
+    artifact = mutation_plan()
+    artifact["data"]["operations"][0]["preview"]["commandOrRequest"]["body"] = secret
+    canonical_rehash(artifact)
+    artifact_file = tmp_path / "secret-body-plan.json"
+    artifact_file.write_text(json.dumps(artifact), encoding="utf-8")
+
+    result = run_store("validate", str(artifact_file), "--json")
+
+    assert result.returncode == 1
+    error = json.loads(result.stdout)["errors"][0]
+    assert error["code"] == "CREDENTIAL_VALUE"
+    assert "contains credential-shaped content:" in error["message"]
 
 
 def test_artifact_store_rejects_credentials_at_any_depth(tmp_path):

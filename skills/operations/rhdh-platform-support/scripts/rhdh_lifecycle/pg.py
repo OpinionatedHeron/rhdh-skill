@@ -12,7 +12,7 @@ Usage:
 
 from __future__ import annotations
 
-from rhdh_lifecycle.utils import fetch_json
+from rhdh_common.versions import fetch_json
 
 PROVIDERS = {
     "upstream": "https://endoflife.date/api/postgresql.json",

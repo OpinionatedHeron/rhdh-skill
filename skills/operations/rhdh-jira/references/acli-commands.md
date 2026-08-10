@@ -54,6 +54,12 @@ acli jira workitem view RHIDP-123 --web
 
 ### Create
 
+> ⚠️ **`create` does not accept `--priority`, `--component`, or `--yes`.** Those flags exist on
+> `edit`, `transition`, and `assign` only; passing them to `create` fails with "unknown flag".
+> Create the issue first, then set priority, components, size (`customfield_10795`), and parent
+> link (`customfield_10018`) in one update through the authenticated adapter in
+> `references/rest-api-fallback.md`.
+
 ```bash
 # Basic creation
 acli jira workitem create --project RHIDP --type Story --summary "Implement auth plugin" --description "As a user..." --assignee "@me"
@@ -202,7 +208,7 @@ acli jira sprint create --name "RHDH COPE 3292" --board 11374
 ```bash
 acli jira sprint list-workitems --sprint 65456 --board 11374 --limit 500 --json | python -c "
 import json, sys; json.dump(json.load(sys.stdin)['issues'], sys.stdout)
-" | python scripts/parse_issues.py --enrich -s key,summary,status,story_points
+" | uv run scripts/parse_issues.py --enrich -s key,summary,status,story_points
 ```
 
 ## Projects
@@ -240,7 +246,13 @@ acli jira filter get --id 10001
 | Labels | Not available via `--fields` | Array of strings |
 | Fix versions | Not available via `--fields` | Array of version objects |
 
-When writing formatted descriptions, fill a wiki markup template then convert with `scripts/jira-wiki-to-adf.py` and pass via `--description-file` (see Gotcha #6 in SKILL.md). When reading, be aware `--json` returns ADF — don't try to round-trip it.
+### Formatted descriptions need ADF
+
+Jira Cloud's editor is ADF-native. Plain text and Jira wiki markup (`h1.`, `*bold*`) both render as
+literal characters in the UI, so a description file written in wiki markup ships broken. Fill a wiki
+markup template, convert it with `scripts/jira-wiki-to-adf.py <input.txt> <output.json>`, then pass
+the result via `--description-file`. Both `create` and `edit` accept ADF JSON that way. When
+reading, `--json` returns ADF too — don't try to round-trip it.
 
 ## Custom Fields and `--enrich`
 

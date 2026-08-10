@@ -25,7 +25,7 @@ pointers, checkable completion criteria, and single-sourced behavior.
 ## RHDH repository profile
 
 When authoring in this repository, read `CONTEXT.md` and the applicable ADRs
-before designing the skill. ADR-0005 is binding:
+before designing the skill. ADR-0005 and ADR-0006 are binding:
 
 - A promoted skill needs an independent trigger and one cohesive outcome. A
   broad model-invoked catalog or orientation router is not a promoted skill.
@@ -36,6 +36,9 @@ before designing the skill. ADR-0005 is binding:
   probing.
 - The setup catalog is the source of truth for promoted membership, invocation,
   dependencies, and artifacts. Update it with any promoted interface change.
+- Before writing material a second skill would copy, decide extract, enforce, or
+  document. Read `references/architecture-patterns.md` → Duplication between
+  skills. Shared runtime code is a versioned package, never a skill.
 - Test scripts, artifact and adapter contracts, clean installs, and observable
   behavior. Do not test headings, menu wording, XML tags, or README prose.
 
@@ -47,9 +50,9 @@ skill composition.
 
 Creating or interviewing for a skill requires Matt Pocock's `/grilling` skill.
 Treat it as a required named skill supplied by the complete pack. If it is not
-available, return `SetupRequired` as defined in `references/create.md`, direct
-the human to `/setup-rhdh-skills`, and stop. Audit and consolidation do not
-require grilling unless they open an interview.
+available, return `SetupRequired/v1` as defined in `references/create.md`,
+direct the human to `/setup-rhdh-skills`, and stop. Audit and consolidation do
+not require grilling unless they open an interview.
 
 ## Route the request
 

@@ -15,19 +15,19 @@ Report unclassified, proposed, done, and populated release-note work.
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json notes {{RELEASE_VERSION}}
+uv run scripts/release.py --json notes {{RELEASE_VERSION}}
 ```
 
 Use the CLI output directly. If it reports that `release_notes` is unavailable,
-run `python scripts/release.py --json check`, configure the Rich Filter as shown
+run `uv run scripts/release.py --json check`, configure the Rich Filter as shown
 in `references/config.md`, and retry. Do not substitute a hardcoded query: the
 Rich Filter is the source of truth for release-note classification.
 
 Also include the Release Notes Dashboard returned by the CLI.
 
-The lifecycle keys map to `release_notes`, `release_notes_proposed`,
-`release_notes_done`, and `release_notes_with_text` in
-`references/jql-release.md`.
+The lifecycle keys map to the `release_notes`, `release_notes_proposed`,
+`release_notes_done`, and `release_notes_with_text` templates the Rich Filter
+supplies; see `references/rich-filter-coverage.md`.
 
 </process>
 

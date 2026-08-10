@@ -10,6 +10,9 @@ import argparse
 from pathlib import Path
 from typing import Any, Optional
 
+from rhdh_common.output import OutputFormatter
+from rhdh_common.process import run_command
+
 from .backup import (
     backup_customizations,
     list_backups,
@@ -19,7 +22,7 @@ from .backup import (
 from .compose import local_down, local_up
 from .health import check_local_health
 from .settings import LastRunSettings, load_last_run, save_last_run
-from .support import OutputFormatter, get_local_setup_dir, run_command
+from .support import get_local_setup_dir
 from .sync import apply_customizations, remove_customizations
 
 # =============================================================================

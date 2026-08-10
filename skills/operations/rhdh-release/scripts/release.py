@@ -1,13 +1,20 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
+# ///
 """RHDH Release CLI — deterministic data gathering for release management.
 
 Gathers facts from Jira, Google Sheets, and local config. The agent routes
 to this CLI first, then adds judgment (flag risks, suggest actions).
 
 Usage:
-    python scripts/release.py status 1.9.0
-    python scripts/release.py status 1.9.0 --json
-    python scripts/release.py check
+    uv run scripts/release.py status 1.9.0
+    uv run scripts/release.py status 1.9.0 --json
+    uv run scripts/release.py check
 """
 
 from __future__ import annotations
@@ -25,11 +32,12 @@ _scripts_dir = Path(__file__).resolve().parent
 if str(_scripts_dir) not in sys.path:
     sys.path.insert(0, str(_scripts_dir))
 
-import jira_issues as jira_issues_mod  # noqa: E402
 import jql as jql_mod  # noqa: E402
 import rich_filter as rf_mod  # noqa: E402
 import slack_templates as slack_mod  # noqa: E402
-from formatters import OutputFormatter  # noqa: E402
+from rhdh_common import jira as jira_mod  # noqa: E402
+from rhdh_common.output import OutputFormatter  # noqa: E402
+from rhdh_common.process import find_acli  # noqa: E402
 
 JIRA_BASE = "https://issues.redhat.com"
 SCHEDULE_SHEET_ID = "1knVzlMW0l0X4c7gkoiuaGql1zuFgEGwHHBsj-ygUTnc"
@@ -389,14 +397,18 @@ def _acli_json_enriched(
     select: str = "key,summary,status,assignee,priority,team",
     limit: int = 1000,
 ) -> list[dict]:
-    """Run an enriched Jira search through this skill's local adapter."""
+    """Run an enriched Jira search through the shared acli field adapter."""
+    acli = find_acli()
+    if not acli:
+        raise RuntimeError("acli not found on PATH")
     result = _run(
         ["acli", "jira", "workitem", "search", "--jql", jql, "--json", "--limit", str(limit)]
     )
     raw = json.loads(result.stdout)
     if isinstance(raw, dict):
         raw = raw.get("issues", raw.get("values", []))
-    issues = jira_issues_mod.select(jira_issues_mod.enrich(raw), select)
+    fields = [field.strip() for field in select.split(",") if field.strip()]
+    issues = [jira_mod.flatten(issue, fields) for issue in jira_mod.enrich(raw, acli)]
     if len(issues) >= limit:
         print(f"WARNING: Results may be truncated at limit={limit}", file=sys.stderr)
     return issues
@@ -449,7 +461,7 @@ def cmd_check(_args: argparse.Namespace, fmt: OutputFormatter) -> None:
     """Verify Jira, Google Workspace, and rich-filter capabilities."""
     checks = []
 
-    acli_path = shutil.which("acli")
+    acli_path = find_acli()
     checks.append(
         {
             "name": "acli",

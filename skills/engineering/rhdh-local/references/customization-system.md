@@ -29,18 +29,18 @@ rhdh-local-setup/
         └── extra-files/github-app-credentials.yaml
 
 # CLI commands:
-# python scripts/rhdh-local apply   → copies files into rhdh-local/
-# python scripts/rhdh-local remove  → deletes copies from rhdh-local/
-# python scripts/rhdh-local up      → applies customizations + starts containers
-# python scripts/rhdh-local down    → stops containers + removes customizations
+# uv run scripts/rhdh-local apply   → copies files into rhdh-local/
+# uv run scripts/rhdh-local remove  → deletes copies from rhdh-local/
+# uv run scripts/rhdh-local up      → applies customizations + starts containers
+# uv run scripts/rhdh-local down    → stops containers + removes customizations
 ```
 
 **The copy-sync invariant:**
 
 - `rhdh-customizations/` is the single source of truth for all configuration
-- `python scripts/rhdh-local apply` copies files into `rhdh-local/`
+- `uv run scripts/rhdh-local apply` copies files into `rhdh-local/`
 - Containers read files from `rhdh-local/` (they cannot access paths outside their mount)
-- `python scripts/rhdh-local remove` deletes the copies, restoring pristine state
+- `uv run scripts/rhdh-local remove` deletes the copies, restoring pristine state
 - `rhdh-local/` git status should always be "working tree clean" — the copied files are gitignored
 </architecture>
 
@@ -73,9 +73,9 @@ rhdh-local-setup/
 **ALWAYS:**
 
 - Edit customization files in `rhdh-customizations/` directory
-- Run `python scripts/rhdh-local apply` after every edit
+- Run `uv run scripts/rhdh-local apply` after every edit
 - Verify pristine state: `cd rhdh-local && git status` → "working tree clean"
-- Use `python scripts/rhdh-local up` and `python scripts/rhdh-local down` for container lifecycle
+- Use `uv run scripts/rhdh-local up` and `uv run scripts/rhdh-local down` for container lifecycle
 
 **NEVER:**
 
@@ -103,17 +103,17 @@ rhdh-local-setup/
 ```bash
 # 1. Edit the file in rhdh-customizations/
 # 2. Sync into rhdh-local/ and restart
-python scripts/rhdh-local apply
-python scripts/rhdh-local down
-python scripts/rhdh-local up --customized [--lightspeed|--orchestrator|--both]
+uv run scripts/rhdh-local apply
+uv run scripts/rhdh-local down
+uv run scripts/rhdh-local up --customized [--lightspeed|--orchestrator|--both]
 ```
 
 **Update rhdh-local from upstream:**
 
 ```bash
-python scripts/rhdh-local down
+uv run scripts/rhdh-local down
 cd rhdh-local-setup/rhdh-local && git pull && cd ../..
-python scripts/rhdh-local up --customized [flags]
+uv run scripts/rhdh-local up --customized [flags]
 ```
 
 </quick_reference>

@@ -49,9 +49,9 @@ Find the required annotation from the plugin's `spec.appConfigExamples` or the p
 ## Step 3: Apply and Restart
 
 ```bash
-python scripts/rhdh-local apply
-python scripts/rhdh-local down
-python scripts/rhdh-local up --customized [--lightspeed|--orchestrator|--both]
+uv run scripts/rhdh-local apply
+uv run scripts/rhdh-local down
+uv run scripts/rhdh-local up --customized [--lightspeed|--orchestrator|--both]
 ```
 
 ---
@@ -97,13 +97,13 @@ To see the plugin in the Extensions Catalog at `/extensions/catalog`, follow
 If this was a temporary test (e.g. for a PR review), remove customizations:
 
 ```bash
-python scripts/rhdh-local remove --force
+uv run scripts/rhdh-local remove --force
 ```
 
 This removes all copied override files from `rhdh-local/` without touching `rhdh-customizations/` source files.
 
 > **Note:** Do not delete files directly from `rhdh-local/` — always use
-> `python scripts/rhdh-local remove` to keep the copy-sync invariant intact.
+> `uv run scripts/rhdh-local remove` to keep the copy-sync invariant intact.
 
 </process>
 

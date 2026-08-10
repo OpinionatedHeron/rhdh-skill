@@ -1,35 +1,21 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
+# ///
 """Verify acli installation and Jira API capabilities for RHDH."""
 
 import argparse
 import json
-import shutil
 import subprocess
 import sys
 
+from rhdh_common.process import find_acli
+
 RHDH_PROJECTS = ["RHIDP", "RHDHPLAN", "RHDHBUGS", "RHDHSUPP"]
-
-
-def find_acli():
-    """Find acli binary on PATH."""
-    acli = shutil.which("acli")
-    if acli:
-        return acli
-
-    # Check common locations on Windows
-    if sys.platform == "win32":
-        from pathlib import Path
-
-        home = Path.home()
-        candidates = [
-            home / ".path" / "acli.exe",
-            home / "AppData" / "Local" / "acli" / "acli.exe",
-        ]
-        for candidate in candidates:
-            if candidate.exists():
-                return str(candidate)
-
-    return None
 
 
 def smoke_test(acli_path):

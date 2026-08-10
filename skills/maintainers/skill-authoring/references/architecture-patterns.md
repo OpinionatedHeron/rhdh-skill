@@ -56,7 +56,7 @@ gates, shared invariants, artifact interfaces, and completion criteria in
 
 When multiple sub-commands share interaction patterns, error handling rows, or domain rules, centralize them in SKILL.md under a dedicated section (e.g., "Conventions" or "Shared Rules"). Sub-commands reference them instead of repeating.
 
-The signal to centralize: you're copying the same text into another sub-command and realizing a change would require updating multiple files.
+The signal to centralize: you're copying the same text into another sub-command and realizing a change would require updating multiple files. When the copy would land in another *skill*, centralizing in `SKILL.md` is not available — see "Duplication between skills" below.
 
 Common candidates for centralization:
 
@@ -120,11 +120,35 @@ Keep a `scripts/command-metadata.json` as the single source of truth for each co
 
 The `description` here is optimized for auto-trigger keyword matching. Pack it with trigger phrases and near-miss scenarios. Keep the promoted catalog and stable skill name as the invocation surface; command aliases and harness redirect shims create an untracked second catalog.
 
-## Setup Gates
+## Duplication between skills
+
+"Cross-cutting conventions" above centralizes a copy inside one skill. That remedy disappears at the skill boundary: skills compose by name and versioned artifact and never read each other's files, so there is no shared file to move the text into. Duplication between skills resolves three ways, and the question that picks one is which module owns the material.
+
+- **Extract** — nothing owns it; it exists only as N copies. Create a foundation skill and have every caller invoke it by name.
+- **Enforce** — a module already owns it and a caller copied past its interface. Delete the copy and cross the seam the owner publishes.
+- **Document** — the material is a rule rather than a capability. State it once in this skill and in `AGENTS.md`, which already govern every skill. A skill nobody invokes pays permanent context load for nothing.
+
+Shared *runtime code* is a fourth case no skill can serve. A script needs an object at run time, and there is nothing at the other end of a prompt. That is a versioned package declared as a dependency, not a skill. See ADR-0006.
+
+### Foundation skills
+
+A foundation skill exists because two or more skills would otherwise copy the same material. It is model-invoked and reached by name like any other skill, and it carries an ordinary description that may also fire on user intent — the external `grilling` skill is the pattern, composed by several callers without any of them owning a copy of the interview.
+
+Its description therefore competes for routing against every other skill in the pack. Keep it narrow, name the material rather than the domain, and prefer one foundation skill over two whose triggers overlap.
+
+A foundation skill nothing invokes is an extraction that failed. Name the dependency in each calling `SKILL.md` and declare it in the machine catalog; validation fails the build when the two disagree.
+
+## Setup and capability gates
 
 ### When to use
 
-Use when the skill produces noticeably worse output without certain preconditions. Gates turn "the output was mediocre" into "the agent tells you what's missing."
+Use when a branch cannot produce its stated outcome without a precondition: project context, configuration, or a ready tool or adapter. Gates turn "the output was mediocre" into "the agent tells you what's missing."
+
+### The gate contract
+
+One contract covers every gate in the pack. When a required precondition is missing, emit `SetupRequired/v1` naming the missing capability and the exact `/setup-rhdh-skills <route>`, then stop that branch. Branches that do not need the capability continue. A model-invoked skill never installs, authenticates, or asks the user to install tooling — the human setup entry point owns that.
+
+If you find yourself writing "skip the step and proceed anyway", the precondition was not required. Delete the gate. A step whose absence does not change the branch's completion contract is not a gate, and dressing it as one teaches the agent that gates are advisory.
 
 ### Gate table pattern
 
@@ -136,7 +160,8 @@ Define gates as a table with required check and fail action:
 | Gate | Required check | If fail |
 |---|---|---|
 | Context | Project context loaded via `python scripts/load_context.py` | Run the loader |
-| Config | Config file exists and is not placeholder | Return `SetupRequired/v1` with the exact `/setup-rhdh-skills <route>` command |
+| Config | Config file exists and is not placeholder | Emit `SetupRequired/v1` with the exact `/setup-rhdh-skills <route>` and stop the branch |
+| Capability | Required adapter or CLI is ready, checked without inspecting credential material | Emit `SetupRequired/v1` with the exact `/setup-rhdh-skills <route>` and stop the branch |
 | Command | Sub-command reference is loaded | Load the reference |
 | Mutation | All gates above pass | Do not edit project files |
 ```
@@ -160,8 +185,8 @@ This forces the agent to explicitly evaluate each gate rather than skipping sile
 | Gate type | Checks for | Example |
 |---|---|---|
 | Context | Project-level config loaded | Config file exists and is valid |
-| Config | Required configuration present | API keys, workspace settings |
-| Dependencies | Required tools installed | CLI tools, runtimes |
+| Config | Required configuration present | Workspace or instance settings |
+| Capability | Required tool or adapter ready | Native CLI installed and authenticated |
 | Command | Sub-command reference loaded | Reference file read into context |
 | Plan | User-confirmed plan exists | Plan approved before building |
 | Mutation | All above pass | Final gate before file edits |
@@ -285,32 +310,6 @@ then resume the original task after the human completes setup.
 ### Session caching
 
 Don't re-run the loader if context is already in the conversation. Exceptions: the user just ran a setup command that rewrites the files, or manually edited them.
-
-## Capability-Gating
-
-### When to use
-
-Use when a step depends on optional environment capabilities (browser automation, specific CLI tools, API keys) that may not be present.
-
-### Pattern
-
-```markdown
-### Automated Scan (Capability-Gated)
-
-Run the scan when ALL of these are true:
-- The target files exist and are readable
-- The required CLI tool is installed
-
-When conditions are met, this step is mandatory. If unavailable, state in one line
-that the step is skipped and why. Do not ask the user to install tooling. Proceed.
-```
-
-Rules:
-
-- State the conditions explicitly (ALL must be true)
-- Make the step mandatory when conditions are met — don't let the agent skip out of laziness
-- Provide a one-line skip reason template
-- Never ask users to install tooling just to satisfy a gated step
 
 ## Creation Workflows
 

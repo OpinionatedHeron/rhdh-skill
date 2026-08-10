@@ -14,7 +14,8 @@ Use the bundled scripts instead of reconstructing their repository-specific logi
 ## Interfaces
 
 - Produces: `BaseImageReport/v1`, `MutationPlan/v1`, and `MutationReceipt/v1`.
-- Consumes: no cross-skill artifact.
+- Consumes: no cross-skill artifact; it executes only from its own approved
+  `MutationPlan/v1`.
 - Repository checkouts are explicit user-scoped inputs, not skill-to-skill paths.
 
 ## Route
@@ -33,35 +34,12 @@ Use the bundled scripts instead of reconstructing their repository-specific logi
 ## Mutation contract
 
 Any checkout, branch, file edit, dependency install, commit, push, or PR is a
-mutation. First run read-only discovery or `--dry-run`, then present:
-
-```json
-{
-  "contract": "MutationPlan/v1",
-  "id": "base-image-mutation-<stable-id>",
-  "createdAt": "YYYY-MM-DDTHH:MM:SSZ",
-  "data": {
-    "summary": "...",
-    "operations": [{
-      "order": 1,
-      "ownerSkill": "rhdh-base-images",
-      "adapter": "shell",
-      "operation": "repository.base-images.update",
-      "target": "rhdh:release-1.x",
-      "preview": {"commandOrRequest": "..."},
-      "preconditions": [],
-      "checks": [],
-      "recovery": []
-    }],
-    "materialHash": "sha256:<canonical-plan-hash>"
-  }
-}
-```
-
-Ask for explicit approval of the exact plan. Execute only approved actions. Return
-`MutationReceipt/v1` whose `data` contains `planId`, the same `materialHash`, and
-`outcomes` containing status, attempted/completed operations, changed resources,
-verification, and remaining risks.
+mutation. First run read-only discovery or `--dry-run`, then invoke the named
+skill `rhdh-artifacts` and follow its plan, approval hash, and receipt protocol
+rather than restating it here. Operations use `ownerSkill: rhdh-base-images`
+with adapter `shell`, operation names such as `repository.base-images.update`,
+and a target naming the repository and branch, for example `rhdh:release-1.x`.
+Outcomes also record changed resources, verification, and remaining risks.
 
 Installing `rpm-lockfile-prototype`, logging into registries, using `--push`, and
 opening PRs must appear as distinct actions. Default to local/no-push behavior; do
@@ -77,5 +55,16 @@ cleanliness before mutation.
 - On rhdh-operator `main`, align `go.mod` with the Go toolset image.
 - Exclude RHDH `e2e-tests/` and `.ci/` from image scans.
 
-This skill is independently installable and exposes artifacts rather than script
-paths to other skills.
+This skill exposes artifacts rather than script paths to other skills.
+
+## Completion
+
+An analysis is complete when `BaseImageReport/v1` `data.changes` covers every
+repository in scope with its current and latest tag, `data.ubiSkew` and
+`data.toolchainDrift` are populated or explicitly empty, and every registry,
+lockfile, or branch the scan could not read appears in `data.warnings` instead of
+being reported as current. An update is complete when the target branch was
+verified to exist against a clean working tree before any edit, every operation in
+the approved `MutationPlan/v1` has one outcome in `MutationReceipt/v1`, and the
+push and PR state is stated explicitly — including "not pushed" when the default
+local behavior was kept.

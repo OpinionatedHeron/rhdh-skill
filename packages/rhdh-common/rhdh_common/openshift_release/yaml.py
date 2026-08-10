@@ -4,11 +4,10 @@ Supports both local checkout and remote GitHub API access. Provides
 helper functions for listing files, reading YAML, and extracting
 configured K8s versions from CI config files.
 
-Usage inside this skill:
-    from rhdh_prow.yaml import list_yaml_files, fetch_yaml, extract_branch
+Usage:
+    from rhdh_common.openshift_release.yaml import fetch_yaml, list_yaml_files
 
-This adapter is local to rhdh-ci; composition with other skills happens through
-versioned artifacts, not Python imports.
+Requires the ``yaml`` extra: ``rhdh-common[yaml]``.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from rhdh_prow.repo import GITHUB_REPO
+from rhdh_common.openshift_release.repo import GITHUB_REPO
 
 _yaml = YAML()
 _yaml.preserve_quotes = True

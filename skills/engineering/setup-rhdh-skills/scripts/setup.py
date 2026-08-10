@@ -1,10 +1,16 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
+# ///
 """Inspect RHDH skill setup and create approval-bound installation plans."""
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import shutil
@@ -13,6 +19,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from rhdh_common.mutation import (
+    material_hash,
+    operation_errors,
+    outcome_errors,
+    receipt_binding_errors,
+)
 
 DEFAULT_CATALOG = Path(__file__).parent.parent / "assets" / "catalog.json"
 HOST_LAYOUTS = (
@@ -91,15 +104,6 @@ def setup_status(
             },
         },
     }
-
-
-def _canonical_material(material: dict[str, Any]) -> str:
-    return json.dumps(material, separators=(",", ":"), sort_keys=True)
-
-
-def _material_hash(material: dict[str, Any]) -> str:
-    digest = hashlib.sha256(_canonical_material(material).encode()).hexdigest()
-    return f"sha256:{digest}"
 
 
 def _install_flags(agent: str, scope: str) -> list[str]:
@@ -233,7 +237,7 @@ def install_plan(
         "contract": "MutationPlan/v1",
         "id": "setup-install",
         "createdAt": _now(),
-        "data": {**material, "materialHash": _material_hash(material)},
+        "data": {**material, "materialHash": material_hash(material)},
     }
 
 
@@ -302,7 +306,7 @@ def _validate_plan(plan: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | N
             "errors": [{"code": "PLAN_INVALID", "message": "plan data must be an object"}],
         }
 
-    material_hash = data.get("materialHash")
+    declared_hash = data.get("materialHash")
     material = {key: value for key, value in data.items() if key != "materialHash"}
     if (
         set(material) != {"summary", "operations"}
@@ -315,11 +319,15 @@ def _validate_plan(plan: Any) -> tuple[dict[str, Any] | None, dict[str, Any] | N
                 {"code": "PLAN_INVALID", "message": "plan is missing required material fields"}
             ],
         }
-    if not material["operations"] or material_hash != _material_hash(material):
+    if not material["operations"] or declared_hash != material_hash(data):
         return None, {
             "valid": False,
             "errors": [{"code": "PLAN_INVALID", "message": "plan content does not match its hash"}],
         }
+
+    shape_errors = operation_errors(material["operations"])
+    if shape_errors:
+        return None, {"valid": False, "errors": shape_errors}
 
     for index, operation in enumerate(material["operations"], start=1):
         error = _operation_error(operation, index)
@@ -359,8 +367,8 @@ def apply_plan(plan: dict[str, Any], approved_hash: str) -> tuple[dict[str, Any]
         return validation_error, 1
     assert data is not None
     operations = data["operations"]
-    material_hash = data["materialHash"]
-    if approved_hash != material_hash:
+    approved_plan_hash = data["materialHash"]
+    if approved_hash != approved_plan_hash:
         return {
             "valid": False,
             "errors": [
@@ -415,6 +423,10 @@ def apply_plan(plan: dict[str, Any], approved_hash: str) -> tuple[dict[str, Any]
             }
         )
 
+    receipt_errors = outcome_errors(outcomes) or receipt_binding_errors(operations, outcomes)
+    if receipt_errors:
+        return {"valid": False, "errors": receipt_errors}, 1
+
     succeeded = all(outcome["status"] == "completed" for outcome in outcomes)
     return {
         "contract": "MutationReceipt/v1",
@@ -422,7 +434,7 @@ def apply_plan(plan: dict[str, Any], approved_hash: str) -> tuple[dict[str, Any]
         "createdAt": _now(),
         "data": {
             "planId": plan.get("id"),
-            "materialHash": material_hash,
+            "materialHash": approved_plan_hash,
             "outcomes": outcomes,
         },
         "valid": succeeded,

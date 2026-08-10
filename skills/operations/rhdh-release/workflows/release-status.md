@@ -15,41 +15,29 @@ Compile status of all active releases with open issue counts by type.
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json status {{RELEASE_VERSION}}
+uv run scripts/release.py --json status {{RELEASE_VERSION}}
 ```
 
 If the CLI succeeds, use its output directly. If it fails, follow the manual steps below.
 
 ## Step 2 (fallback): Find active releases
 
-Use the `active_release` JQL from `references/jql-release.md`:
-
-```bash
-acli jira workitem search --jql "project=rhdhplan AND issuetype=feature AND component=release AND status != closed" --limit 500 --json
-```
+Invoke `rhdh-jira` with the `active_release` JQL from `references/jql-release.md`
+and consume `JiraQueryResult/v1`.
 
 Extract the release versions from the results (from `fixVersions` or issue summary).
 
 ## Step 3 (fallback): Count issues by type for each release
 
-For each release version, query issue counts per type using the `open_issues_by_type` JQL:
-
-```bash
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = "Feature"' --count
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = "Epic"' --count
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = "Story"' --count
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = "Task"' --count
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = "Sub-task"' --count
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = "Bug"' --count
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = "Vulnerability"' --count
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = "Weakness"' --count
-```
+For each release version and each of Feature, Epic, Story, Task, Sub-task, Bug,
+Vulnerability, and Weakness, invoke `rhdh-jira` with the `open_issues_by_type`
+JQL from `references/jql-release.md`, substituting `{{RELEASE_VERSION}}` and
+`{{ISSUE_TYPE}}`. Take each count from `JiraQueryResult/v1`.
 
 ## Step 4 (fallback): Get total open issue count
 
-```bash
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed' --count
-```
+Invoke `rhdh-jira` with the `open_issues` JQL from `references/jql-release.md`
+and take the total from `JiraQueryResult/v1`.
 
 ## Step 5 (fallback): Format output
 
@@ -75,7 +63,7 @@ Include Jira search links by URL-encoding the JQL.
 
 <gotchas>
 
-- Use `--count` for efficiency — don't fetch full issue data just for counts.
+- Ask `rhdh-jira` for counts only — don't fetch full issue data just for counts.
 - URL-encode the JQL when building Jira search links: `https://issues.redhat.com/issues/?jql=<URL_ENCODED_JQL>`.
 - Optionally include scope changes using the `features_added_to_release` JQL from `references/jql-release.md` to flag recent additions (last 14 days).
 
@@ -85,6 +73,6 @@ Include Jira search links by URL-encoding the JQL.
 
 - [ ] One table per active release with counts for each issue type
 - [ ] Total count per release with Jira search link
-- [ ] All counts use `--count` (no full issue fetch)
+- [ ] All counts come from `JiraQueryResult/v1` (no full issue fetch)
 
 </success_criteria>

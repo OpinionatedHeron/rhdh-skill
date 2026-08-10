@@ -1,0 +1,3 @@
+interface:
+  display_name: "RHDH Artifacts"
+  short_description: "Artifact envelope, mutation approval hash, and receipt protocol"

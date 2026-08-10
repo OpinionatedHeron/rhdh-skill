@@ -4,16 +4,22 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import itertools
 import json
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 CATALOG_PATH = Path("skills/engineering/setup-rhdh-skills/assets/catalog.json")
 CONTRACTS_PATH = Path("skills/engineering/rhdh-context/scripts/artifact-contracts.json")
 PROMOTED_CATEGORIES = ("engineering", "operations", "maintainers")
-HOST_SKILL_PATHS = (".claude/skills", ".agents/skills", ".cursor/skills")
+HOST_SKILL_PATHS = (".claude/skills", ".agents/skills", ".cursor/skills", ".codex/skills")
+SHIPPED_SUFFIXES = {".md", ".py", ".sh", ".mjs"}
+DUPLICATE_BLOCK_LINES = 25
+ARTIFACT_FIELD_BULLET = re.compile(r"^[ \t]*[-*]\s+`([A-Za-z][A-Za-z0-9]*/v\d+)`\s*:\s*(.*)$")
 
 
 def _frontmatter(text: str) -> dict[str, Any]:
@@ -41,12 +47,122 @@ def _frontmatter(text: str) -> dict[str, Any]:
                 index += 1
             result[key] = "\n".join(block).strip()
             continue
-        if value.lower() in {"true", "false"}:
-            result[key] = value.lower() == "true"
+        unquoted = value.strip("\"'")
+        if unquoted.lower() in {"true", "false"}:
+            result[key] = unquoted.lower() == "true"
         else:
-            result[key] = value.strip("\"'")
+            result[key] = unquoted
         index += 1
     return result
+
+
+def _body(text: str) -> str:
+    """Return the document with its frontmatter removed."""
+    normalized = text.replace("\r\n", "\n")
+    return re.sub(r"^---\n.*?\n---(?:\n|$)", "", normalized, count=1, flags=re.DOTALL)
+
+
+def _mentions(body: str, term: str) -> bool:
+    """Report whether the body names a skill or artifact rather than a longer token.
+
+    ``/rhdh-jira`` and `` `rhdh-jira` `` both count; ``rhdh-jira-legacy`` does not.
+    """
+    return re.search(rf"(?<![\w-]){re.escape(term)}(?![\w-])", body) is not None
+
+
+def _artifact_list(
+    entry: dict[str, Any], field: str, name: str, errors: list[dict[str, str]]
+) -> list[Any]:
+    """Read an artifact edge list, reporting malformed values instead of raising."""
+    if field not in entry:
+        return []
+    value = entry[field]
+    if not isinstance(value, list):
+        errors.append(
+            {
+                "code": "ARTIFACT_LIST_TYPE",
+                "message": (
+                    f"{name}: {field} must be an array of artifact names, "
+                    f"got {type(value).__name__}; use [] when the skill has none"
+                ),
+            }
+        )
+        return []
+    return value
+
+
+def _documented_artifact_fields(body: str) -> dict[str, set[str]]:
+    """Collect the data fields a SKILL.md documents per artifact contract.
+
+    Recognizes the house pattern ``- `Contract/v1`: `field`, `field`.`` including
+    wrapped continuation lines. Bullets that name no field document none.
+    """
+    documented: dict[str, set[str]] = {}
+    lines = body.split("\n")
+    index = 0
+    while index < len(lines):
+        match = ARTIFACT_FIELD_BULLET.match(lines[index])
+        if not match:
+            index += 1
+            continue
+        artifact, remainder = match.groups()
+        chunk = [remainder]
+        index += 1
+        while (
+            index < len(lines)
+            and lines[index].strip()
+            and lines[index][:1].isspace()
+            and not ARTIFACT_FIELD_BULLET.match(lines[index])
+        ):
+            chunk.append(lines[index])
+            index += 1
+        fields = set(re.findall(r"`([^`]+)`", " ".join(chunk)))
+        if fields:
+            documented.setdefault(artifact, set()).update(fields)
+    return documented
+
+
+def _shipped_files(skill_dir: Path) -> Iterator[Path]:
+    """Yield the text files a skill ships, skipping build residue."""
+    for path in sorted(skill_dir.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in SHIPPED_SUFFIXES:
+            continue
+        if "__pycache__" in path.parts:
+            continue
+        yield path
+
+
+def _duplicate_files(root: Path, skill_dirs: dict[str, Path]) -> list[tuple[str, str]]:
+    """Return file pairs from different skills that ship the same content.
+
+    Compares whole files and every window of ``DUPLICATE_BLOCK_LINES`` significant
+    lines, so a copy that only differs in its header block is still reported.
+    """
+    groups: dict[str, set[tuple[str, str]]] = {}
+    for name, skill_dir in skill_dirs.items():
+        for path in _shipped_files(skill_dir):
+            text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+            lines = [line.strip() for line in text.split("\n") if line.strip()]
+            if not lines:
+                continue
+            owner = (name, path.relative_to(root).as_posix())
+            keys = ["\n".join(lines)]
+            keys.extend(
+                "\n".join(lines[start : start + DUPLICATE_BLOCK_LINES])
+                for start in range(len(lines) - DUPLICATE_BLOCK_LINES + 1)
+            )
+            for key in keys:
+                digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+                groups.setdefault(digest, set()).add(owner)
+
+    pairs: set[tuple[str, str]] = set()
+    for group in groups.values():
+        if len({name for name, _ in group}) < 2:
+            continue
+        for left, right in itertools.combinations(sorted(group), 2):
+            if left[0] != right[0]:
+                pairs.add((left[1], right[1]))
+    return sorted(pairs)
 
 
 def _find_cycle(graph: dict[str, list[str]]) -> list[str] | None:
@@ -167,10 +283,18 @@ def validate_repository(root: Path) -> dict[str, Any]:
     }
     try:
         contract_payload = json.loads((root / CONTRACTS_PATH).read_text(encoding="utf-8"))
-        known_contracts = set(contract_payload.get("contracts", {}))
+        contracts = contract_payload.get("contracts", {})
     except (OSError, json.JSONDecodeError) as exc:
-        known_contracts = set()
+        contracts = {}
         errors.append({"code": "CONTRACTS_INVALID", "message": str(exc)})
+    known_contracts = set(contracts)
+    terminal_contracts = {
+        artifact
+        for artifact, spec in contracts.items()
+        if isinstance(spec, dict) and spec.get("terminal") is True
+    }
+    produced_by: dict[str, list[str]] = {}
+    consumed_by: dict[str, list[str]] = {}
 
     for entry in entries:
         if not isinstance(entry, dict):
@@ -200,7 +324,9 @@ def validate_repository(root: Path) -> dict[str, Any]:
         if not skill_file.is_file():
             errors.append({"code": "SKILL_MISSING", "message": str(skill_file)})
             continue
-        frontmatter = _frontmatter(skill_file.read_text(encoding="utf-8"))
+        skill_text = skill_file.read_text(encoding="utf-8")
+        body = _body(skill_text)
+        frontmatter = _frontmatter(skill_text)
         if frontmatter.get("name") != name:
             errors.append(
                 {
@@ -213,10 +339,29 @@ def validate_repository(root: Path) -> dict[str, Any]:
             errors.append({"code": "FRONTMATTER_DESCRIPTION", "message": str(skill_file)})
         human_flag = frontmatter.get("disable-model-invocation") is True
         if human_flag != (invocation == "human"):
+            remedy = (
+                "set disable-model-invocation: true in the frontmatter"
+                if invocation == "human"
+                else "drop disable-model-invocation from the frontmatter"
+            )
             errors.append(
                 {
                     "code": "INVOCATION_MISMATCH",
-                    "message": f"{name}: catalog={invocation}, frontmatter human={human_flag}",
+                    "message": (
+                        f"{name}: catalog={invocation}, frontmatter human={human_flag}; "
+                        f"{remedy} or change the catalog invocation"
+                    ),
+                }
+            )
+
+        if not re.search(r"(?m)^##\s+Completion\s*$", body):
+            errors.append(
+                {
+                    "code": "MISSING_COMPLETION",
+                    "message": (
+                        f"{skill_file.relative_to(root).as_posix()}: add a '## Completion' "
+                        "section stating what the skill leaves behind when it finishes"
+                    ),
                 }
             )
 
@@ -243,17 +388,64 @@ def validate_repository(root: Path) -> dict[str, Any]:
                     }
                 )
 
-        for artifact in [*entry.get("consumes", []), *entry.get("produces", [])]:
+        consumes = _artifact_list(entry, "consumes", name, errors)
+        produces = _artifact_list(entry, "produces", name, errors)
+        for artifact in [*consumes, *produces]:
             if not isinstance(artifact, str) or not re.fullmatch(
                 r"[A-Za-z][A-Za-z0-9]*/v\d+", artifact
             ):
                 errors.append({"code": "ARTIFACT_NAME", "message": f"{name}: {artifact!r}"})
             elif artifact not in known_contracts:
                 errors.append({"code": "ARTIFACT_UNDECLARED", "message": f"{name}: {artifact}"})
+        for artifact in consumes:
+            if isinstance(artifact, str):
+                consumed_by.setdefault(artifact, []).append(name)
+        for artifact in produces:
+            if isinstance(artifact, str):
+                produced_by.setdefault(artifact, []).append(name)
 
-        for path in skill_dir.rglob("*"):
-            if not path.is_file() or path.suffix.lower() not in {".md", ".py", ".sh", ".mjs"}:
-                continue
+        for dependency in entry.get("requiresSkills") or []:
+            if isinstance(dependency, str) and not _mentions(body, dependency):
+                errors.append(
+                    {
+                        "code": "DEPENDENCY_NOT_DOCUMENTED",
+                        "message": (
+                            f"{name}: requiresSkills declares {dependency} but SKILL.md never "
+                            f"names it; document when to invoke {dependency} and what it returns, "
+                            "or drop the dependency"
+                        ),
+                    }
+                )
+
+        for artifact in produces:
+            if isinstance(artifact, str) and not _mentions(body, artifact):
+                errors.append(
+                    {
+                        "code": "ARTIFACT_NOT_DOCUMENTED",
+                        "message": (
+                            f"{name}: produces {artifact} but SKILL.md never names it; document "
+                            "which route emits it, or drop it from produces"
+                        ),
+                    }
+                )
+
+        for artifact, fields in _documented_artifact_fields(body).items():
+            required = contracts.get(artifact, {})
+            required = required.get("requiredData", []) if isinstance(required, dict) else []
+            missing = [field for field in required if field not in fields]
+            if missing:
+                errors.append(
+                    {
+                        "code": "ARTIFACT_FIELDS_MISMATCH",
+                        "message": (
+                            f"{name}: documented fields for {artifact} omit required "
+                            f"{', '.join(missing)}; document the contract fields or amend "
+                            f"{CONTRACTS_PATH.as_posix()}"
+                        ),
+                    }
+                )
+
+        for path in _shipped_files(skill_dir):
             content = path.read_text(encoding="utf-8", errors="replace").replace("\\", "/")
             _validate_local_links(root, path, content, errors)
             if name != "setup-rhdh-skills":
@@ -313,10 +505,46 @@ def validate_repository(root: Path) -> dict[str, Any]:
     if cycle:
         errors.append({"code": "DEPENDENCY_CYCLE", "message": " -> ".join(cycle)})
 
-    discovered: set[str] = set()
+    for artifact, consumers in sorted(consumed_by.items()):
+        if artifact not in produced_by:
+            errors.append(
+                {
+                    "code": "DANGLING_ARTIFACT_EDGE",
+                    "message": (
+                        f"{artifact} is consumed by {', '.join(sorted(consumers))} but produced "
+                        "by no skill; add the producing skill or drop the consumes entry"
+                    ),
+                }
+            )
+    for artifact, producers in sorted(produced_by.items()):
+        if artifact not in consumed_by and artifact not in terminal_contracts:
+            errors.append(
+                {
+                    "code": "DANGLING_ARTIFACT_EDGE",
+                    "message": (
+                        f"{artifact} is produced by {', '.join(sorted(producers))} but consumed "
+                        "by no skill; add the consuming skill, drop the produces entry, or mark "
+                        f'the contract "terminal": true in {CONTRACTS_PATH.as_posix()}'
+                    ),
+                }
+            )
+
+    skill_dirs: dict[str, Path] = {}
     for category in PROMOTED_CATEGORIES:
         for skill_file in (root / "skills" / category).glob("*/SKILL.md"):
-            discovered.add(skill_file.parent.name)
+            skill_dirs[skill_file.parent.name] = skill_file.parent
+    for left, right in _duplicate_files(root, skill_dirs):
+        errors.append(
+            {
+                "code": "DUPLICATE_FILE",
+                "message": (
+                    f"{left} and {right} ship the same content; extract it into a foundation "
+                    "skill both invoke by name, or delete the copy and cross the owner's seam"
+                ),
+            }
+        )
+
+    discovered = set(skill_dirs)
     undeclared = sorted(discovered - internal_names)
     missing = sorted(internal_names - discovered)
     if undeclared:

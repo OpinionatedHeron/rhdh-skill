@@ -24,9 +24,28 @@ request previews. Do not fall back from a native tool to raw `curl`.
 | Check editability | Get edit metadata for an issue | Allowed operations and values |
 | Update fields | Partial issue update with a `fields` object | No-content success or updated issue |
 | Add comment | Add an ADF comment, with visibility when required | Comment receipt |
+| Add remote link | Attach a web link to an issue key with `{"object": {"url": ..., "title": ...}}` | Created link with an id, or the id of the link it replaced |
 
 The host adapter may expose these as tools instead of URL paths. Select by semantic capability, not
 by tool name, and keep transport-specific response metadata out of `JiraQueryResult/v1`.
+
+## Remote links
+
+A remote link is the "web link" shown on a Jira issue. It is the supported way to record an
+external URL — a pull request, a design document, a support case — against an issue, and `acli`
+has no equivalent, so the authenticated adapter owns it.
+
+```json
+{"object": {"url": "https://github.com/redhat-developer/rhdh/pull/1234", "title": "GitHub PR: Fix plugin loader"}}
+```
+
+The target is the issue key; `object.url` and `object.title` are the whole payload. A second link
+carrying the same URL replaces the first rather than creating a duplicate, so re-running a plan
+after a partial failure is safe. The receipt records the link id.
+
+Callers reach this through the skill, not the adapter. `rhdh-pull-request` asks `rhdh-jira` for a
+plan whose outcomes are a comment, a transition to `Review`, and a remote link to the PR URL; all
+three are operations in one `MutationPlan/v1` under the boundary below.
 
 ## Custom-field payloads
 

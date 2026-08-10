@@ -2,6 +2,12 @@
 
 **Status:** Accepted.
 
+**Amended by [ADR-0006](0006-foundation-skills.md)**: artifacts persist under
+the operating system temporary directory rather than `.rhdh/artifacts/`; the
+complete pack is the only supported install, retiring selective installation;
+and skills may depend on one versioned shared package, `rhdh_common`. The rest
+of this decision stands as recorded below.
+
 ## Context
 
 The repository grew to 24 top-level skills plus a broad model-invoked `rhdh`

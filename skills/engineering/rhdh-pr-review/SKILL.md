@@ -52,58 +52,16 @@ can diverge, but respect an explicit route.
 ## Mutation contract
 
 Fetch and analysis are read-only. Posting a GitHub review, posting a test
-request comment, or changing cluster resources requires an exact
-`MutationPlan/v1`:
+request comment, or changing cluster resources is a mutation: invoke the named
+skill `rhdh-artifacts` and follow its `MutationPlan/v1` approval hash and
+`MutationReceipt/v1` protocol rather than restating it here.
 
-```yaml
-contract: MutationPlan/v1
-id: pr-review-mutation-plan-id
-createdAt: ISO-8601
-data:
-  summary: Post or execute the reviewed operation
-  operations:
-    - order: 1
-      ownerSkill: rhdh-pr-review
-      adapter: github | openshift
-      operation: github.review.create | github.comment.create | openshift.apply | openshift.delete
-      target: exact-resource
-      preview: {commandOrRequest: exact-structured-input}
-      preconditions: []
-      checks: []
-      recovery: []
-  materialHash: sha256:<canonical-plan-data-hash>
-```
-
-Compute the hash from the UTF-8 JSON encoding of the complete `data` object
-after removing `materialHash`, with keys sorted and separators `,` and `:`.
-This binds the summary and every material operation field. Present the complete
-plan and exact hash after every payload is final. Execute only after the user
-approves that hash. Re-plan when the head SHA, review event, comments,
-manifests, namespace, or cleanup operations change. An earlier confirmation of
-findings does not approve the mutation plan.
-
-After execution return:
-
-```yaml
-contract: MutationReceipt/v1
-id: pr-review-mutation-receipt-id
-createdAt: ISO-8601
-data:
-  planId: pr-review-mutation-plan-id
-  materialHash: sha256:<approved-hash>
-  outcomes:
-    - order: 1
-      ownerSkill: rhdh-pr-review
-      adapter: <same-as-plan-operation>
-      operation: <same-as-plan-operation>
-      target: <same-as-plan-operation>
-      status: completed | failed | skipped
-```
-
-Return exactly one ordered outcome for every planned operation, including
-failures and skips. Its order, owner, adapter, operation, and target must match
-the plan. Also record changed resources or review URLs, verification, cleanup,
-and remaining recovery action.
+Operations use `ownerSkill: rhdh-pr-review` with adapter `github` or
+`openshift`, and operation `github.review.create`, `github.comment.create`,
+`openshift.apply`, or `openshift.delete`. Targets pin the head SHA for a review
+and the namespace for a cluster change. An earlier confirmation of findings does
+not approve the mutation plan. Outcomes also record changed resources or review
+URLs, verification, cleanup, and remaining recovery action.
 
 ## Artifact contracts
 

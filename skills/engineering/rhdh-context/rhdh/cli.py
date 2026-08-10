@@ -15,7 +15,9 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
+from rhdh_common.process import run_command
 
 from . import __version__
 from .config import (
@@ -56,17 +58,6 @@ LOCAL_CLI_ENV_VAR = "RHDH_LOCAL_CLI"
 # =============================================================================
 # Helper Functions
 # =============================================================================
-
-
-def run_command(cmd: list[str], cwd: Optional[Path] = None) -> tuple[int, str, str]:
-    """Run a command and return (returncode, stdout, stderr)."""
-    try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=cwd
-        )
-        return result.returncode, result.stdout, result.stderr
-    except FileNotFoundError:
-        return -1, "", f"Command not found: {cmd[0]}"
 
 
 def check_tool(name: str) -> bool:

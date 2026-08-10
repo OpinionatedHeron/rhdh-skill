@@ -1,7 +1,10 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.9"
-# dependencies = []
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
 # ///
 """Check GKE Kubernetes version lifecycle using endoflife.date API.
 
@@ -17,7 +20,7 @@ import json
 import sys
 from datetime import datetime, timezone
 
-from rhdh_lifecycle.utils import fetch_json, ver_sort_key
+from rhdh_common.versions import fetch_json, ver_sort_key
 
 API_URL = "https://endoflife.date/api/google-kubernetes-engine.json"
 

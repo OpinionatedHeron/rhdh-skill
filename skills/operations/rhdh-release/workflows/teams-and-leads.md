@@ -17,13 +17,13 @@ If gog check fails: run `gog auth add <email>`.
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json teams
+uv run scripts/release.py --json teams
 ```
 
 To filter by category:
 
 ```bash
-python scripts/release.py --json teams --category Engineering
+uv run scripts/release.py --json teams --category Engineering
 ```
 
 If the CLI succeeds, use its output directly. If it fails, follow the manual steps below.

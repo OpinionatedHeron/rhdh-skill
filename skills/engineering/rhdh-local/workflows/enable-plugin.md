@@ -132,9 +132,9 @@ Before applying, show the user:
 ## Step 6: Apply and Restart
 
 ```bash
-python scripts/rhdh-local apply
-python scripts/rhdh-local down
-python scripts/rhdh-local up --customized
+uv run scripts/rhdh-local apply
+uv run scripts/rhdh-local down
+uv run scripts/rhdh-local up --customized
 ```
 
 Add `--lightspeed`, `--orchestrator`, or `--both` flags if those components are enabled.
@@ -154,7 +154,7 @@ podman compose logs rhdh 2>&1 | tail -50       # RHDH startup
 <success_criteria>
 
 - [ ] Plugin packages appear in `dynamic-plugins.override.yaml` with `disabled: false`
-- [ ] `python scripts/rhdh-local apply` ran without errors
+- [ ] `uv run scripts/rhdh-local apply` ran without errors
 - [ ] No errors in `podman compose logs install-dynamic-plugins`
 - [ ] No errors in `podman compose logs rhdh` related to the plugin
 - [ ] RHDH accessible at `http://localhost:7007`

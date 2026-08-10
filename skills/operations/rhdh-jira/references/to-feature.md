@@ -109,14 +109,14 @@ If a likely duplicate Feature is found, present it and ask: "This may already ex
 
 Before create: re-check customer identity + label rules per `references/grill.md` → Validate before creating. Strip customer names from summary/description if present; ensure at most one `RHDH-Customer` label.
 
-Fill the template with grill results. Save to a temp file. Then convert to ADF using the helper script (see Gotcha #6). `acli create` accepts ADF via `--description-file`:
+Fill the template with grill results. Save to a temp file. Then convert to ADF using the helper script (`acli-commands.md` → Formatted descriptions need ADF). `acli create` accepts ADF via `--description-file`:
 
 ```bash
 FEATURE_ADF=$(mktemp)  # on Windows: use %TEMP% or Python tempfile
 python scripts/jira-wiki-to-adf.py feature-filled.txt "$FEATURE_ADF"
 ```
 
-Create the issue — note `--priority` and `--yes` do not exist on `create` (see Gotcha #18):
+Create the issue — note `--priority` and `--yes` do not exist on `create` (`acli-commands.md` → Create):
 
 ```bash
 acli jira workitem create --project RHDHPLAN --type Feature \
@@ -138,7 +138,8 @@ payload in the approved mutation plan:
 }
 ```
 
-Set Team via REST — follow API preference order in SKILL.md.
+Team is one of the fields `acli` cannot set. Follow the adapter order in `references/auth.md` →
+API preference and use the Team payload in `references/rest-api-fallback.md`.
 
 ### Step 7 — Comments
 
@@ -164,14 +165,14 @@ If yes, load `references/work-breakdown.md` and:
 4. For each approved Epic, invoke the `to-epic` workflow with context carried down:
    - Feature scope, AC, and customer considerations are established — don't re-grill on these
    - Epic grill narrows to: delivery scope for *this team*, dependencies, team-specific AC
-5. Each Epic is linked to the parent Feature via `customfield_10018` (cross-project parent link — see Gotcha #16 and to-epic.md Step 7)
+5. Each Epic is linked to the parent Feature via `customfield_10018` (cross-project parent link — not `issuelinks`; see `references/fields.md` → Parent Link and to-epic.md Step 7)
 
 ## Error Handling
 
 | Error | Action |
 |-------|--------|
 | RHDHPLAN project inaccessible | Stop. User lacks project access. |
-| `acli create` fails | Fall back to REST API. See SKILL.md Error Handling. |
+| `acli create` fails | Retry through the authenticated adapter in `references/rest-api-fallback.md`, replanning the mutation if the payload changes. |
 | Duplicate check finds match | Present match. If user confirms duplicate, open existing issue instead. |
 | Team field update fails via acli | Fall back to REST. See `references/rest-api-fallback.md`. |
 

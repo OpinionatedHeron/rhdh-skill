@@ -74,7 +74,7 @@ When a product defect is identified:
 BUG_ADF=$(mktemp)  # on Windows: use %TEMP% or Python tempfile
 python scripts/jira-wiki-to-adf.py bug_description.txt "$BUG_ADF"
 
-# Create the bug (note: --yes does not exist on create, see Gotcha #18)
+# Create the bug (note: --yes does not exist on create, see `references/acli-commands.md` → Create)
 acli jira workitem create --project RHDHBUGS --type Bug \
   --summary "Login fails when SSO token expires during session" \
   --description-file "$BUG_ADF" \
@@ -104,7 +104,7 @@ When a support case reveals a missing capability:
 FEATURE_ADF=$(mktemp)  # on Windows: use %TEMP% or Python tempfile
 python scripts/jira-wiki-to-adf.py feature_request.txt "$FEATURE_ADF"
 
-# Create the feature request (note: --yes does not exist on create, see Gotcha #18)
+# Create the feature request (note: --yes does not exist on create, see `references/acli-commands.md` → Create)
 acli jira workitem create --project RHDHPLAN --type "Feature Request" \
   --summary "Support OIDC token refresh in admin console" \
   --description-file "$FEATURE_ADF"

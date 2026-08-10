@@ -1,191 +1,71 @@
-# Reference: RHDH Local Testing
+# Reference: Local Verification Inputs
 
-Patterns for testing dynamic plugins locally using [RHDH Local](https://github.com/redhat-developer/rhdh-local).
+The overlay-side facts needed to fill `ChangeHandoff/v1` when asking for local
+verification of a plugin built by overlay CI.
 
-> This reference defines overlay fields for `ChangeHandoff/v1`. Invoke
-> `/rhdh-local` by name for setup, operations, troubleshooting, and execution;
-> do not load its implementation files.
+> Invoke `/rhdh-local` by name for setup, file layout, operations,
+> troubleshooting, and execution; do not load its implementation files. This
+> reference deliberately carries no `rhdh-local` configuration templates — only
+> what `rhdh-local` cannot know: what the overlay repo published and what the
+> plugin needs in order to render.
 
-<overview>
-**Purpose:** Test dynamic plugins before PR merge using PR artifacts from the overlay repo CI.
+## Artifact reference
 
-**When to use:**
+Overlay CI publishes plugins as OCI images under the overlay repo's registry
+namespace:
 
-- Phase 5 of onboard/update workflows
-- Verifying plugin functionality before requesting review
-- Debugging plugin issues locally
-
-**What you can test:**
-
-- Plugin loads without errors
-- Entity cards render on catalog pages
-- Plugin appears in Extensions Catalog
-- Backend health endpoints respond
-</overview>
-
-<dynamic_plugins_config>
-**File:** `configs/dynamic-plugins/dynamic-plugins.override.yaml`
-
-**Template:**
-
-```yaml
-includes:
-  - dynamic-plugins.default.yaml
-
-plugins:
-  # Backend plugin (no pluginConfig needed for most backends)
-  - package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/<package>-backend:<tag>!<package>-backend
-    disabled: false
-
-  # Frontend plugin (needs pluginConfig for mount points)
-  - package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/<package>:<tag>!<package>
-    disabled: false
-    pluginConfig:
-      dynamicPlugins:
-        frontend:
-          <scope>.<plugin-name>:
-            mountPoints:
-              - mountPoint: entity.page.overview/cards
-                importName: <CardComponent>
-                config:
-                  layout:
-                    gridColumn: "1 / span 6"
-                  if:
-                    anyOf:
-                      - hasAnnotation: <annotation-key>
+```
+oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/<package>:<tag>!<package>
+oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/<package>-backend:<tag>!<package>-backend
 ```
 
-**Tag patterns:**
-
-| Format | When Used | Example |
+| Tag format | When used | Example |
 |--------|-----------|---------|
 | `pr_<number>__<version>` | PR artifacts (before merge) | `pr_1873__0.8.0` |
 | `bs_<backstage>__<version>` | Released artifacts | `bs_1.45.3__0.8.0` |
 
-**Finding the OCI reference:**
+Read the exact URLs from the PR's `/publish` comment rather than composing them:
 
 ```bash
-# Check PR /publish comment for exact OCI URLs
 gh pr view <number> --repo redhat-developer/rhdh-plugin-export-overlays --comments
 ```
 
-**Copying pluginConfig from metadata:**
-Look in `workspaces/<plugin>/metadata/<package>.yaml` for `appConfigExamples`.
-</dynamic_plugins_config>
+## Plugin config
 
-<test_entities>
-**File:** `configs/catalog-entities/components.override.yaml`
+Frontend plugins need `pluginConfig` for their mount points. Copy it from
+`appConfigExamples` in `workspaces/<plugin>/metadata/<package>.yaml` and pass the
+exact values through `ChangeHandoff/v1`; do not paraphrase them. Backend plugins
+usually need no `pluginConfig`.
 
-**Purpose:** Create a catalog entity with the required annotations so the plugin card appears.
+## Test entity annotations
 
-**Template:**
+A plugin card only renders on a catalog entity that carries the annotation the
+plugin looks for. Name the annotation and a test value in the handoff so the
+entity can be created.
 
-```yaml
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: <plugin>-test-service
-  description: Test entity for <plugin> plugin verification
-  annotations:
-    # Add the annotation(s) required by the plugin
-    <annotation-key>: <test-value>
-spec:
-  type: service
-  lifecycle: experimental
-  owner: user:default/guest
-```
-
-**Common annotation patterns:**
-
-| Plugin Family | Annotation Key | Example Value |
+| Plugin family | Annotation key | Example value |
 |---------------|----------------|---------------|
 | AWS CodePipeline | `aws.amazon.com/aws-codepipeline-arn` | `arn:aws:codepipeline:us-east-1:000000000000:test` |
 | AWS CodeBuild | `aws.amazon.com/aws-codebuild-project-arn` | `arn:aws:codebuild:us-east-1:000000000000:project/test` |
 | Tekton | `janus-idp.io/tekton` | `<namespace>` |
 | ArgoCD | `argocd/app-name` | `<app-name>` |
 
-> Check the plugin's README or metadata file for required annotations.
-</test_entities>
+The table covers the common families, not all of them. Check the plugin's README
+or metadata file for the annotations it actually requires.
 
-<extensions_catalog_visibility>
-**Goal:** Make Plugin entities visible in the Extensions Catalog UI at `/extensions/catalog`.
+## Extensions Catalog entities
 
-**Requires two files:**
+Seeing the plugin in the Extensions Catalog UI requires the overlay repo's Plugin
+entity directory. Its path is `<overlay-repo>/catalog-entities/extensions/plugins/`
+— `extensions/plugins/`, not `marketplace/plugins/`. Name that path in the
+handoff; `/rhdh-local` owns the mount and the catalog-location wiring.
 
-**1. `compose.override.yaml`** (in rhdh-local root):
+## Checks to request
 
-```yaml
-services:
-  rhdh:
-    volumes:
-      # Mount Plugin entities from overlay repo
-      - type: bind
-        source: ../rhdh-plugin-export-overlays/catalog-entities/extensions/plugins/
-        target: /marketplace/catalog-entities/plugins
-        read_only: true
-```
+- `installation` — plugin loads with no errors in the RHDH logs
+- `startup` and `health` — backend health endpoint responds
+- `ui` — the test entity resolves in the catalog and the plugin card renders;
+  errors about credentials inside the card are acceptable
+- Extensions Catalog listing, when the plugin entity path was supplied
 
-> The path is `extensions/plugins/` not `marketplace/plugins/`. Adjust `source:` if repos are in different locations.
-
-**2. `configs/app-config/app-config.local.yaml`:**
-
-```yaml
-# YAML arrays don't merge - must include ALL default locations
-catalog:
-  rules:
-    - allow: [Component, API, Location, Template, Domain, User, Group, System, Resource, Plugin, Package]
-
-  locations:
-    # === Default locations (copy from app-config.yaml) ===
-    - type: file
-      target: /opt/app-root/src/catalog-info.yaml
-    - type: file
-      target: /opt/app-root/src/configs/catalog-entities/users.yaml
-      rules:
-        - allow: [User, Group]
-    - type: file
-      target: /opt/app-root/src/configs/catalog-entities/components.override.yaml
-    - type: url
-      target: https://github.com/redhat-developer/red-hat-developer-hub-software-templates/blob/main/templates/create-frontend-plugin/template.yaml
-      rules:
-        - allow: [Template]
-    - type: url
-      target: https://github.com/redhat-developer/red-hat-developer-hub-software-templates/blob/main/templates/create-backend-plugin/template.yaml
-      rules:
-        - allow: [Template]
-    - type: url
-      target: https://github.com/redhat-developer/red-hat-developer-hub-software-templates/blob/main/templates/github/techdocs/template.yaml
-      rules:
-        - allow: [Template]
-    - type: url
-      target: https://github.com/redhat-developer/red-hat-developer-hub-software-templates/blob/main/templates/github/register-component/template.yaml
-      rules:
-        - allow: [Template]
-
-    # === Extensions Catalog ===
-    - type: file
-      target: /marketplace/catalog-entities/plugins/all.yaml
-      rules:
-        - allow: [Location, Plugin]
-```
-
-**Critical:** The `rules` must include both `Location` (for the index file) and `Plugin` (for individual entities).
-</extensions_catalog_visibility>
-
-<verification_checklist>
-**Plugin loads correctly:**
-
-- [ ] No errors in `podman compose logs rhdh`
-- [ ] Backend health endpoint returns `{"status":"ok"}`
-
-**Entity card works:**
-
-- [ ] Test entity visible in catalog at `/catalog`
-- [ ] Plugin card renders on entity Overview tab
-- [ ] Card shows expected content (errors about credentials are OK)
-
-**Extensions Catalog (optional):**
-
-- [ ] Plugin appears in `/extensions/catalog`
-- [ ] Plugin name, description, categories display correctly
-</verification_checklist>
+Consume `VerificationEvidence/v1` and preserve skipped checks with their reason.

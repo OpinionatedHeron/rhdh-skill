@@ -9,7 +9,7 @@ Patterns for testing dynamic plugins locally using [RHDH Local](https://github.c
 > - `references/env-reference.md` — environment variable reference
 > - `workflows/enable-plugin.md` / `disable-plugin.md` — plugin management
 > - `workflows/switch-mode.md` — baseline vs customized mode
-> - CLI: `python scripts/rhdh-local status`, `python scripts/rhdh-local up`, `python scripts/rhdh-local health`
+> - CLI: `uv run scripts/rhdh-local status`, `uv run scripts/rhdh-local up`, `uv run scripts/rhdh-local health`
 
 <overview>
 **Purpose:** Test dynamic plugins before PR merge using PR artifacts from the overlay repo CI.

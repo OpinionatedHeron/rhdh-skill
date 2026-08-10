@@ -1,4 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
+# ///
 """Fetch PR context from GitHub and output ReviewContext/v1 as JSON.
 
 Runs gh CLI commands to collect PR metadata, diff, linked issues,
@@ -6,36 +13,19 @@ existing review comments, and CI status. Output is consumed by
 review-code.md and review-operator-pr.md workflows.
 
 Examples:
-    python scripts/fetch_pr_context.py https://github.com/redhat-developer/rhdh-operator/pull/123
-    python scripts/fetch_pr_context.py 123
-    python scripts/fetch_pr_context.py 123 --repo redhat-developer/rhdh-operator
+    uv run scripts/fetch_pr_context.py https://github.com/redhat-developer/rhdh-operator/pull/123
+    uv run scripts/fetch_pr_context.py 123
+    uv run scripts/fetch_pr_context.py 123 --repo redhat-developer/rhdh-operator
 """
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 
-_no_color = os.environ.get("NO_COLOR") is not None
-_is_tty = sys.stderr.isatty() and not _no_color
-
-
-def log(msg):
-    """Write to stderr — keeps stdout clean for JSON output."""
-    if _is_tty:
-        print(msg, file=sys.stderr)
-
-
-def error_exit(error_key, detail=None):
-    result = {"error": error_key}
-    if detail:
-        result["detail"] = detail
-    json.dump(result, sys.stdout, indent=2)
-    print()
-    sys.exit(1)
+from rhdh_common.jsonio import error_exit, log
 
 
 def run_gh(args, check=True):

@@ -1,9 +1,16 @@
-# JQL Release Queries
+# Release JQL Templates
 
-Release-specific JQL templates for RHDH release management. All queries tested against `redhat.atlassian.net`.
+Template data for `scripts/jql.py`, which parses the `jql` blocks below and
+renders them for `scripts/release.py` and for the Jira search links it emits.
+All queries tested against `redhat.atlassian.net`.
 
-For general Jira queries, boards, and sprints, invoke the named skill `rhdh-jira`
-and consume `JiraQueryResult/v1`. Do not locate its reference files.
+This is adapter input, not a query catalog to run by hand. For general Jira
+queries, boards, and sprints, invoke the named skill `rhdh-jira` and consume
+`JiraQueryResult/v1`. Do not locate its reference files.
+
+Freeze scopes, the demo and Test Day filters, and the release-note lifecycle
+queues are absent here on purpose: the Rich Filter export supplies them at run
+time. See `references/rich-filter-coverage.md` for that mapping.
 
 ## active_release
 
@@ -14,7 +21,7 @@ project=rhdhplan AND issuetype=feature AND component=release AND status != close
 ```
 
 - **Placeholders:** none
-- **Notes:** Returns release tracking issues with key dates in description. Use `acli jira workitem view KEY --json` on each result to extract dates.
+- **Notes:** Returns release tracking issues with key dates in description. Ask `rhdh-jira` for each result's full issue and read the dates from its description.
 
 ## open_issues
 
@@ -64,14 +71,6 @@ project IN (RHIDP, rhdhbugs) AND fixVersion = "{{RELEASE_VERSION}}" and issuetyp
 - **Example:** `... AND fixVersion = "1.9.0" and issuetype in (weakness, Vulnerability, bug) and summary ~ "CVE*"`
 - **Notes:** Critical for security tracking before release.
 
-## feature_demos
-
-Find features tagged for demonstration.
-
-- **Source:** Rich Filter — "demo" static filter
-- **Placeholders:** `{{RELEASE_VERSION}}`
-- **Notes:** Features that need demo preparation.
-
 ## feature_subtasks
 
 Find feature subtasks for acceptance criteria verification.
@@ -83,14 +82,6 @@ project in (RHDHPlan) AND issuetype = sub-task AND fixVersion = "{{RELEASE_VERSI
 - **Placeholders:** `{{RELEASE_VERSION}}`
 - **Example:** `... AND fixVersion = "1.9.0" AND status != closed`
 - **Notes:** Tracks feature verification and demo creation tasks.
-
-## test_day_features
-
-Find features designated for Test Day.
-
-- **Source:** Rich Filter — "Test Day" static filter
-- **Placeholders:** `{{RELEASE_VERSION}}`
-- **Notes:** Features ready for Test Day validation.
 
 ## features_added_to_release
 
@@ -104,35 +95,6 @@ project in (RHDHPlan, rhidp) AND issuetype = feature AND fixVersion = "{{RELEASE
 - **Example:** `... AND fixVersion = "1.9.0" AND fixversion changed after -14d`
 - **Notes:** Tracks scope changes to release.
 
-## release_notes
-
-Find issues missing Release Note Type field.
-
-- **Source:** Rich Filter — "RNs Unclassified" rich queue
-- **Placeholders:** `{{RELEASE_VERSION}}`
-- **Notes:** Critical for documentation — must be filled before release.
-
-## release_notes_proposed
-
-Find issues with proposed or in-progress release notes and non-empty text.
-
-- **Source:** Rich Filter — "RNs Proposed" rich queue
-- **Placeholders:** `{{RELEASE_VERSION}}`
-
-## release_notes_done
-
-Find issues with completed release notes and non-empty text.
-
-- **Source:** Rich Filter — "RNs Done" rich queue
-- **Placeholders:** `{{RELEASE_VERSION}}`
-
-## release_notes_with_text
-
-Find release-scoped issues that have release-note text.
-
-- **Source:** Rich Filter — "Has RN Text" rich queue
-- **Placeholders:** `{{RELEASE_VERSION}}`
-
 ## blockers
 
 Find open blocker bugs for a release.
@@ -145,29 +107,6 @@ project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VER
 - **Example:** `... AND fixVersion = "1.9.0" AND status != closed AND issuetype = bug AND priority = Blocker`
 - **Notes:** Critical path items that must be resolved before release.
 
-## feature_freeze_issues
-
-Find feature work outstanding at Feature Freeze.
-
-- **Source:** Rich Filter — "Feature Freeze" static filter
-- **Placeholders:** `{{RELEASE_VERSION}}`
-- **Notes:** Excludes infrastructure/ops components and bugs. Use for Feature Freeze announcements.
-
-## code_freeze_issues
-
-Find all issues outstanding at Code Freeze.
-
-- **Source:** Rich Filter — "Code Freeze" static filter
-- **Placeholders:** `{{RELEASE_VERSION}}`
-- **Notes:** All open work scoped to the release. Use for Code Freeze announcements.
-
-## post_code_freeze_issues
-
-Find release-scoped work requiring attention after Code Freeze.
-
-- **Source:** Rich Filter — "Post Code Freeze" static filter
-- **Placeholders:** `{{RELEASE_VERSION}}`
-
 ## open_issues_by_team
 
 Find all open issues for a release filtered by team using Cloud ID.
@@ -179,19 +118,3 @@ project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VER
 - **Placeholders:** `{{RELEASE_VERSION}}`, `{{CLOUD_ID}}`
 - **Example:** `... AND fixVersion = "2.1.0" AND status != closed AND "Team[Team]" = "ec74d716-af36-4b3c-950f-f79213d08f71-4403"`
 - **Notes:** Cloud ID is the Jira Cloud team identifier from the RHDH Team Mapping spreadsheet (column "Cloud ID"). This is the fastest way to filter by team — no enrichment needed.
-
-## feature_freeze_issues_by_team
-
-Find feature work outstanding at Feature Freeze filtered by team.
-
-- **Source:** Rich Filter — "Feature Freeze" static filter + Cloud ID
-- **Placeholders:** `{{RELEASE_VERSION}}`, `{{CLOUD_ID}}`
-- **Notes:** Same as `feature_freeze_issues` but scoped to a single team by Cloud ID.
-
-## code_freeze_issues_by_team
-
-Find all issues outstanding at Code Freeze filtered by team.
-
-- **Source:** Rich Filter — "Code Freeze" static filter + Cloud ID
-- **Placeholders:** `{{RELEASE_VERSION}}`, `{{CLOUD_ID}}`
-- **Notes:** Same as `code_freeze_issues` but scoped to a single team by Cloud ID.

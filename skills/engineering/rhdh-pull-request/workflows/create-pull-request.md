@@ -11,7 +11,7 @@ Only plugins under `plugins/*` with published-source changes need changesets. Al
 </principle>
 
 <principle name="baseline_diffing">
-Capture `git status --porcelain` before builds as the baseline. After builds, only stage files that are new relative to that baseline. Pre-existing dirty files (local config overrides, dev fixtures) must never be staged.
+Capture `git status --porcelain` before builds as the baseline, minus the change set. After builds, only stage the change set plus files that are new relative to that baseline. Pre-existing dirty files (local config overrides, dev fixtures) must never be staged, and a file named by `ChangeHandoff/v1` `data.files` is never treated as pre-existing.
 </principle>
 
 <principle name="no_manual_pr_creation">
@@ -110,19 +110,31 @@ Set `issue_source` = `jira`, `github`, or `null`. If `null`, all issue-specific 
 
 ---
 
-## Step 2 — Detect workspace(s) from staged changes
+## Step 2 — Resolve the change set and detect workspace(s)
 
-1. Run `git diff --cached --name-only` to list all staged files.
-2. If no files are staged, stop: "No staged changes found. Stage your changes with `git add` before running this command."
-3. Extract workspace names from staged file paths. The workspace is the second path segment (e.g., `workspaces/bulk-import/plugins/foo/src/index.ts` → workspace `bulk-import`, path `workspaces/bulk-import`).
-4. If staged files span **multiple** workspaces, inform the user: "Changes detected in **N** workspace(s): `<list>`. Proceed? (Yes/No)". Wait for confirmation. If declined, stop.
-5. Store the workspace names and paths for later steps.
+1. **If `ChangeHandoff/v1` was supplied:** the change set is `data.files`. The producing
+   skill does not stage, so these paths are normally unstaged or untracked. Run
+   `git status --porcelain -- <files>` and confirm every path appears as modified, added,
+   or untracked; report any path that is missing or clean and stop. Do not stage here —
+   staging happens once, at the Step 8 gate, for exactly these paths plus the
+   build-generated files.
+2. **If no artifact was supplied:** run `git diff --cached --name-only`. If no files are
+   staged, stop: "No staged changes found. Stage your changes with `git add` before running this command."
+3. Record the **change diff** command used by later steps: `git diff --cached` when the
+   change set came from the index, `git diff -- <change set paths>` when it came from
+   `ChangeHandoff/v1`.
+4. Extract workspace names from the change-set paths. The workspace is the second path segment (e.g., `workspaces/bulk-import/plugins/foo/src/index.ts` → workspace `bulk-import`, path `workspaces/bulk-import`).
+5. If the change set spans **multiple** workspaces, inform the user: "Changes detected in **N** workspace(s): `<list>`. Proceed? (Yes/No)". Wait for confirmation. If declined, stop.
+6. Store the change set, the change diff command, and the workspace names and paths for later steps.
 
 ---
 
 ## Step 3 — Capture baseline snapshot
 
-Run `git status --porcelain` and save the full output as the **baseline snapshot**. This captures all files that were already dirty or untracked before any build commands run. Used in Step 7 to filter out pre-existing changes.
+Run `git status --porcelain` and save the output as the **baseline snapshot**, then remove
+every change-set path from it. The baseline exists to identify files that were already
+dirty for unrelated reasons; a file the change set names is part of this change, so it
+must never be filtered out as pre-existing in Step 7.
 
 ---
 
@@ -130,7 +142,7 @@ Run `git status --porcelain` and save the full output as the **baseline snapshot
 
 1. Run `git branch --show-current`.
 2. **If on `main`:**
-   a. Analyze the staged diff (`git diff --cached`) to understand the changes.
+   a. Analyze the change diff (Step 2) to understand the changes.
    b. Generate a branch name:
       - **If `jira_key` is set:** `fix/<workspace>-<JIRA-KEY>-<short-slug>` (e.g., `fix/adoption-insights-RHDHBUGS-1934-keyboard-nav-dropdown`). This matches the existing repo convention and enables auto-linking in the Jira Development panel.
       - **If no Jira key:** `feat/<workspace>-<short-description>` (use `fix/` for bug fixes). For multiple workspaces, use a general description.
@@ -178,7 +190,7 @@ Run in order:
 
 For **each** workspace from Step 2, generate a changeset programmatically. Use the npm scope from the detected repo profile (Step 1).
 
-1. From the staged diff (`git diff --cached`), determine:
+1. From the change diff (Step 2), determine:
    - Which **plugins** under this workspace are affected (look at `plugins/*` only — **ignore `packages/*`**).
    - Within each plugin, only include it if changes touch published paths (`src/`, root `index.ts`, `config.d.ts`, `package.json`). Skip plugins with changes only in `dev/`, `tests/`, `__fixtures__/`, or stories.
    - Read each affected plugin's `package.json` for its npm package name.
@@ -207,16 +219,21 @@ If multiple packages are affected, list each on its own YAML line.
 1. Run `git status --porcelain` for the **current snapshot**.
 2. Compare against the **baseline snapshot** from Step 3.
 3. Files only in the current snapshot are build-generated (created by Step 5 builds or Step 6 changesets).
-4. Files already in the baseline are pre-existing — exclude them from staging.
+4. Files already in the baseline are pre-existing — exclude them from staging. Change-set
+   paths were removed from the baseline in Step 3, so they stay in the publication set.
 
 ---
 
-## Step 8 — Stage build-generated files [APPROVAL GATE]
+## Step 8 — Stage the publication set [APPROVAL GATE]
 
-1. Present the filtered list of build-generated files from Step 7.
+1. Present one exact path list: the change set from Step 2 (already staged when it came
+   from the index) plus the build-generated files from Step 7.
 2. Ask the user for approval before staging. This local approval does not
    authorize any later external write.
-3. Run `git add` for each approved file.
+3. Run `git add` for exactly the approved paths. Never use `git add -A` or a directory
+   argument that could pick up a pre-existing dirty file.
+4. Confirm with `git diff --cached --name-only` that the index now equals the approved
+   list. This set is the content the Step 10 `MutationPlan/v1` pushes.
 
 ---
 
@@ -414,6 +431,8 @@ checkout.
 
 | Field | Type | Used in | Description |
 |-------|------|---------|-------------|
+| `files` | array | Steps 2, 3, 7, 8 | Paths that make up the change. The producer never stages, so these arrive unstaged; they are the change set, are excluded from the baseline, and are staged with the build-generated files at the Step 8 gate. |
+| `summary` | string | Steps 6, 9 | Change summary used for the changeset text and commit subject. |
 | `issue.source` | string | Steps 1.5, 9, 10, 11 | `"jira"` or `"github"` — determines which issue-specific logic to follow |
 | `jira_key` | string | Steps 1.5, 4, 9, 10, 11 | Pre-resolved Jira issue key (skip Step 1.5 detection). Jira only. |
 | `jira_url` | string | Steps 9, 10, 11 | Full Jira browse URL. Jira only. |

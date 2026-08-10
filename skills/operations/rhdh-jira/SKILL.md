@@ -17,8 +17,8 @@ relationship-heavy GraphQL reads or unsupported REST fields.
 
 ## Interfaces
 
-- Produces: `JiraCapabilities/v1`, `JiraQueryResult/v1`, `SetupRequired/v1`,
-  `MutationPlan/v1`, and `MutationReceipt/v1`.
+- Produces: `IssueContext/v1`, `JiraCapabilities/v1`, `JiraQueryResult/v1`,
+  `SetupRequired/v1`, `MutationPlan/v1`, and `MutationReceipt/v1`.
 - Invokes by name: `grilling` on create paths. This is a control handoff, never a
   filesystem handoff.
 
@@ -37,6 +37,7 @@ relationship-heavy GraphQL reads or unsupported REST fields.
 | Create an Epic | `references/to-epic.md` |
 | Create a Story, Task, Bug, Spike, or support issue | `references/to-issue.md`; add `references/support.md` for support cases |
 | Update status, fields, links, or comments | `references/update-jira-status.md`, `references/workflows.md` |
+| Check `acli` flag or output behaviour on any branch | `references/acli-commands.md` |
 
 Load only the selected branch and the field/auth reference it explicitly needs.
 `scripts/command-metadata.json` is the deterministic command catalog.
@@ -83,40 +84,26 @@ Always use `--limit 500` or pagination for bulk searches and enrich results befo
 claiming labels, Team, sprint, size, story points, components, or fix versions are
 missing. `scripts/parse_issues.py` is the local enrichment adapter.
 
+When a caller asks for one issue rather than a query, return `IssueContext/v1`
+instead:
+
+- `IssueContext/v1`: `key` is the Jira key, `summary` is the issue summary, and
+  `source` is `jira`, plus `url`, `status`, `issueType`, `labels`, `description`,
+  and `comments`.
+
+`/rhdh-forge` emits the same contract with `data.source: github`, so a caller
+consumes either without branching on shape.
+
 ## Write contract
 
 Issue creation, assignment, transition, edit, link, and comment operations are
-mutations. Before any mutation, present a concrete `MutationPlan/v1`:
-
-```json
-{
-  "contract": "MutationPlan/v1",
-  "id": "jira-mutation-<stable-id>",
-  "createdAt": "YYYY-MM-DDTHH:MM:SSZ",
-  "data": {
-    "summary": "...",
-    "operations": [{
-      "order": 1,
-      "ownerSkill": "rhdh-jira",
-      "adapter": "acli",
-      "operation": "jira.issue.update",
-      "target": "RHIDP-123",
-      "preview": {"commandOrRequest": "acli ... --yes"},
-      "preconditions": [],
-      "checks": [],
-      "recovery": ["..."]
-    }],
-    "materialHash": "sha256:<canonical-plan-hash>"
-  }
-}
-```
-
-Ask for explicit approval of that exact plan. Do not treat earlier discussion as
-approval. After approval, execute only the listed actions and return
-`MutationReceipt/v1` whose `data` contains the approved plan's `planId` and
-`materialHash`, plus `outcomes` containing status, attempted/completed operations,
-changed resources, verification, and remaining risks. Reject execution when the
-material hash differs.
+mutations. Invoke the named skill `rhdh-artifacts` and follow its plan, approval
+hash, and receipt protocol rather than restating it here. Operations use
+`ownerSkill: rhdh-jira` with adapter `acli`, `rest`, or `graphql`, an operation
+name such as `jira.issue.update`, an issue key or JQL target, and a preview
+holding the exact command or request. Do not treat earlier discussion as
+approval, and reject execution when the material hash differs. Outcomes also
+record changed issues, verification, and remaining risks.
 
 Create paths have an additional gate: invoke the installed skill named `grilling`
 once for Fill Gaps and Challenge, then apply `references/grill.md`. Never locate or
@@ -146,3 +133,19 @@ skill and stop before creation.
 
 These scripts are local implementation details. Other skills compose with
 `rhdh-jira` through the versioned artifacts above, never through script paths.
+
+## Completion
+
+A read is complete when every field the answer asserts was fetched, not inferred
+from a default `acli` response: the search ran with `--limit 500` or paginated to
+exhaustion, and `scripts/parse_issues.py` enriched the result before any claim
+about labels, Team, sprint, size, story points, components, or fix versions.
+Report the JQL used, the issue count returned, and the value of
+`data.truncated`; a truncated result is an incomplete answer, not a finding. A
+field that could not be retrieved is reported as unretrieved, never as empty.
+
+A write is complete when every operation in the approved `MutationPlan/v1` has
+exactly one matching outcome in `MutationReceipt/v1` carrying its `order`,
+`target`, and status, and every created, transitioned, or edited issue key has
+been read back and reported with its resulting status. On a create path, the
+`grilling` interview must have run before the plan was built.

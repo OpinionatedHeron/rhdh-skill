@@ -103,13 +103,10 @@ Jira Component names don't always match workspace directory names exactly. Apply
 
 ### From GitHub issues
 
-Detection strategies (in priority order):
-
-1. **`workspace/*` labels** — look for a label matching `workspace/<name>` (e.g., `workspace/report-portal`, `workspace/rbac`). Extract the part after `workspace/`.
-2. **`### Workspace` body field** — the community-plugins bug template includes a structured `### Workspace` heading followed by the workspace name. Scan the issue body for this heading.
-3. **Issue title prefix** — community-plugins titles often follow `plugin-<name>: description` or `<workspace-name>: description` (e.g., `report-portal: Rendering launches fails on...`). Extract the prefix before the first `:`.
-4. **Package name in body** — scan for `@backstage-community/plugin-<name>` and derive the workspace from the plugin name.
-5. **Fallback** — ask the user which workspace to target.
+`/rhdh-forge` resolves the workspace from a GitHub issue and reports which
+strategy answered in `data.workspace` of the `IssueContext/v1` it returns.
+Treat that name as a candidate and confirm the directory exists in the checkout;
+when the strategy is `unresolved`, ask the user which workspace to target.
 
 ### From Jira issues
 

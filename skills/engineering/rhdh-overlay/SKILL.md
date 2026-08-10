@@ -57,68 +57,32 @@ number that cannot be discovered from the checkout.
 ## Guarded publish
 
 Before posting `/publish`, verify the PR is open, lacks `do-not-merge`, and has
-no successful publish check for the current head. Construct this exact plan:
+no successful publish check for the current head. Posting the comment is a
+mutation: invoke the named skill `rhdh-artifacts` and follow its `MutationPlan/v1`
+approval hash and `MutationReceipt/v1` protocol rather than restating it here.
 
-```yaml
-contract: MutationPlan/v1
-id: overlay-publish-plan-id
-createdAt: ISO-8601
-data:
-  summary: Trigger Overlay publication for the current PR head
-  operations:
-    - order: 1
-      ownerSkill: rhdh-overlay
-      adapter: github
-      operation: github.comment.create
-      target: redhat-developer/rhdh-plugin-export-overlays#<number>@<head-sha>
-      preview: {body: /publish}
-      preconditions: [open, no-do-not-merge, no-successful-publish-for-head]
-      checks: [capture-comment-url, capture-publish-check-url]
-      recovery: [report-comment-for-manual-removal-if-trigger-was-wrong]
-  materialHash: sha256:<canonical-plan-data-hash>
-```
-
-Compute `materialHash` from the UTF-8 JSON encoding of the complete `data`
-object after removing `materialHash`, with keys sorted and separators `,` and
-`:`. This binds the summary and every material operation field. Show the
-complete plan and exact hash. Only after the user approves that hash, run:
+The plan carries one operation with `ownerSkill: rhdh-overlay`, adapter
+`github`, operation `github.comment.create`, target
+`redhat-developer/rhdh-plugin-export-overlays#<number>@<head-sha>`, a preview
+body of `/publish`, those three preconditions, checks that capture the comment
+and publish-check URLs, and recovery that reports the comment for manual removal
+if the trigger was wrong. Only after the user approves the plan hash, run:
 
 ```bash
 gh pr comment <number> --repo redhat-developer/rhdh-plugin-export-overlays --body "/publish"
 ```
 
-Return:
-
-```yaml
-contract: MutationReceipt/v1
-id: overlay-publish-receipt-id
-createdAt: ISO-8601
-data:
-  planId: overlay-publish-plan-id
-  materialHash: sha256:<approved-hash>
-  outcomes:
-    - order: 1
-      ownerSkill: rhdh-overlay
-      adapter: <same-as-plan-operation>
-      operation: <same-as-plan-operation>
-      target: <same-as-plan-operation>
-      status: completed | failed | skipped
-```
-
-Return exactly one ordered outcome for every planned operation, including
-failures and skips; identity fields must match the plan. Outcomes also include
-the comment and check URLs or failure plus recovery. A request to trigger
-publication is intent, not approval of the exact plan.
+The outcome also records the comment and check URLs, or the failure plus
+recovery. A request to trigger publication is intent, not approval of the exact
+plan.
 
 ## Other external mutations
 
 The same contract applies to every push, PR creation, notification, or other
 external write in a selected workflow. Build the plan only after targets and
-payloads are exact. Re-plan and obtain a new hash approval when a branch, head
-SHA, file set, PR body, comment, or recipient changes. Execute no workflow
-command absent from the approved operations and return one
-`MutationReceipt/v1` per approved batch. Read-only triage and analysis need no
-plan.
+payloads are exact. Execute no workflow command absent from the approved
+operations, and return one `MutationReceipt/v1` per approved batch. Read-only
+triage and analysis need no plan.
 
 ## Artifact contracts
 

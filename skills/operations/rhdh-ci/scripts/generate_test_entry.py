@@ -1,7 +1,10 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.9"
-# dependencies = ["ruamel.yaml"]
+# dependencies = ["rhdh-common[yaml]", "ruamel.yaml"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
 # ///
 """Generate a new e2e-ocp-vX-Y-helm-nightly test entry YAML block.
 
@@ -21,8 +24,8 @@ import re
 import sys
 from io import StringIO
 
-from rhdh_prow.repo import resolve_repo_root
-from rhdh_prow.yaml import fetch_yaml, list_yaml_files
+from rhdh_common.openshift_release.repo import resolve_repo_root
+from rhdh_common.openshift_release.yaml import fetch_yaml, list_yaml_files
 from ruamel.yaml import YAML
 
 CONFIG_DIR = "ci-operator/config/redhat-developer/rhdh"

@@ -174,8 +174,11 @@ and one regression check. Verify `data.files` against `git status`; do not stage
 - Default: present modified files, root cause, evidence, recording paths, test
   plan, and complete `ChangeHandoff/v1`. Stop for local user verification.
 - With explicit auto-publication or legacy `--no-verify`: after technical
-  verification, invoke `/rhdh-pull-request` with the artifact and request its
-  auto-approve mode. That skill owns staging through issue updates.
+  verification, invoke `/rhdh-pull-request` with the artifact and skip only this
+  local verification pause. There is no auto-approve mode: that skill still
+  requires approval of each `MutationPlan/v1` material hash before an external
+  write. It owns staging — including the unstaged `data.files` — through issue
+  updates.
 - If `/rhdh-pull-request` is unavailable, return
   `SetupRequired/v1 {missing: [rhdh-pull-request], nextCommand: /setup-rhdh-skills}` and
   retain the artifact paths.

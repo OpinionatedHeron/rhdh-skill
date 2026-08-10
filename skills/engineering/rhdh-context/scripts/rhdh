@@ -1,9 +1,19 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
+# ///
 """Thin wrapper to run rhdh CLI.
 
 This script allows running the CLI directly without python -m:
-    ./scripts/rhdh status
-    ./scripts/rhdh doctor
+    uv run scripts/rhdh status
+    uv run scripts/rhdh doctor
+
+The rhdh package lives beside this script in the skill directory; uv supplies
+the shared rhdh_common runtime, which is not part of a copied skill directory.
 """
 
 import sys

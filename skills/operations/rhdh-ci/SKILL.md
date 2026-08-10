@@ -18,7 +18,8 @@ mutation plan.
 - Consumes from `rhdh-platform-support`: `LifecycleAssessment/v1` for
   support-aware coverage.
 - Produces: `CiInventory/v1`, `CiCoverageReport/v1`, `ProwRunReceipt/v1`,
-  `KonfluxUpdateReport/v1`, `MutationPlan/v1`, and `MutationReceipt/v1`.
+  `KonfluxUpdateReport/v1`, `SetupRequired/v1`, `MutationPlan/v1`, and
+  `MutationReceipt/v1`.
 - All Prow repository/YAML adapters are local; there is no Python or filesystem
   handoff to another skill.
 
@@ -63,36 +64,11 @@ needs lifecycle facts.
 ## Mutation contract
 
 Generating files, editing Prow or Tekton YAML, committing, triggering a job,
-pushing, and opening a PR are mutations. Present this before execution:
+pushing, and opening a PR are mutations. Invoke the named skill `rhdh-artifacts`
+and follow its plan, approval hash, and receipt protocol rather than restating it
+here. Operations use `ownerSkill: rhdh-ci` with the adapter that performs the
+write, and outcomes include verification or remaining risk.
 
-```json
-{
-  "contract": "MutationPlan/v1",
-  "id": "ci-mutation-<stable-id>",
-  "createdAt": "YYYY-MM-DDTHH:MM:SSZ",
-  "data": {
-    "summary": "...",
-    "operations": [{
-      "order": 1,
-      "ownerSkill": "rhdh-ci",
-      "adapter": "<adapter-name>",
-      "operation": "<adapter.operation-name>",
-      "target": "...",
-      "preview": {"commandOrRequest": "..."},
-      "preconditions": [],
-      "checks": [],
-      "recovery": []
-    }],
-    "materialHash": "sha256:<canonical-plan-hash>"
-  }
-}
-```
-
-Wait for explicit approval of that exact plan, execute only approved actions, and
-return `MutationReceipt/v1` whose `data` contains `planId`, the same
-`materialHash`, and exactly one ordered outcome for every planned operation.
-Each outcome repeats `order`, `ownerSkill`, `adapter`, `operation`, and `target`,
-records `completed`, `failed`, or `skipped`, and includes verification or remaining risk.
 For a successful nightly trigger, also return `ProwRunReceipt/v1` with job name,
 parameters, API response, and run URL/ID. For Konflux, return
 `KonfluxUpdateReport/v1` with digest changes, migrations applied, regenerated
@@ -101,3 +77,20 @@ PipelineRuns, verification, and follow-up.
 Never push a Konflux update or execute a non-dry-run trigger merely because the
 user approved inspection. Decommission plans are destructive and must name every
 removed pool/job/config plus rollback.
+
+## Completion
+
+A read is complete when `data.repository` names the config source that was read,
+every job, pool, or gap in the answer came from that read rather than recall,
+`data.as_of` records when it happened, and `data.stale` and `data.review_required`
+are populated or explicitly empty. A coverage answer additionally requires
+`LifecycleAssessment/v1` from `rhdh-platform-support`; without it, name the
+platforms that remain unclassified instead of reporting configured versions as
+supported.
+
+A write is complete when every operation in the approved `MutationPlan/v1` has one
+outcome in `MutationReceipt/v1`, a nightly trigger returns `ProwRunReceipt/v1`
+carrying its run URL or ID, and a Konflux change returns `KonfluxUpdateReport/v1`
+naming every digest changed, migration applied, and PipelineRun regenerated. A
+decommission is complete only once every removed pool, job, and config file is
+named alongside its rollback.

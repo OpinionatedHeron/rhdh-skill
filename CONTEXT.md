@@ -12,6 +12,12 @@ A public Agent Skill included in the repository catalog and complete
 distribution. It is either human-invoked or model-invoked.
 _Avoid_: public module, top-level skill
 
+**Promoted catalog**:
+The machine-readable record of promoted membership, invocation mode, named
+dependencies, artifact contracts, and distribution sources. Human documentation
+summarizes it and never defines a competing inventory.
+_Avoid_: skill list, manifest, registry
+
 **Human-invoked skill**:
 A user-selected entry point that orients or configures the collection. It is
 never selected automatically and never invoked by another skill.
@@ -21,6 +27,12 @@ _Avoid_: model router, orchestrator
 A task-oriented capability that an agent may select automatically or another
 model-invoked skill may invoke by name.
 _Avoid_: sub-skill, leaf skill
+
+**Foundation skill**:
+A model-invoked skill whose reason for existing is material that two or more
+skills would otherwise each carry. It is reached by name like any other
+model-invoked skill.
+_Avoid_: base skill, primitive, shared skill
 
 **Editorial category**:
 A reader-facing grouping of promoted skills. It is not a namespace, dependency
@@ -41,6 +53,11 @@ _Avoid_: shared file, prompt blob
 The complete proposed external changes bound to a material hash and presented
 for human approval before execution.
 _Avoid_: confirmation prompt, dry run
+
+**Material hash**:
+The digest that binds the canonical content of a mutation plan, so that one
+approval names one exact set of proposed changes.
+_Avoid_: plan hash, checksum, fingerprint
 
 **Mutation receipt**:
 The one-to-one ordered record of every completed, failed, or skipped operation

@@ -1,21 +1,21 @@
 # Workflow: Triage Overlay PRs
 
-Prioritize open PRs in the overlay repository by criticality and surface actionable next steps.
-
-Run the triage script to generate a full prioritized report:
+Prioritize open PRs in the overlay repository by criticality and surface
+actionable next steps.
 
 ```bash
 python scripts/triage-prs.py              # markdown report
 python scripts/triage-prs.py --json        # structured JSON
 ```
 
-The manual phases below explain the classification logic and cover Phase 5 (taking action).
+One run lists the open PRs, classifies each by label, and computes assignment
+and staleness. Consume its output rather than re-listing the same PRs; the
+phases below are the classification logic it applies and the actions that follow.
 
 <required_reading>
-**Read these reference files NOW:**
+**Read this reference NOW:**
 
 1. `references/label-priority.md` — PR classification by labels
-2. `gh pr list --help` and `gh pr view --help` — current forge interface
 </required_reading>
 
 <prerequisites>
@@ -26,99 +26,44 @@ The manual phases below explain the classification logic and cover Phase 5 (taki
 | **Role** | Core Team (COPE, Plugins team) |
 </prerequisites>
 
+For a read the script does not cover — a narrower label filter, a check the
+rollup omitted, a failing run's log — invoke `/rhdh-forge`, which owns the `gh`
+and `jq` read patterns and the rate-limit guidance for wide sweeps. Do not write
+intermediate results to a fixed temporary path.
+
 <process>
 
-## Phase 1: Fetch Open PRs
-
-```bash
-REPO="redhat-developer/rhdh-plugin-export-overlays"
-
-# Get all open PRs with full context
-gh pr list --repo $REPO --state open --limit 100 \
-  --json number,title,labels,assignees,updatedAt,author,reviewRequests \
-  > /tmp/overlay-prs.json
-```
-
-**Quick count:**
-
-```bash
-gh pr list --repo $REPO --state open --json number | jq length
-```
-
----
-
-## Phase 2: Classify by Priority
-
-### Priority Tiers
+## Phase 1: Classify by priority
 
 | Priority | Labels | Meaning |
 |----------|--------|---------|
 | 🔴 Critical | `mandatory-workspace` + `workspace-update` | Updates to RHDH catalog plugins |
-| 🟡 Medium | `mandatory-workspace` + `workspace-addition` | New plugins for RHDH catalog |
-| 🟢 Low | `workspace-addition` only | Community plugins, not in catalog |
+| 🟡 Medium | `mandatory-workspace` + `workspace-addition` | New plugins for the RHDH catalog |
+| 🟢 Low | `workspace-addition` only | Community plugins, not in the catalog |
 | ⚫ Skip | `do-not-merge` | OCI artifact generation only |
-
-### Filter Commands
-
-```bash
-# Critical: mandatory updates
-gh pr list --repo $REPO --state open \
-  --label mandatory-workspace --label workspace-update \
-  --json number,title,updatedAt,assignees
-
-# Medium: mandatory additions
-gh pr list --repo $REPO --state open \
-  --label mandatory-workspace --label workspace-addition \
-  --json number,title,updatedAt,assignees
-
-# Skip: do-not-merge
-gh pr list --repo $REPO --state open \
-  --label do-not-merge \
-  --json number,title
-```
 
 ---
 
-## Phase 3: Assess Each Priority PR
+## Phase 2: Assess each priority PR
 
-For each Critical and Medium PR, check:
+For every Critical and Medium PR:
 
-### 3.1 Assignment Status
+**Assignment**
 
-```bash
-gh pr view <number> --repo $REPO \
-  --json assignees,reviewRequests \
-  --jq '{assignees: .assignees[].login, reviewers: .reviewRequests[].login}'
-```
-
-**Flags:**
-
-- ❌ No assignee AND no individual reviewer → needs assignment
-- ⚠️ Only team reviewer (no individual) → responsibility diluted
+- ❌ No assignee and no individual reviewer → needs assignment
+- ⚠️ Only a team reviewer → responsibility diluted
 - ✅ Individual assigned → clear ownership
 
-### 3.2 Check Status
+**Checks**
 
-```bash
-gh pr view <number> --repo $REPO \
-  --json statusCheckRollup \
-  --jq '.statusCheckRollup[] | {name: .name, status: .status, conclusion: .conclusion}'
-```
+- `publish` must pass before merge
+- `workspace-tests` / `smoke` validates that the plugin loads
 
-**Key checks:**
+A check absent from the rollup never ran. Treat that as "needs `/publish`", not
+as a failure, and confirm any verdict against the head branch's runs before
+reporting it.
 
-- `publish` — must pass before merge
-- `workspace-tests` / `smoke` — validates plugin loads
-
-### 3.3 Staleness
-
-```bash
-gh pr view <number> --repo $REPO \
-  --json updatedAt \
-  --jq '.updatedAt'
-```
-
-**Thresholds:**
+**Staleness**
 
 | Priority | Warn | Alert |
 |----------|------|-------|
@@ -128,9 +73,7 @@ gh pr view <number> --repo $REPO \
 
 ---
 
-## Phase 4: Generate Report
-
-Output a markdown report:
+## Phase 3: Generate the report
 
 ```markdown
 ## Overlay PR Triage Report
@@ -169,31 +112,30 @@ Generated: {date}
 
 ---
 
-## Phase 5: Take Action
+## Phase 4: Take action
 
-Based on report, decide which actions to take:
+Triage is a read. Every action below is an external write.
 
-### Trigger Publish
+### Trigger publish
 
-For one PR or a user-selected batch, create `MutationPlan/v1` with one exact
-comment operation per current head SHA. Show the complete ordered batch and
-material hash, wait for approval of that hash, execute only those comments, and
-return `MutationReceipt/v1`. A triage request does not approve publication.
+For one PR or a user-selected batch, follow the guarded publish procedure in
+`SKILL.md`: create `MutationPlan/v1` with one exact comment operation per
+current head SHA, show the complete ordered batch and its material hash, wait
+for approval of that hash, execute only those comments, and return
+`MutationReceipt/v1`. A triage request does not approve publication.
 
-```bash
-gh pr comment <number> --repo $REPO --body "/publish"
-```
+Bot-authored PRs never trigger publication themselves, so they accumulate in
+this state. `/rhdh-forge` has the query that finds them.
 
-### Suggest Assignment
+### Suggest assignment
 
-```bash
-# Check CODEOWNERS for the workspace
-gh api repos/$REPO/contents/CODEOWNERS --jq '.content' | base64 -d | grep <workspace>
-```
+The script reports the CODEOWNERS entry for each workspace a PR touches. Naming
+a candidate is free; assigning them is a write and needs a plan.
 
-### Draft Slack Ping
+### Draft a Slack ping
 
-See `workflows/draft-notification.md` for structured drafting, or compose manually:
+See `workflows/draft-notification.md` for structured drafting, or compose
+manually:
 
 ```
 Hey @handle - PR #1234 needs your attention.
@@ -207,9 +149,9 @@ Priority: Mandatory workspace for RHDH catalog.
 The triage report should be:
 
 1. **Actionable** — each row has a clear "Action" column
-2. **Scannable** — group by priority, most important first
-3. **Time-aware** — show staleness, flag alerts
-4. **Complete** — account for all open PRs (even if just to skip)
+2. **Scannable** — grouped by priority, most important first
+3. **Time-aware** — shows staleness, flags alerts
+4. **Complete** — accounts for all open PRs, even if only to skip them
 </output_format>
 
 ## Follow-up record
@@ -223,8 +165,8 @@ state; fetch it again on the next run.
 Triage is complete when:
 
 - [ ] All open PRs classified by priority
-- [ ] Critical PRs have assignees or action to assign
-- [ ] Publish triggered on PRs that need it
+- [ ] Critical PRs have assignees or an action to assign
+- [ ] Publish triggered, under an approved plan, on PRs that need it
 - [ ] Stale PRs flagged with suggested owners
 - [ ] Report generated for team review
 </success_criteria>

@@ -68,7 +68,13 @@ NFS exports.
 - Choose the cheapest test layer that can catch the failure. Mirror a current
   neighboring test instead of recalling unstable Backstage test APIs.
 - Verify visual changes in a running app in addition to type checking and tests.
-- Do not stage, commit, push, or create a PR as part of this skill.
+- Do not stage, commit, push, or create a PR as part of this skill. Leave the
+  changed files unstaged and list them in `ChangeHandoff/v1` `data.files`; the
+  publishing skill stages exactly those paths under its own approval gate.
+- A triage label or checklist comment on a GitHub issue is an external write.
+  Invoke the named skill `rhdh-artifacts`, obtain approval of the
+  `MutationPlan/v1` material hash, and return `MutationReceipt/v1`. A request to
+  fix a bug approves no issue write.
 
 ## Artifact contracts
 
@@ -80,13 +86,20 @@ contract: RhdhContext/v1
 id: context-id
 createdAt: ISO-8601
 data:
-  repositories: []
-  tools: []
+  repositories: [{name: overlay, path: /abs/path}]
+  tools: {git: installed}
   configuration:
+    dataDirectory: path
+    projectConfig: path
+    userConfig: path
     targetRhdh: "1.x"
     targetBackstage: "1.x.y"
     source: user | repository | rhdh-context
 ```
+
+`source` records where the versions came from: `user` for an explicit value,
+`repository` for a checkout that pins Backstage in `backstage.json`, and
+`rhdh-context` for the checked-in compatibility matrix.
 
 `ChangeHandoff/v1` output:
 
@@ -116,9 +129,14 @@ Keep absent optional fields `null`; never invent evidence.
 
 ## Named handoffs
 
+- To resolve a GitHub issue or pull request reference, invoke `/rhdh-forge` and
+  consume `IssueContext/v1`. Load `references/github-input.md` for the field
+  mapping and the gated interaction payloads.
 - To publish a verified change, invoke `/rhdh-pull-request` with the complete
-  `ChangeHandoff/v1`. That skill owns staging, changesets, commit, push, PR body,
-  recording upload, and issue updates.
+  `ChangeHandoff/v1`, `data.files` populated and unstaged. That skill stages those
+  paths and owns changesets, commit, push, PR body, recording upload, and issue
+  updates. It has no auto-approve mode; every external write still requires
+  approval of an exact `MutationPlan/v1` material hash.
 - To test an exported plugin in local RHDH, invoke `/rhdh-local` with a
   `ChangeHandoff/v1` whose data includes the exact package artifact, plugin
   config, required environment variable names, and verification checklist.

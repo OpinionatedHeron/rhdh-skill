@@ -17,6 +17,12 @@ Look for these signals that separate skills should be one:
 - **One source of meaning**: The split causes the same policy or domain facts to
   be maintained in several places.
 
+Duplication on its own is not one of these signals. Two skills with independent
+triggers that share material need the material moved, not the skills merged:
+apply the extract/enforce/document rule in
+`references/architecture-patterns.md` → Duplication between skills first, and
+consolidate only when the boundary itself turns out to be shallow.
+
 ### Weak signals (maybe consolidate)
 
 - **Same audience**: All skills target the same persona, but the workflows are genuinely independent.

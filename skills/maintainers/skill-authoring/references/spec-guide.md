@@ -129,6 +129,8 @@ Signs of transitive loading:
 - Updating a value requires editing multiple files
 - Two files explain the same concept with slightly different wording
 
+Those signs describe files inside one skill, where the remedy is a shared reference the consumers point at. The same signs across two *skills* have no such remedy — skills never read each other's files, so there is no shared file to extract into. Read `architecture-patterns.md` → Duplication between skills before copying anything across a skill boundary.
+
 ### Error handling belongs with the tool that produces the error
 
 Don't centralize all error handling in SKILL.md. Errors from the primary tool belong in SKILL.md. Errors from tools documented in reference files belong in those reference files — that's where the agent will be when it encounters them.

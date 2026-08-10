@@ -130,14 +130,14 @@ Run the pre-creation check from `references/duplicates.md`. Scope to the target 
 
 Before create: re-check customer identity + label rules per `references/grill.md` → Validate before creating.
 
-Fill the appropriate template (`assets/templates/story.txt`, `task.txt`, or `bug.txt`) with grill results, then convert to ADF using the helper script (see Gotcha #6). `acli create` accepts ADF via `--description-file`:
+Fill the appropriate template (`assets/templates/story.txt`, `task.txt`, or `bug.txt`) with grill results, then convert to ADF using the helper script (`acli-commands.md` → Formatted descriptions need ADF). `acli create` accepts ADF via `--description-file`:
 
 ```bash
 ISSUE_ADF=$(mktemp)  # on Windows: use %TEMP% or Python tempfile
 python scripts/jira-wiki-to-adf.py story-filled.txt "$ISSUE_ADF"
 ```
 
-Create the issue — note `--priority`, `--component`, and `--yes` do not exist on `create` (see Gotcha #18):
+Create the issue — note `--priority`, `--component`, and `--yes` do not exist on `create` (`acli-commands.md` → Create):
 
 ```bash
 # Story
@@ -178,7 +178,8 @@ If a parent Epic exists, link through the same adapter. Same-project RHIDP→RHI
 {"fields": {"parent": {"key": "RHIDP-XXX"}}}
 ```
 
-Set Story Points via REST if acli fails — follow API preference order in SKILL.md.
+If `acli` cannot set Story Points, follow the adapter order in `references/auth.md` → API
+preference and use the Story Points payload in `references/rest-api-fallback.md`.
 
 ### Step 9 — Comments
 
@@ -190,7 +191,7 @@ Follow the comment suggestion behavior from `references/grill.md` — proactivel
 |-------|--------|
 | RHIDP/RHDHBUGS project inaccessible | Stop. User lacks project access. |
 | Type inference ambiguous | Ask the user directly. |
-| `acli create` fails | Fall back to REST API. |
+| `acli create` fails | Retry through the authenticated adapter in `references/rest-api-fallback.md`, replanning the mutation if the payload changes. |
 | Parent Epic link fails | Report failure. Issue is created — user can link manually. |
 | Spike without time-box | Do not create. Ask: "Spikes require a time-box. How many story points?" |
 

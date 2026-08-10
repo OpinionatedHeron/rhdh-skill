@@ -1,183 +1,115 @@
 # Workflow: Analyze Specific PR
 
-Deep-dive analysis of a single overlay repository PR — check assignment, compatibility, and merge readiness.
-
-Run the analysis script to get a full report in one pass:
+Deep-dive analysis of a single overlay repository PR — assignment, checks,
+compatibility, and merge readiness.
 
 ```bash
 python scripts/analyze-pr.py <pr-number>           # markdown report
 python scripts/analyze-pr.py <pr-number> --json     # structured JSON
 ```
 
-The steps below explain the manual approach for debugging or deeper investigation.
+One run collects the PR metadata, labels, files, assignees, reviews, check
+rollup, CODEOWNERS, and staleness, then classifies priority and merge readiness.
+Consume its output rather than re-fetching the same fields; the interpretation
+below is what the numbers mean.
 
 <required_reading>
-**Read these reference files NOW:**
+**Read this reference NOW:**
 
 1. `references/label-priority.md` — priority classification
-2. `gh pr view --help` — current forge interface
 </required_reading>
 
 <prerequisites>
 | Requirement | Details |
 |-------------|---------|
 | **Input** | PR number |
-| **Access** | Read access to overlay repo |
+| **Access** | Read access to the overlay repo |
 | **Tools** | `gh` CLI authenticated |
 </prerequisites>
 
+For any read the script does not cover — a file from the PR branch, a workflow
+run's failed log, a check the rollup omitted — invoke `/rhdh-forge`. It owns the
+`gh` and `jq` read patterns, including the reason a rollup disagrees with the
+runs on the head branch. Do not add ad-hoc `gh` recipes here.
+
 <process>
 
-## Step 1: Fetch PR Context
+## Step 1: Classification
 
-```bash
-REPO="redhat-developer/rhdh-plugin-export-overlays"
-PR_NUMBER=<number>
-
-# Full PR context
-gh pr view $PR_NUMBER --repo $REPO \
-  --json number,title,state,author,labels,assignees,reviewRequests,reviews,statusCheckRollup,files,updatedAt,createdAt
-```
-
----
-
-## Step 2: Classification
-
-### 2.1 Determine Priority
-
-Check labels:
-
-```bash
-gh pr view $PR_NUMBER --repo $REPO --json labels --jq '.labels[].name'
-```
-
-| Labels Present | Priority |
+| Labels present | Priority |
 |----------------|----------|
 | `mandatory-workspace` + `workspace-update` | 🔴 Critical |
 | `mandatory-workspace` + `workspace-addition` | 🟡 Medium |
 | `workspace-addition` only | 🟢 Low |
 | `do-not-merge` | ⚫ Skip |
 
-### 2.2 Determine PR Type
-
-- **Update:** Existing workspace, version bump
-- **Addition:** New workspace being added
-- **Patch:** Fix to release branch
+PR type follows from the same labels: an **update** bumps an existing
+workspace's version, an **addition** introduces a new workspace, and a **patch**
+targets a release branch.
 
 ---
 
-## Step 3: Assignment Check
-
-```bash
-gh pr view $PR_NUMBER --repo $REPO \
-  --json assignees,reviewRequests
-```
-
-**Evaluate:**
+## Step 2: Assignment
 
 | Condition | Status | Action |
 |-----------|--------|--------|
 | Individual assignee exists | ✅ Clear owner | None |
-| Only team requested | ⚠️ Diluted | Suggest individual |
+| Only a team requested | ⚠️ Diluted | Suggest an individual |
 | No assignee or reviewer | ❌ Orphan | Assign from CODEOWNERS |
 
-**Find suggested owner:**
-
-```bash
-# Get workspace from PR files
-WORKSPACE=$(gh pr view $PR_NUMBER --repo $REPO --json files \
-  --jq '.files[].path | select(startswith("workspaces/")) | split("/")[1]' | head -1)
-
-# Check CODEOWNERS
-gh api repos/$REPO/contents/CODEOWNERS --jq '.content' | base64 -d | grep "$WORKSPACE"
-```
+The script reports the CODEOWNERS entry matching each workspace touched by the
+PR. Use it to name a candidate owner; assigning one is a write, so plan it.
 
 ---
 
-## Step 4: Check Status
+## Step 3: Checks
 
-```bash
-gh pr view $PR_NUMBER --repo $REPO --json statusCheckRollup \
-  --jq '.statusCheckRollup[] | "\(.name): \(.status) \(.conclusion)"'
-```
-
-### Key Checks
-
-| Check | Required | Status |
-|-------|----------|--------|
+| Check | Required | Meaning |
+|-------|----------|---------|
 | `publish` | Yes | Must pass before merge |
 | `workspace-tests` | If configured | Smoke test results |
 | `check-backstage-compatibility` | Yes | Version alignment |
 
-### If Publish Not Run
-
-```bash
-# Check if publish expected but not triggered
-gh pr view $PR_NUMBER --repo $REPO --json statusCheckRollup \
-  --jq '.statusCheckRollup | map(.name) | index("publish")'
-```
-
-If `null` → needs `/publish` comment.
+A check missing from the rollup never ran, which is a different problem from a
+check that failed. A missing `publish` needs the guarded `/publish` procedure in
+`SKILL.md`; a failing one needs its log. Before reporting either verdict,
+confirm the rollup against the head branch's runs through `/rhdh-forge` — the
+rollup is cached and goes stale after a rerun or a force push.
 
 ---
 
-## Step 5: Compatibility Check
+## Step 4: Compatibility
 
-### 5.1 Get Overlay Target Version
+The overlay's target Backstage version lives in `versions.json` at the
+repository root. When the PR modifies a `source.json`:
 
-```bash
-gh api repos/$REPO/contents/versions.json --jq '.content' | base64 -d | jq '.backstage'
-```
-
-### 5.2 Check for Bypass (if source.json modified)
-
-```bash
-# Get changed files
-gh pr view $PR_NUMBER --repo $REPO --json files \
-  --jq '.files[].path | select(endswith("source.json"))'
-```
-
-If source.json modified:
-
-1. Fetch the new commit hash from PR diff
-2. Check upstream's Backstage version at that commit
-3. Compare to overlay target
-4. Flag if upstream > overlay target
+1. Read the new commit hash from the PR diff.
+2. Read upstream's Backstage version at that commit.
+3. Compare it to the overlay target.
+4. Flag the PR when upstream is ahead of the overlay target — merging it bypasses
+   the compatibility gate rather than satisfying it.
 
 ---
 
-## Step 6: CODEOWNERS Check (for additions)
+## Step 5: CODEOWNERS for additions
 
-If `workspace-addition` label:
-
-```bash
-# Check if CODEOWNERS modified
-gh pr view $PR_NUMBER --repo $REPO --json files \
-  --jq '.files[].path | select(. == "CODEOWNERS")'
-```
-
-**Evaluate:**
-
-- If CODEOWNERS modified → ✅ Good
-- If not modified → ❌ Missing, request from contributor
+A `workspace-addition` PR must modify `CODEOWNERS`. The script reports whether
+it did. If not, the addition arrives without an owner: request the entry from
+the contributor before merge.
 
 ---
 
-## Step 7: Merge Readiness
-
-### Checklist
+## Step 6: Merge readiness
 
 | Requirement | Check |
 |-------------|-------|
 | PR is open | `state == "OPEN"` |
 | Publish passed | `publish.conclusion == "success"` |
-| Smoke test passed (if exists) | `workspace-tests.conclusion == "success"` |
-| Has individual assignee | `assignees.length > 0` |
-| CODEOWNERS entry (for additions) | CODEOWNERS file modified |
-| Approved | At least one approval review |
+| Smoke test passed (if present) | `workspace-tests.conclusion == "success"` |
+| Individual assignee | `assignees.length > 0` |
+| CODEOWNERS entry (additions) | CODEOWNERS modified |
+| Approved | At least one approving review |
 | No conflicts | `mergeable != "CONFLICTING"` |
-
-### Generate Readiness Badge
 
 ```
 ✅ Ready to merge — all checks passing
@@ -187,7 +119,7 @@ gh pr view $PR_NUMBER --repo $REPO --json files \
 
 ---
 
-## Step 8: Output Summary
+## Step 7: Output summary
 
 ```markdown
 ## PR #1234 Analysis
@@ -208,18 +140,12 @@ gh pr view $PR_NUMBER --repo $REPO --json files \
 ### Checks
 | Check | Status |
 |-------|--------|
-| publish | ✅ success |
+| publish | ✅ success (confirmed against run 123456) |
 | workspace-tests | ✅ success |
 | compatibility | ✅ aligned (1.42.5) |
 
 ### Merge Readiness
 ✅ **Ready to merge**
-
-All requirements satisfied:
-- [x] Publish passed
-- [x] Smoke tests passed
-- [x] Assignee present
-- [x] Approved by @janedoe
 
 ### Suggested Action
 Merge when ready, or wait for additional review if desired.
@@ -230,15 +156,17 @@ Merge when ready, or wait for additional review if desired.
 ## Follow-up record
 
 Return a compact record containing the PR number, head SHA, classification,
-checks, actions taken, and any owner or compatibility follow-up. Do not cache
-this discoverable state inside the skill directory.
+checks, actions taken, and any owner or compatibility follow-up. Analysis is
+read-only; every suggested action stays a suggestion until it is planned and
+approved under the mutation contract in `SKILL.md`. Do not cache this
+discoverable state inside the skill directory.
 
 <success_criteria>
 Analysis is complete when:
 
 - [ ] Priority classified
 - [ ] Assignment evaluated
-- [ ] All checks assessed
+- [ ] All checks assessed against the head branch's runs
 - [ ] Compatibility verified (if source.json changed)
 - [ ] CODEOWNERS checked (if addition)
 - [ ] Merge readiness determined

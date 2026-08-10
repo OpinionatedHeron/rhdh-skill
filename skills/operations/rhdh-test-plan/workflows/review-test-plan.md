@@ -38,7 +38,7 @@ Invoke the named skill `rhdh-release` and prefer `ReleaseSchedule/v1`. The local
 schedule adapter remains a fallback when that named skill is unavailable:
 
 ```bash
-python scripts/fetch_schedule.py --version "1.6"
+uv run scripts/fetch_schedule.py --version "1.6"
 ```
 
 Expected output:
@@ -59,7 +59,7 @@ Expected output:
 Extract the ID from the URL (the alphanumeric string between `/d/` and `/edit`) and retry:
 
 ```bash
-python scripts/fetch_schedule.py --version "1.6" --sheet-id <id>
+uv run scripts/fetch_schedule.py --version "1.6" --sheet-id <id>
 ```
 
 **On `{"error": "version_not_found"}`:** Ask: "I couldn't find RHDH [version] milestones in the schedule sheet. Could you confirm the exact version string as it appears in the sheet?"

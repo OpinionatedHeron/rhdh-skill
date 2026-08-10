@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -14,6 +15,7 @@ SETUP_SCRIPT = (
     PROJECT_ROOT / "skills" / "engineering" / "setup-rhdh-skills" / "scripts" / "setup.py"
 )
 CATALOG = PROJECT_ROOT / "skills" / "engineering" / "setup-rhdh-skills" / "assets" / "catalog.json"
+SHARED_PACKAGE = PROJECT_ROOT / "packages" / "rhdh-common"
 
 
 def load_setup_module():
@@ -25,11 +27,14 @@ def load_setup_module():
 
 
 def run_setup(*args: str) -> subprocess.CompletedProcess[str]:
+    # The script depends on rhdh_common (ADR-0006); uv resolves it from the
+    # PEP-723 block, and this subprocess resolves it from the source checkout.
     return subprocess.run(
         [sys.executable, str(SETUP_SCRIPT), *args],
         capture_output=True,
         text=True,
         check=False,
+        env={**os.environ, "PYTHONPATH": str(SHARED_PACKAGE)},
     )
 
 
@@ -100,9 +105,11 @@ def test_install_plan_uses_one_pack_command_and_binds_approval_to_material_hash(
             "grilling",
             "humanizer",
             "rhdh-agent-readiness",
+            "rhdh-artifacts",
             "rhdh-base-images",
             "rhdh-ci",
             "rhdh-context",
+            "rhdh-forge",
             "rhdh-jira",
             "rhdh-local",
             "rhdh-overlay",
@@ -247,7 +254,7 @@ def test_apply_validates_every_operation_before_executing_any(monkeypatch):
         "summary": "Install skills",
         "operations": operations,
     }
-    material_hash = setup._material_hash(material)
+    material_hash = setup.material_hash(material)
     plan = {
         "contract": "MutationPlan/v1",
         "id": "setup-install",

@@ -1,4 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
+# ///
 """Validate and persist versioned RHDH skill artifacts."""
 
 from __future__ import annotations
@@ -14,32 +21,57 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from rhdh_common.mutation import (
+    MATERIAL_HASH,
+    material_hash,
+    operation_errors,
+    outcome_errors,
+    receipt_binding_errors,
+)
+
 CONTRACTS_FILE = Path(__file__).with_name("artifact-contracts.json")
+STORE_DIRECTORY = "rhdh-skill-artifacts"
 CREDENTIAL_KEYS = {
     "auth",
+    "accesskey",
     "apikey",
+    "apisecret",
+    "apitoken",
     "authorization",
     "clientsecret",
     "cookie",
     "credential",
     "credentials",
+    "encryptionkey",
+    "passphrase",
     "password",
     "privatekey",
     "refreshtoken",
     "secret",
+    "secretaccesskey",
+    "secretkey",
+    "signingkey",
+    "sshkey",
     "token",
     "accesstoken",
+    "webhooksecret",
 }
+# An authorization header is a credential wherever it appears. A bare "basic" or
+# "bearer" is ordinary prose ("basic auth", "basic example") unless its operand is
+# credential-shaped: long enough and carrying a digit or base64 padding.
 CREDENTIAL_VALUE = re.compile(
-    r"(?i)(?:^|\b)(?:authorization\s*:\s*)?(?:bearer|basic)\s+\S+|BEGIN (?:RSA )?PRIVATE KEY"
+    r"""(?ix)
+    authorization \s* : \s* (?: bearer | basic | token ) \s+ \S+
+  | \b (?: bearer | basic ) \s+
+      (?= [A-Za-z0-9+/=._~-]* [0-9+/=] ) [A-Za-z0-9+/=._~-]{6,}
+  | (?: ----- )? BEGIN \s (?: [A-Z0-9]+ \s )* PRIVATE \s KEY (?: \s BLOCK )?
+    """
 )
 OPAQUE_CREDENTIAL_VALUE = re.compile(
     r"(?i)^(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]+|"
     r"xox[baprs]-[A-Za-z0-9-]+|sk-[A-Za-z0-9_-]{12,}|AKIA[A-Z0-9]{16})$"
 )
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-MATERIAL_HASH = re.compile(r"^sha256:[a-f0-9]{64}$")
-OUTCOME_STATUSES = {"completed", "failed", "skipped"}
 
 
 def _load_contracts() -> dict[str, dict[str, Any]]:
@@ -80,6 +112,17 @@ def _credential_key(key: Any) -> bool:
     )
 
 
+def _redact(matched: str) -> str:
+    """Name the offending text without repeating the secret itself."""
+    if "private key" in matched.lower():
+        return matched.strip()
+    words = matched.split()
+    if len(words) > 1:
+        return " ".join(words[:-1] + ["<redacted>"])
+    prefix = re.match(r"^[A-Za-z]+[-_]?", matched)
+    return f"{prefix.group(0)}<redacted>" if prefix else "<redacted>"
+
+
 def _credential_error(value: Any, path: str = "") -> dict[str, str] | None:
     if isinstance(value, dict):
         for key, child in value.items():
@@ -97,138 +140,16 @@ def _credential_error(value: Any, path: str = "") -> dict[str, str] | None:
             error = _credential_error(child, f"{path}[{index}]")
             if error:
                 return error
-    elif isinstance(value, str) and (
-        CREDENTIAL_VALUE.search(value) or OPAQUE_CREDENTIAL_VALUE.fullmatch(value)
-    ):
-        return {
-            "code": "CREDENTIAL_VALUE",
-            "message": f"{path or '<root>'} contains credential-shaped content",
-        }
+    elif isinstance(value, str):
+        match = CREDENTIAL_VALUE.search(value)
+        opaque = OPAQUE_CREDENTIAL_VALUE.fullmatch(value)
+        if match or opaque:
+            offending = _redact(match.group(0) if match else value)
+            return {
+                "code": "CREDENTIAL_VALUE",
+                "message": (f"{path or '<root>'} contains credential-shaped content: {offending}"),
+            }
     return None
-
-
-def _material_hash(data: dict[str, Any]) -> str:
-    material = {key: value for key, value in data.items() if key != "materialHash"}
-    canonical = json.dumps(material, separators=(",", ":"), sort_keys=True)
-    return f"sha256:{hashlib.sha256(canonical.encode()).hexdigest()}"
-
-
-def _mutation_operation_errors(operations: Any) -> list[dict[str, str]]:
-    if not isinstance(operations, list) or not operations:
-        return [
-            {
-                "code": "MUTATION_OPERATIONS",
-                "message": "data.operations must be a non-empty array",
-            }
-        ]
-    errors: list[dict[str, str]] = []
-    scalar_fields = ("ownerSkill", "adapter", "operation", "target")
-    array_fields = ("preconditions", "checks", "recovery")
-    for index, operation in enumerate(operations):
-        path = f"data.operations[{index}]"
-        if not isinstance(operation, dict):
-            errors.append({"code": "MUTATION_OPERATION", "message": f"{path} must be an object"})
-            continue
-        if not isinstance(operation.get("order"), int) or operation["order"] < 1:
-            errors.append(
-                {
-                    "code": "MUTATION_OPERATION",
-                    "message": f"{path}.order must be a positive integer",
-                }
-            )
-        elif operation["order"] != index + 1:
-            errors.append(
-                {
-                    "code": "MUTATION_OPERATION",
-                    "message": f"{path}.order must be {index + 1} to match array order",
-                }
-            )
-        for field in scalar_fields:
-            if not isinstance(operation.get(field), str) or not operation[field].strip():
-                errors.append(
-                    {
-                        "code": "MUTATION_OPERATION",
-                        "message": f"{path}.{field} must be a non-empty string",
-                    }
-                )
-        if not isinstance(operation.get("preview"), dict):
-            errors.append(
-                {"code": "MUTATION_OPERATION", "message": f"{path}.preview must be an object"}
-            )
-        for field in array_fields:
-            if not isinstance(operation.get(field), list):
-                errors.append(
-                    {"code": "MUTATION_OPERATION", "message": f"{path}.{field} must be an array"}
-                )
-    return errors
-
-
-def _mutation_outcome_errors(outcomes: Any) -> list[dict[str, str]]:
-    if not isinstance(outcomes, list) or not outcomes:
-        return [
-            {
-                "code": "MUTATION_OUTCOMES",
-                "message": "data.outcomes must be a non-empty array",
-            }
-        ]
-    errors: list[dict[str, str]] = []
-    scalar_fields = ("ownerSkill", "adapter", "operation", "target")
-    for index, outcome in enumerate(outcomes):
-        path = f"data.outcomes[{index}]"
-        if not isinstance(outcome, dict):
-            errors.append({"code": "MUTATION_OUTCOME", "message": f"{path} must be an object"})
-            continue
-        if outcome.get("order") != index + 1:
-            errors.append(
-                {
-                    "code": "MUTATION_OUTCOME",
-                    "message": f"{path}.order must be {index + 1} to match array order",
-                }
-            )
-        for field in scalar_fields:
-            if not isinstance(outcome.get(field), str) or not outcome[field].strip():
-                errors.append(
-                    {
-                        "code": "MUTATION_OUTCOME",
-                        "message": f"{path}.{field} must be a non-empty string",
-                    }
-                )
-        if outcome.get("status") not in OUTCOME_STATUSES:
-            errors.append(
-                {
-                    "code": "MUTATION_OUTCOME",
-                    "message": (
-                        f"{path}.status must be one of " + ", ".join(sorted(OUTCOME_STATUSES))
-                    ),
-                }
-            )
-    return errors
-
-
-def _receipt_binding_errors(
-    operations: list[dict[str, Any]], outcomes: list[dict[str, Any]]
-) -> list[dict[str, str]]:
-    if len(outcomes) != len(operations):
-        return [
-            {
-                "code": "RECEIPT_OUTCOME_MISMATCH",
-                "message": "receipt must record exactly one outcome for every planned operation",
-            }
-        ]
-    identity_fields = ("order", "ownerSkill", "adapter", "operation", "target")
-    for index, (operation, outcome) in enumerate(zip(operations, outcomes)):
-        for field in identity_fields:
-            if outcome.get(field) != operation.get(field):
-                return [
-                    {
-                        "code": "RECEIPT_OUTCOME_MISMATCH",
-                        "message": (
-                            f"data.outcomes[{index}].{field} does not match "
-                            f"data.operations[{index}].{field}"
-                        ),
-                    }
-                ]
-    return []
 
 
 def validate_artifact(artifact: Any) -> dict[str, Any]:
@@ -277,9 +198,8 @@ def validate_artifact(artifact: Any) -> dict[str, Any]:
                 )
 
         if contract == "MutationPlan/v1" and "materialHash" in data:
-            errors.extend(_mutation_operation_errors(data.get("operations")))
-            expected_hash = _material_hash(data)
-            if data["materialHash"] != expected_hash:
+            errors.extend(operation_errors(data.get("operations")))
+            if data["materialHash"] != material_hash(data):
                 errors.append(
                     {
                         "code": "MATERIAL_HASH",
@@ -287,7 +207,7 @@ def validate_artifact(artifact: Any) -> dict[str, Any]:
                     }
                 )
         elif contract == "MutationReceipt/v1" and "materialHash" in data:
-            errors.extend(_mutation_outcome_errors(data.get("outcomes")))
+            errors.extend(outcome_errors(data.get("outcomes")))
             if not isinstance(data["materialHash"], str) or not MATERIAL_HASH.fullmatch(
                 data["materialHash"]
             ):
@@ -323,6 +243,75 @@ def _contract_directory(contract: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "-", base).lower()
 
 
+def artifact_root(project_root: Path) -> Path:
+    """Locate this project's artifacts in the operating system temporary directory.
+
+    The project root namespaces the store so two checkouts never collide; it is
+    not where artifacts live. The operating system may purge these files between
+    sessions, which the store reports as an expired artifact.
+    """
+    resolved = project_root.resolve()
+    digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:12]
+    label = re.sub(r"[^A-Za-z0-9._-]", "-", resolved.name) or "project"
+    return Path(tempfile.gettempdir()) / STORE_DIRECTORY / f"{label}-{digest}"
+
+
+def _expired_error(contract: str, artifact_id: str, producer: str | None) -> dict[str, Any]:
+    rerun = f"/{producer}" if producer else "the skill that produced it"
+    return {
+        "valid": False,
+        "errors": [
+            {
+                "code": "ARTIFACT_EXPIRED",
+                "message": (
+                    f"{contract} {artifact_id!r} is no longer in the artifact store; "
+                    f"temporary storage expires between sessions. Re-run {rerun}."
+                ),
+            }
+        ],
+    }
+
+
+def read_artifact(
+    contract: str, artifact_id: str, project_root: Path, producer: str | None = None
+) -> dict[str, Any]:
+    if not SAFE_ID.fullmatch(artifact_id):
+        return {
+            "valid": False,
+            "errors": [
+                {
+                    "code": "ARTIFACT_ID",
+                    "message": "id must contain only letters, numbers, dots, underscores, and hyphens",
+                }
+            ],
+        }
+
+    path = artifact_root(project_root) / _contract_directory(contract) / f"{artifact_id}.json"
+    if not path.is_file():
+        return _expired_error(contract, artifact_id, producer)
+
+    artifact, read_error = _read_artifact(path)
+    if read_error:
+        return read_error
+    if not isinstance(artifact, dict) or artifact.get("contract") != contract:
+        return {
+            "valid": False,
+            "errors": [
+                {
+                    "code": "CONTRACT_MISMATCH",
+                    "message": f"{path.name} does not hold a {contract} artifact",
+                }
+            ],
+        }
+    return {
+        "valid": True,
+        "errors": [],
+        "contract": contract,
+        "id": artifact_id,
+        "artifact": artifact,
+    }
+
+
 def persist_artifact(artifact: dict[str, Any], project_root: Path) -> dict[str, Any]:
     report = validate_artifact(artifact)
     if not report["valid"]:
@@ -330,20 +319,15 @@ def persist_artifact(artifact: dict[str, Any], project_root: Path) -> dict[str, 
 
     if artifact["contract"] == "MutationReceipt/v1":
         plan_id = artifact["data"]["planId"]
-        plan_path = (
-            project_root.resolve() / ".rhdh" / "artifacts" / "mutation-plan" / f"{plan_id}.json"
-        )
-        plan, read_error = _read_artifact(plan_path)
-        if read_error or not isinstance(plan, dict) or plan.get("contract") != "MutationPlan/v1":
-            return {
-                "valid": False,
-                "errors": [
-                    {
-                        "code": "PLAN_NOT_FOUND",
-                        "message": f"approved MutationPlan/v1 {plan_id!r} is not persisted",
-                    }
-                ],
-            }
+        outcomes = artifact["data"].get("outcomes")
+        producer = None
+        if isinstance(outcomes, list) and outcomes and isinstance(outcomes[0], dict):
+            owner = outcomes[0].get("ownerSkill")
+            producer = owner if isinstance(owner, str) else None
+        plan_report = read_artifact("MutationPlan/v1", plan_id, project_root, producer)
+        if not plan_report["valid"]:
+            return plan_report
+        plan = plan_report["artifact"]
         plan_report = validate_artifact(plan)
         if not plan_report["valid"] or (
             artifact["data"]["materialHash"] != plan["data"].get("materialHash")
@@ -357,19 +341,17 @@ def persist_artifact(artifact: dict[str, Any], project_root: Path) -> dict[str, 
                     }
                 ],
             }
-        binding_errors = _receipt_binding_errors(
+        binding_errors = receipt_binding_errors(
             plan["data"]["operations"], artifact["data"]["outcomes"]
         )
         if binding_errors:
             return {"valid": False, "errors": binding_errors}
 
-    relative_path = (
-        Path(".rhdh")
-        / "artifacts"
+    destination = (
+        artifact_root(project_root)
         / _contract_directory(artifact["contract"])
         / f"{artifact['id']}.json"
     )
-    destination = project_root.resolve() / relative_path
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     handle, temporary_name = tempfile.mkstemp(
@@ -390,21 +372,26 @@ def persist_artifact(artifact: dict[str, Any], project_root: Path) -> dict[str, 
         "errors": [],
         "contract": artifact["contract"],
         "id": artifact["id"],
-        "path": relative_path.as_posix(),
+        "path": destination.as_posix(),
     }
 
 
 def cleanup_artifacts(project_root: Path, older_than_days: int) -> dict[str, Any]:
-    artifact_root = project_root.resolve() / ".rhdh" / "artifacts"
+    root = artifact_root(project_root)
     cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
     removed: list[str] = []
-    if artifact_root.is_dir():
-        for path in artifact_root.rglob("*.json"):
+    if root.is_dir():
+        for path in root.rglob("*.json"):
             modified = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
             if modified < cutoff:
                 path.unlink()
-                removed.append(path.relative_to(project_root.resolve()).as_posix())
-    return {"valid": True, "removed": sorted(removed), "olderThanDays": older_than_days}
+                removed.append(path.relative_to(root).as_posix())
+    return {
+        "valid": True,
+        "removed": sorted(removed),
+        "olderThanDays": older_than_days,
+        "store": root.as_posix(),
+    }
 
 
 def _emit(payload: dict[str, Any], force_json: bool) -> None:
@@ -433,13 +420,32 @@ def main(argv: list[str] | None = None) -> int:
     _add_json_flag(validate_parser)
 
     persist_parser = subparsers.add_parser(
-        "persist", help="Validate and persist an artifact under .rhdh/artifacts"
+        "persist", help="Validate and persist an artifact in the temporary artifact store"
     )
     persist_parser.add_argument("artifact", type=Path, help="Artifact JSON file")
     persist_parser.add_argument(
-        "--project-root", type=Path, default=Path.cwd(), help="Project root (default: cwd)"
+        "--project-root",
+        type=Path,
+        default=Path.cwd(),
+        help="Project root that namespaces the store (default: cwd)",
     )
     _add_json_flag(persist_parser)
+
+    read_parser = subparsers.add_parser(
+        "read", help="Read a persisted artifact, reporting expiry instead of failing"
+    )
+    read_parser.add_argument("contract", help="Artifact contract, for example MutationPlan/v1")
+    read_parser.add_argument("id", help="Artifact id")
+    read_parser.add_argument(
+        "--project-root",
+        type=Path,
+        default=Path.cwd(),
+        help="Project root that namespaces the store (default: cwd)",
+    )
+    read_parser.add_argument(
+        "--producer", help="Skill to name in the expiry message, for example rhdh-pull-request"
+    )
+    _add_json_flag(read_parser)
 
     cleanup_parser = subparsers.add_parser("cleanup", help="Remove expired persisted artifacts")
     cleanup_parser.add_argument(
@@ -459,6 +465,8 @@ def main(argv: list[str] | None = None) -> int:
             report = validate_artifact(artifact)
         else:
             report = persist_artifact(artifact, args.project_root)
+    elif args.command == "read":
+        report = read_artifact(args.contract, args.id, args.project_root, args.producer)
     else:
         if args.older_than_days < 0:
             report = {

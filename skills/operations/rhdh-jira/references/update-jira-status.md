@@ -108,7 +108,13 @@ Based on session activity, propose a transition if applicable. Load `references/
 | PR up for review | In Progress → Review |
 | PR merged | Review → Closed |
 | All work done, awaiting release | In Progress/Review → Release Pending |
-| Descoped / won't fix | Any → Closed (with resolution + comment per Team Conventions in SKILL.md) |
+| Descoped / won't fix | Any → Closed (see Closure requires rationale below) |
+
+**Closure requires rationale.** Closing or descoping an issue means setting the resolution field —
+`Won't Do`, `Duplicate`, or `Done` — and adding a comment saying why. Both go in the same mutation
+plan as the transition. A closed issue with no resolution and no comment loses the decision trail,
+and the next person to find it has to reconstruct it from nothing. `references/refine.md` applies
+the same rule when it closes stale issues.
 
 Before proposing a transition, verify exit criteria are met for the target status. If not, flag what's missing: "To move to Review, you need: [missing fields]. Set them first?"
 
@@ -138,6 +144,13 @@ Add via:
 ```bash
 acli jira workitem link create --key ISSUE_KEY --link-type "Blocks" --target-key TARGET_KEY --yes
 ```
+
+An **external** URL — a pull request, a design document, a support case — is not
+an issue link. It is a remote link, and `acli` cannot create one. Use the remote-link
+operation in `references/rest-api-fallback.md`, which takes the issue key plus a
+url and title. A caller handing over a PR usually wants all three of a comment, a
+transition, and a remote link; put them in one `MutationPlan/v1` so a single
+approval covers the set.
 
 ### Step 6 — Upward Cascade Check
 

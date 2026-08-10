@@ -129,6 +129,8 @@ Common trap: a new sub-command reference duplicates tables from an existing refe
 
 **Exception: intentional duplication.** When two sub-commands need the same query pattern but referencing each other would create a transitive loading chain (A → B → C), duplicate the pattern and add a note: "Same query pattern as X.md Step N — duplicated here to avoid transitive loading." This is cheaper than forcing the agent to load an unrelated file.
 
+The exception stops at the skill boundary. Across skills there is no file to point at and no note that keeps two copies honest — apply the extract/enforce/document rule in `references/architecture-patterns.md` → Duplication between skills.
+
 ### Writing patterns
 
 - **Imperative form**: "Run the command" not "You should run the command"
@@ -185,9 +187,9 @@ Back the router with a `scripts/command-metadata.json` as the single source of t
 }
 ```
 
-### Setup gates (when applicable)
+### Setup and capability gates (when applicable)
 
-Non-negotiable checks before any file edits. Gates prevent generic output from missing context.
+Non-negotiable checks before any file edits. Gates prevent generic output from missing context, and every gate follows one contract: when a required precondition is missing, emit `SetupRequired/v1` with the exact setup route and stop that branch. Read `references/architecture-patterns.md` → Setup and capability gates for the contract and its boundary.
 
 ```markdown
 ## Setup (non-optional)
@@ -195,7 +197,8 @@ Non-negotiable checks before any file edits. Gates prevent generic output from m
 | Gate | Required check | If fail |
 |---|---|---|
 | Context | Project config loaded via `python scripts/load_context.py` | Run the loader first |
-| Config | Config file exists and is valid | Return the project setup owner's exact setup route |
+| Config | Config file exists and is valid | Emit `SetupRequired/v1` with the setup owner's exact route and stop the branch |
+| Capability | Required adapter or CLI is ready | Emit `SetupRequired/v1` with the setup owner's exact route and stop the branch |
 | Command | Sub-command reference is loaded | Load the reference |
 | Mutation | All gates above pass | Do not edit project files |
 ```
@@ -211,20 +214,6 @@ When behavior varies by task type, classify first, then load different reference
 
 Every task is **library** (published, API-stable) or **application** (internal, can break).
 Identify before acting. Load the matching reference: [references/library.md] or [references/application.md].
-```
-
-### Capability-gating
-
-Steps that depend on optional environment capabilities (browser automation, specific CLI tools) must degrade gracefully:
-
-```markdown
-### Automated Scan (Capability-Gated)
-
-Run the automated scanner when ALL of these are true:
-- The target files exist and are readable
-- The required CLI tool is installed
-
-If unavailable, state in one line that the step is skipped and why. Do not ask the user to install tooling.
 ```
 
 ### Structured artifacts as handoffs
@@ -332,9 +321,9 @@ Before presenting the final skill, verify against this checklist:
 
 - [ ] A route table exists only when it discloses branches within one cohesive skill
 - [ ] `command-metadata.json` is authoritative when scripts or generated interfaces consume command metadata
-- [ ] Setup gates are defined with fail actions for each gate
+- [ ] Every gate names a required precondition and a fail action; a missing precondition emits `SetupRequired/v1` and stops the branch — no gate proceeds anyway
 - [ ] Register/mode system classifies before loading references
-- [ ] Capability-gated steps degrade gracefully with one-line skip reasons
+- [ ] Material shared with another skill is extracted, enforced, or documented, never copied
 - [ ] Model-invoked skills do not duplicate the promoted catalog or route by sibling path
 - [ ] Named skill handoffs declare versioned artifacts in the machine catalog
 - [ ] Human/model invocation metadata matches the approved repository boundary

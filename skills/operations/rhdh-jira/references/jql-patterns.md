@@ -116,7 +116,7 @@ The Team field (`customfield_10001`) cannot be used in JQL. Use `scripts/parse_i
 
 ```bash
 acli jira workitem search --jql "project = RHIDP AND sprint in openSprints()" --limit 500 --json \
-  | python scripts/parse_issues.py --enrich -f team="RHDH Install" -s key,summary,status,story_points
+  | uv run scripts/parse_issues.py --enrich -f team="RHDH Install" -s key,summary,status,story_points
 ```
 
 For acli search command syntax, see `references/acli-commands.md`.

@@ -15,25 +15,22 @@ Generate a Slack message announcing that Code Freeze milestone has been reached.
 ## Step 1: Run CLI
 
 ```bash
-python scripts/release.py --json slack code-freeze {{RELEASE_VERSION}}
+uv run scripts/release.py --json slack code-freeze {{RELEASE_VERSION}}
 ```
 
 If the CLI succeeds, use its `slack_message` field directly (it's the filled template). If it fails, follow the manual steps below.
 
 ## Step 2 (fallback): Get blocker bugs
 
-Use the blocker bugs workflow query:
-
-```bash
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed AND issuetype = bug AND priority = Blocker' --count
-```
+Invoke `rhdh-jira` with the `blockers` JQL from `references/jql-release.md` and
+take the count from `JiraQueryResult/v1`.
 
 ## Step 3 (fallback): Get feature demos count
 
 Use the `feature_demos` template composed from the Rich Filter `demo` entry:
 
 ```bash
-python scripts/release.py --json rich-filter query static demo --version "{{RELEASE_VERSION}}" --count
+uv run scripts/release.py --json rich-filter query static demo --version "{{RELEASE_VERSION}}" --count
 ```
 
 ## Step 4 (fallback): Get test day features count
@@ -41,14 +38,13 @@ python scripts/release.py --json rich-filter query static demo --version "{{RELE
 Use the `test_day_features` template composed from the Rich Filter `Test Day` entry:
 
 ```bash
-python scripts/release.py --json rich-filter query static "Test Day" --version "{{RELEASE_VERSION}}" --count
+uv run scripts/release.py --json rich-filter query static "Test Day" --version "{{RELEASE_VERSION}}" --count
 ```
 
 ## Step 5 (fallback): Get total open issues count
 
-```bash
-acli jira workitem search --jql 'project IN (RHIDP, RHDHBugs, RHDHPLAN, RHDHSUPP) AND fixVersion = "{{RELEASE_VERSION}}" AND status != closed' --count
-```
+Invoke `rhdh-jira` with the `open_issues` JQL from `references/jql-release.md`
+and take the count from `JiraQueryResult/v1`.
 
 ## Step 6 (fallback): Fill template and output
 

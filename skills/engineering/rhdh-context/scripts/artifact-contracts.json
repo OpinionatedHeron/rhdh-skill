@@ -2,16 +2,19 @@
   "schemaVersion": 1,
   "contracts": {
     "BaseImageReport/v1": {
-      "requiredData": ["summary", "changes"]
+      "requiredData": ["summary", "changes"],
+      "terminal": true
     },
     "ChangeHandoff/v1": {
       "requiredData": ["summary", "files", "verification"]
     },
     "CiCoverageReport/v1": {
-      "requiredData": ["expected", "actual", "gaps"]
+      "requiredData": ["supported", "configured", "gaps"],
+      "terminal": true
     },
     "CiInventory/v1": {
-      "requiredData": ["source", "jobs"]
+      "requiredData": ["repository", "jobs"],
+      "terminal": true
     },
     "IssueContext/v1": {
       "requiredData": ["key", "summary", "source"]
@@ -28,9 +31,6 @@
     "LifecycleAssessment/v1": {
       "requiredData": ["product", "asOf", "versions"]
     },
-    "LocalRuntimeStatus/v1": {
-      "requiredData": ["running", "services"]
-    },
     "MutationPlan/v1": {
       "requiredData": ["summary", "operations", "materialHash"]
     },
@@ -38,73 +38,71 @@
       "requiredData": ["planId", "materialHash", "outcomes"]
     },
     "OverlayCveManifest/v1": {
-      "requiredData": ["version", "entries"]
+      "requiredData": ["version", "entries"],
+      "terminal": true
     },
     "OverlayChange/v1": {
-      "requiredData": ["workspace", "changes", "verification"]
+      "requiredData": ["workspace", "changes", "verification"],
+      "terminal": true
     },
     "PullRequestReceipt/v1": {
-      "requiredData": ["url", "repository", "head"]
+      "requiredData": ["url", "repository", "head"],
+      "terminal": true
     },
     "ProwRunReceipt/v1": {
-      "requiredData": ["job", "runId", "status"]
-    },
-    "ReadinessReport/v1": {
-      "requiredData": ["repository", "findings"]
+      "requiredData": ["job", "runId", "status"],
+      "terminal": true
     },
     "ReleaseSnapshot/v1": {
       "requiredData": ["version", "asOf", "status"]
     },
     "ReleaseAnnouncement/v1": {
-      "requiredData": ["kind", "message"]
+      "requiredData": ["kind", "message"],
+      "terminal": true
     },
     "ReleaseNotesDraft/v1": {
-      "requiredData": ["version", "sections"]
+      "requiredData": ["version", "sections"],
+      "terminal": true
     },
     "ReleaseSchedule/v1": {
       "requiredData": ["versions", "source"]
     },
     "ReviewContext/v1": {
-      "requiredData": ["repository", "changeRequest", "files"]
+      "requiredData": ["repository", "changeRequest", "files"],
+      "terminal": true
     },
     "ReviewFindings/v1": {
-      "requiredData": ["changeRequest", "findings", "verdict"]
+      "requiredData": ["changeRequest", "findings", "verdict"],
+      "terminal": true
     },
     "RhdhContext/v1": {
       "requiredData": ["repositories", "tools", "configuration"]
     },
-    "RhdhIntent/v1": {
-      "requiredData": ["domain", "outcome", "inputs"]
-    },
     "RpaChange/v1": {
-      "requiredData": ["version", "changes"]
+      "requiredData": ["version", "changes"],
+      "terminal": true
     },
     "SetupReceipt/v1": {
-      "requiredData": ["capabilities", "changes"]
+      "requiredData": ["capabilities", "changes"],
+      "terminal": true
     },
     "SetupRequired/v1": {
       "requiredData": ["missing", "nextCommand"]
     },
     "SetupStatus/v1": {
-      "requiredData": ["installedSkills", "capabilities"]
-    },
-    "SkillAudit/v1": {
-      "requiredData": ["skill", "findings"]
-    },
-    "SkillDesign/v1": {
-      "requiredData": ["name", "purpose", "interfaces"]
-    },
-    "SkillPackageReport/v1": {
-      "requiredData": ["skill", "valid"]
+      "requiredData": ["installedSkills", "capabilities"],
+      "terminal": true
     },
     "TestPlanDelta/v1": {
-      "requiredData": ["source", "changes", "findings"]
+      "requiredData": ["source", "changes", "findings"],
+      "terminal": true
     },
     "VerificationEvidence/v1": {
       "requiredData": ["subject", "checks", "result"]
     },
     "WorkStateReceipt/v1": {
-      "requiredData": ["operation", "location", "result"]
+      "requiredData": ["operation", "location", "result"],
+      "terminal": true
     }
   }
 }

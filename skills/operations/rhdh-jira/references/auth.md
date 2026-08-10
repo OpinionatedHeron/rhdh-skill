@@ -8,7 +8,7 @@ credential setup is owned by the user-invoked skill `/setup-rhdh-skills`.
 Run the local detector without reading credential contents into context:
 
 ```bash
-python scripts/setup.py --json
+uv run scripts/setup.py --json
 ```
 
 Use its boolean capability fields. A normal Jira smoke check is

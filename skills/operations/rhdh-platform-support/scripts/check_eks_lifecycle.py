@@ -1,7 +1,10 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.9"
-# dependencies = ["ruamel.yaml"]
+# dependencies = ["rhdh-common[yaml]"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
 # ///
 """Check EKS Kubernetes version lifecycle using the official AWS EKS docs source.
 
@@ -19,9 +22,9 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
+from rhdh_common.openshift_release.repo import resolve_repo_root
+from rhdh_common.versions import fetch_json, filter_supported_eol_entries
 from rhdh_lifecycle.configured_versions import print_configured_versions
-from rhdh_lifecycle.repo import resolve_repo_root
-from rhdh_lifecycle.utils import fetch_json, filter_supported_eol_entries
 
 EKS_DOCS_URL = (
     "https://raw.githubusercontent.com/awsdocs/amazon-eks-user-guide"

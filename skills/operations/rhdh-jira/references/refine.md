@@ -264,7 +264,11 @@ Checked: {issues_checked} issues | Findings: {issues_with_findings} issues
 
 After presenting the report:
 
-Use the standard confirmation flow from SKILL.md (`y/N/edit`). **y** applies auto-fixable changes and prompts for non-auto-fixable. **N** is report only.
+Ask `Apply changes? [y/N/edit]`. **y** applies auto-fixable changes and prompts for each
+non-auto-fixable one. **N** is report only. **edit** steps through every change individually. The
+selection is the input to the write contract, not a substitute for it: whatever survives becomes
+the operation list of a single `MutationPlan/v1`, and execution still waits on approval of that
+plan's material hash.
 
 ### Auto-fixable actions
 
@@ -282,13 +286,16 @@ These are non-controversial changes applied without individual prompts:
 - Closing stale issues — needs relevance confirmation. When closing, **always** add a comment documenting the rationale (e.g., "Closing as stale — no activity for 90 days, no longer on the roadmap") and set the resolution field (e.g., `Won't Do`, `Duplicate`, `Done`). This preserves the decision trail for future reference.
 - Marking as duplicate — same rule: add a comment linking to the original issue and set resolution to `Duplicate`
 
-For writes, follow the API preference order from SKILL.md. Since refinement uses GraphQL reads (AUTH is already set), prefer REST for writes.
+Writes follow the adapter order in `references/auth.md` → API preference: `acli` for anything it
+supports, the authenticated host adapter in `references/rest-api-fallback.md` for the fields it
+cannot set. Having read through GraphQL does not change that order and does not put credentials in
+reach — the adapter owns them either way.
 
 ## Error Handling
 
 | Error | Action |
 |-------|--------|
-| `issueSearchStable` returns errors | See SKILL.md Error Handling. |
+| `issueSearchStable` returns errors | Fall back to paginated `acli` search and warn that the beta endpoint failed. REST search is not an option — see `references/graphql-queries.md`. |
 | Comment fetch fails (REST 403) | Skip Check 4 for that issue. Note "comments not accessible." |
 | GraphQL rate limit (429) | Wait 5 seconds, retry once. If still fails, report partial results. |
 | JQL returns 0 results | "No issues match the query. Check the JQL or team/sprint filters." |

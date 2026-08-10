@@ -8,9 +8,24 @@ requires-python = ">=3.9"
 
 # No runtime dependencies - stdlib only!
 
+# rhdh_common is the one versioned shared package skills may depend on
+# (ADR-0006). It is vendored into this wheel so the rhdh and rhdh-local CLIs
+# get it without a second install; standalone scripts declare it in their
+# PEP-723 block instead. Its own distribution lives in packages/rhdh-common.
 [tool.setuptools.packages.find]
-where = ["skills/engineering/rhdh-context", "skills/engineering/rhdh-local"]
-include = ["rhdh", "rhdh.*", "rhdh_local", "rhdh_local.*"]
+where = [
+    "skills/engineering/rhdh-context",
+    "skills/engineering/rhdh-local",
+    "packages/rhdh-common",
+]
+include = [
+    "rhdh",
+    "rhdh.*",
+    "rhdh_local",
+    "rhdh_local.*",
+    "rhdh_common",
+    "rhdh_common.*",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -24,6 +39,9 @@ rhdh-local = "rhdh_local.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The rhdh and rhdh_local packages are put on sys.path by tests/conftest.py.
+# rhdh_common is a real distribution, so point pytest at its source root.
+pythonpath = ["packages/rhdh-common"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

@@ -1,4 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["rhdh-common"]
+#
+# [tool.uv.sources]
+# rhdh-common = { git = "https://github.com/redhat-developer/rhdh-skill", subdirectory = "packages/rhdh-common" }
+# ///
 """Flatten, enrich, and filter acli Jira JSON output.
 
 Core problem: acli search --json returns only basic fields. Custom fields
@@ -29,10 +36,10 @@ Usage:
 import argparse
 import csv
 import json
-import shutil
 import subprocess
 import sys
-from pathlib import Path
+
+from rhdh_common.process import find_acli
 
 # ---------------------------------------------------------------------------
 # Field extractors: map friendly names → extraction logic
@@ -129,11 +136,11 @@ FIELDS = {
     "rn_type": lambda i: _name(i, "customfield_10785"),
     "fix_versions": lambda i: _list_names(i, "fixVersions"),
     "components": lambda i: _list_names(i, "components"),
-    "labels": lambda i: ", ".join(_f(i, "labels", [])),
+    "labels": lambda i: ", ".join(_f(i, "labels", []) or []),
     "description": _adf_to_text,
     "security": lambda i: _name(i, "security"),
     "feature_status": lambda i: _name(i, "customfield_10807"),
-    "link_count": lambda i: len(_f(i, "issuelinks", [])),
+    "link_count": lambda i: len(_f(i, "issuelinks", []) or []),
 }
 
 DEFAULT_SELECT = ["key", "issuetype", "status", "assignee", "priority", "summary"]
@@ -153,18 +160,6 @@ ENRICHED_SELECT = [
 # ---------------------------------------------------------------------------
 # Enrichment: fetch full fields via acli view
 # ---------------------------------------------------------------------------
-
-
-def find_acli():
-    """Find acli on PATH or common locations."""
-    path = shutil.which("acli")
-    if path:
-        return path
-    if sys.platform == "win32":
-        candidate = Path.home() / ".path" / "acli.exe"
-        if candidate.exists():
-            return str(candidate)
-    return None
 
 
 def enrich(issues, acli_path):
