@@ -106,9 +106,9 @@ Track work across the four RHDH Jira projects.
   - **[plan](./skills/rhdh-jira/references/plan.md)** — Sprint planning prep: carryover report, velocity trend, per-member capacity, ready-for-planning queue, and sprint fill suggestions with expertise matching.
   - **[sprint-report](./skills/rhdh-jira/references/sprint-report.md)** — Sprint review summary: committed vs completed, per-member breakdown, epic progress, demo checklist with naming conventions, and velocity trend.
   - **[release](./skills/rhdh-jira/references/release.md)** — Release readiness: feature matrix, Program Increment funnel, epic roll-up, cross-team dependency map, blocker bugs, release notes readiness, and risk assessment.
-  - **[to-feature](./skills/rhdh-jira/references/to-feature.md)** — Create a RHDHPLAN Feature from conversation context. Grills on scope, customer value, and acceptance criteria. Optionally chains into Epic decomposition.
-  - **[to-epic](./skills/rhdh-jira/references/to-epic.md)** — Create an RHIDP Epic. Grills on delivery scope, dependencies, and acceptance criteria. Optionally chains into Story/Task decomposition.
-  - **[to-issue](./skills/rhdh-jira/references/to-issue.md)** — Create a Story, Task, Bug, or Spike with automatic type inference. Grills on implementation details and story points.
+  - **[to-feature](./skills/rhdh-jira/references/to-feature.md)** — Create a RHDHPLAN Feature from conversation context. Grills on scope, customer value, and acceptance criteria. Optionally chains into Epic decomposition. **Requires** Matt Pocock's [`grilling`](https://github.com/mattpocock/skills) skill (see [Hard prerequisite: grilling](#hard-prerequisite-grilling)).
+  - **[to-epic](./skills/rhdh-jira/references/to-epic.md)** — Create an RHIDP Epic. Grills on delivery scope, dependencies, and acceptance criteria. Optionally chains into Story/Task decomposition. **Requires** [`grilling`](https://github.com/mattpocock/skills).
+  - **[to-issue](./skills/rhdh-jira/references/to-issue.md)** — Create a Story, Task, Bug, or Spike with automatic type inference. Grills on implementation details and story points. **Requires** [`grilling`](https://github.com/mattpocock/skills).
   - **[update-jira-status](./skills/rhdh-jira/references/update-jira-status.md)** — Update an issue with session progress. Detects the related issue, adds a status comment, proposes transitions, and checks upward cascade to parent Epic/Feature.
 
 ### PR Workflow
@@ -143,7 +143,7 @@ Decide where a test belongs across the RHDH ecosystem — which repo, which laye
 
 ### Meta
 
-- **[skill-maker](./skills/skill-maker/SKILL.md)** — Create new skills or consolidate existing ones following the [Agent Skills open standard](https://agentskills.io/specification). Interviews you about scope and edge cases before drafting.
+- **[skill-maker](./skills/skill-maker/SKILL.md)** — Create new skills or consolidate existing ones following the [Agent Skills open standard](https://agentskills.io/specification). Interviews you about scope and edge cases before drafting. The create/interview path **requires** Matt Pocock's [`grilling`](https://github.com/mattpocock/skills) skill (see [Hard prerequisite: grilling](#hard-prerequisite-grilling)).
 
 ## Getting Started
 
@@ -164,6 +164,22 @@ Decide where a test belongs across the RHDH ecosystem — which repo, which laye
    ```
 
    On the first run, `rhdh` auto-detects your local checkouts and creates `~/.config/rhdh-skill/config.json`. If a repo isn't found automatically, the agent will ask you for its path.
+
+### Hard prerequisite: grilling
+
+Create/interview grills in **skill-maker** and **rhdh-jira** (`to-feature`, `to-epic`, `to-issue`) hard-require Matt Pocock's [`grilling`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grilling) skill. Those paths run a setup check; if `grilling` is missing, the agent prompts you to confirm and installs it.
+
+Minimal install (what the gate installs after confirm):
+
+```bash
+npx skills@latest add mattpocock/skills --skill grilling -g -y
+```
+
+**Recommended:** install the full [mattpocock/skills](https://github.com/mattpocock/skills) set — it includes other high-value engineering and productivity skills beyond `grilling`:
+
+```bash
+npx skills@latest add mattpocock/skills --all -g
+```
 
 ## Installation
 

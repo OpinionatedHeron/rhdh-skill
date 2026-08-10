@@ -1,7 +1,7 @@
 ---
 name: rhdh-jira
 description: |
-  Interacts with RHDH Jira projects (RHIDP, RHDHPLAN, RHDHBUGS, RHDHSUPP) using acli, GraphQL, and REST API. Covers the full Jira lifecycle: create issues, assign, refine, plan sprints, report, track releases, and update status. Trigger on Jira keys (RHIDP-1234), "create a feature/epic/story/task/bug", "who should take this", "refine this", "plan the sprint", "sprint report", "release status", "update jira", or any sprint ceremony prep.
+  Interacts with RHDH Jira projects (RHIDP, RHDHPLAN, RHDHBUGS, RHDHSUPP) using acli, GraphQL, and REST API. Covers the full Jira lifecycle: create issues, assign, refine, plan sprints, report, track releases, and update status. Trigger on Jira keys (RHIDP-1234), "create a feature/epic/story/task/bug", "grill this", "from a support case", "customer engagement", "who should take this", "refine this", "plan the sprint", "sprint report", "release status", "update jira", or any sprint ceremony prep.
 compatibility: "acli (Atlassian CLI) on PATH. Python 3 for scripts. Windows, macOS, Linux."
 ---
 
@@ -11,23 +11,39 @@ compatibility: "acli (Atlassian CLI) on PATH. Python 3 for scripts. Windows, mac
 
 Foundational skill for interacting with RHDH's Jira instance via the Atlassian CLI (`acli`). Covers all four active projects, issue types, workflows, custom fields, and JQL patterns.
 
+1. **API order:** acli → GraphQL (bulk reads) → REST (writes/fallback). Prefer the lightest tool that fits.
+2. **Customer identity:** Prefer support case key in summary/description; apply `RHDH-Customer` as a Jira label; put names only in restricted-visibility comments. Never put customer names in unprotected fields — see `references/fields.md`.
+3. **Create paths hard-require grilling:** Before `to-feature` / `to-epic` / `to-issue`, load `references/grill.md` → Grilling prerequisite. Invoke the installed `grilling` skill once for Fill Gaps + Challenge; do not re-implement cadence here.
+4. **Mutations need `--yes`; formatted descriptions need ADF.** Interactive prompts hang without `--yes`. Wiki markup in description files renders as literals — convert via `scripts/jira-wiki-to-adf.py`.
+5. **"Feature Exploration" ≠ "Feature Refinement."** The meeting/process is Feature Exploration; the Jira status is Refinement.
+
 </essential_principles>
 
 <intake>
 
-## Commands
+## What would you like to do?
 
-| Command | Description | Reference |
-|---------|-------------|-----------|
-| `assign [issue key(s) or JQL]` | Recommend and assign team members using expertise, capacity, and context proximity analysis | [references/assign.md](references/assign.md) |
-| `refine [issue key(s), JQL, or 'sprint']` | Check issues against exit criteria, identify duplicates, missing fields, unaddressed comments, and readiness | [references/refine.md](references/refine.md) |
-| `plan [team]` | Sprint planning prep: carryover, velocity, capacity, ready queue, sprint fill suggestions | [references/plan.md](references/plan.md) |
-| `sprint-report [team]` | Sprint review summary: committed vs completed, per-member breakdown, demo checklist | [references/sprint-report.md](references/sprint-report.md) |
-| `release [version]` | Release readiness: feature matrix, PI funnel, dependency map, blocker bugs, risk assessment | [references/release.md](references/release.md) |
-| `to-feature [description]` | Create a RHDHPLAN Feature with grill, duplicate check, and optional Epic decomposition | [references/to-feature.md](references/to-feature.md) |
-| `to-epic [description]` | Create an RHIDP Epic with grill, duplicate check, and optional Story/Task decomposition | [references/to-epic.md](references/to-epic.md) |
-| `to-issue [description]` | Create a Story, Task, Bug, or Spike with automatic type inference and grill | [references/to-issue.md](references/to-issue.md) |
-| `update-jira-status [key]` | Update issue with session progress, status comment, transition, and upward cascade | [references/update-jira-status.md](references/update-jira-status.md) |
+1. **assign** — Recommend and assign team members (expertise, capacity, context proximity)
+2. **refine** — Check issues against exit criteria, duplicates, missing fields, readiness
+3. **plan** — Sprint planning prep: carryover, velocity, capacity, ready queue, fill suggestions
+4. **sprint-report** — Sprint review summary: committed vs completed, demo checklist
+5. **release** — Release readiness: feature matrix, PI funnel, blockers, risk
+6. **to-feature** — Create a RHDHPLAN Feature (grill + duplicate check + optional Epic decomposition)
+7. **to-epic** — Create an RHIDP Epic (grill + duplicate check + optional Story/Task decomposition)
+8. **to-issue** — Create a Story, Task, Bug, or Spike (type inference + grill)
+9. **update-jira-status** — Session progress comment, transition, upward cascade
+
+| Command | Reference |
+|---------|-----------|
+| `assign [issue key(s) or JQL]` | [references/assign.md](references/assign.md) |
+| `refine [issue key(s), JQL, or 'sprint']` | [references/refine.md](references/refine.md) |
+| `plan [team]` | [references/plan.md](references/plan.md) |
+| `sprint-report [team]` | [references/sprint-report.md](references/sprint-report.md) |
+| `release [version]` | [references/release.md](references/release.md) |
+| `to-feature [description]` | [references/to-feature.md](references/to-feature.md) |
+| `to-epic [description]` | [references/to-epic.md](references/to-epic.md) |
+| `to-issue [description]` | [references/to-issue.md](references/to-issue.md) |
+| `update-jira-status [key]` | [references/update-jira-status.md](references/update-jira-status.md) |
 
 Single source of truth for command descriptions: `scripts/command-metadata.json`
 
@@ -39,9 +55,13 @@ Single source of truth for command descriptions: `scripts/command-metadata.json`
 
 ### Routing rules
 
-1. **No argument**: Show the command menu. Ask what to do.
+1. **No argument**: Show the numbered menu above. Ask what to do.
 2. **First word matches a command**: Load its reference file and follow it.
-3. **First word doesn't match**: General Jira invocation using the full argument as context — use the reference files table below to decide what to load.
+3. **Natural-language create phrases** (any position): map to the create refs so the grilling gate loads:
+   - "create a feature" / "create feature" → `references/to-feature.md`
+   - "create an epic" / "create epic" → `references/to-epic.md`
+   - "create a story" / "create story" / "create a task" / "create task" / "create a bug" / "create bug" / "create a spike" / "create spike" → `references/to-issue.md`
+4. **First word doesn't match**: General Jira invocation using the full argument as context — use the reference files table below to decide what to load.
 
 </routing>
 
@@ -59,8 +79,13 @@ The script checks:
 2. Jira API token auth configured (`~/.config/acli/jira_config.yaml`)
 3. `.jira-token` file next to `acli` executable (for REST API fallback)
 4. Smoke test against `redhat.atlassian.net`
+5. Matt Pocock's `grilling` skill (`grilling/SKILL.md`) — reported in full mode; hard-gated via `--grilling-only` for create paths
 
 If `acli` is not installed, download from [Atlassian CLI](https://developer.atlassian.com/cloud/acli/) and follow the [Getting Started guide](https://developer.atlassian.com/cloud/acli/guides/how-to-get-started/) for installation and authentication setup. Use API token authentication, not OAuth — OAuth sessions expire and `acli auth status` gives false negatives with token auth (see Gotchas).
+
+### Grilling skill gate (create/grill paths only)
+
+Load `references/grill.md` → Grilling prerequisite and Validate before creating. Create paths hard-require grilling; other commands do not. Full install dialogue and invoke criterion live only in `grill.md`.
 
 ### API preference order
 
@@ -84,11 +109,11 @@ Before attempting any REST API or GraphQL call:
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/setup.py` | Verify acli install + auth. Run with `--json` for structured output. |
+| `scripts/setup.py` | Verify acli install + auth; also detects grilling skill. `--json` for structured output. `--grilling-only` for create/grill gate (exit non-zero if grilling missing). |
 | `scripts/parse_issues.py` | Flatten, enrich, and filter acli JSON output. Solves the core problem: `acli search --json` can't return custom fields (team, story points, sprint). Pipe search results in, get clean data out. Use `--enrich` to fetch full fields, `-f team="X"` to filter by team. |
 | `scripts/command-metadata.json` | Single source of truth for sub-command descriptions and argument hints. |
 | `scripts/validate_components.py` | Validate `references/fields.md` component catalog against live Jira projects (RHIDP + RHDHPLAN). Reports drift in both directions. Run with `--json` for structured output. |
-| `scripts/jira-wiki-to-adf.py` | Convert a filled Jira wiki markup template to Atlassian Document Format JSON for use with `acli --description-file`. Handles `hN.` headings, `* ` bullets, `# ` ordered lists, `(?)` / `(/)` task items, `*bold*`, `_italic_`, `{{monospace}}`, backtick code. Usage: `python scripts/jira-wiki-to-adf.py input.txt > output.adf.json` |
+| `scripts/jira-wiki-to-adf.py` | Convert a filled Jira wiki markup template to Atlassian Document Format JSON for use with `acli --description-file`. Handles `hN.` headings, `*` bullets, `#` ordered lists, `(?)` / `(/)` task items, `*bold*`, `_italic_`, `{{monospace}}`, backtick code. Usage: `python scripts/jira-wiki-to-adf.py input.txt > output.adf.json` |
 
 ## Projects
 
@@ -120,7 +145,7 @@ Load only what the current task requires.
 | File | Load when... |
 |------|-------------|
 | `references/acli-commands.md` | Running an acli command you haven't used before, or hitting unexpected flag behavior. Quick reference for syntax, flag differences, and output formats. |
-| `references/fields.md` | Need to know a field name, custom field ID, accepted values, or label conventions. Custom fields, labels, link types, components, priorities. |
+| `references/fields.md` | Need to know a field name, custom field ID, accepted values, or label conventions. Custom fields, labels (`RHDH-Customer`), customer identity in unprotected fields, link types, components, priorities. |
 | `references/workflows.md` | Transitioning issues, checking exit criteria, or verifying readiness for the next status. |
 | `references/templates.md` | Creating new issues. Also load `references/workflows.md` for required fields at entry status. |
 | `references/support.md` | Handling support cases, filing bugs from customer cases, or creating feature requests from support. Full RHDHSUPP workflow, SLA, and anti-patterns. |
@@ -139,7 +164,8 @@ Load only what the current task requires.
 | `references/to-issue.md` | Create a Story, Task, Bug, or Spike with automatic type inference and grill. |
 | `references/update-jira-status.md` | Update a Jira issue with session progress, status comment, transitions, and upward cascade to parent Epic/Feature. |
 | `references/duplicates.md` | Duplicate detection for pre-creation checks and refinement audits. Shared across creation commands and refine. |
-| `references/grill.md` | Shared challenging behavior for issue creation grills: sizing, completeness, scope, risks, cross-referencing. |
+| `references/grill.md` | Shared create/grill behavior: grilling prereq (SSOT), one-shot `grilling` invoke for Fill Gaps + Challenge, domain challenges, customer/label pre-create checks. |
+| `references/work-breakdown.md` | Decomposing Feature→Epics or Epic→Stories/Tasks — synthesize-then-gap-fill, tracer bullets, blocking edges, quiz before create. |
 | `references/sizing.md` | T-shirt sizing guide for Features/Epics and Fibonacci story points for Stories/Tasks. Used during grills and refinement. |
 
 </reference_index>
@@ -171,6 +197,7 @@ Load only what the current task requires.
 | Error | Action |
 |-------|--------|
 | `acli` not on PATH | Run `scripts/setup.py`. Install from Atlassian if missing. See [Getting Started](https://developer.atlassian.com/cloud/acli/guides/how-to-get-started/). |
+| grilling skill missing on create/grill | Follow `references/grill.md` → Grilling prerequisite (`setup.py --grilling-only`, confirm, install, re-check). |
 | "unauthorized" from `auth status` | Ignore. Check `jira_config.yaml` exists. Run smoke test. |
 | "required flag(s) not set" | Command syntax wrong. Run `acli jira <subcommand> --help`. |
 | "field X is not allowed" | Use `--json` instead of `--fields` for that field. |
@@ -187,7 +214,7 @@ These apply across all sub-commands:
 - **Release Pending counts as completed.** Release Pending items remain in the sprint and count toward velocity and capacity. They represent done work awaiting release.
 - **Confirmation flow.** Sub-commands that modify Jira issues use a standard prompt: `"Apply changes? [y/N/edit]"` — **y** applies all, **N** cancels, **edit** steps through each change individually.
 - **Closure requires rationale.** When closing or descoping issues, always add a comment documenting the reason and set the resolution field (`Won't Do`, `Duplicate`, `Done`). Preserves the decision trail.
-- **Comments over description bloat.** Issue descriptions use the structured template sections. Decision trail, elaboration, abandoned approaches, and customer context go in comments. Creation commands proactively suggest comments for context that emerged during the grill.
+- **Comments over description bloat.** Issue descriptions use the structured template sections. Decision trail, elaboration, and abandoned approaches go in comments. Prefer support key + use case in the description; put customer-identifying detail only in restricted-visibility comments. Creation commands proactively suggest comments for context that emerged during the grill.
 
 ## Common Workflows
 
@@ -259,13 +286,9 @@ These apply across all sub-commands:
 
 ### Creating Features, Epics, and Issues
 
-1. Load the appropriate creation reference (`to-feature.md`, `to-epic.md`, or `to-issue.md`)
-2. Load `references/grill.md` for challenging behavior
-3. Load the template + example pair from `assets/templates/` and `assets/examples/`
-4. Grill the user on scope, AC, sizing (reference `references/sizing.md`)
-5. Run duplicate check per `references/duplicates.md`
-6. Create the issue, suggest comments for decision trail
-7. Offer chained decomposition (Feature → Epics → Stories/Tasks)
+1. Load the appropriate creation reference (`to-feature.md`, `to-epic.md`, or `to-issue.md`) — NL phrases like "create a feature" route here too
+2. Follow that ref: grilling prereq from `grill.md`, load sizing/fields, invoke `grilling` once for Fill Gaps + Challenge, validate, duplicate-check, create
+3. Offer chained decomposition (Feature → Epics → Stories/Tasks) using `references/work-breakdown.md` (tracer bullets + blocking edges; quiz before create)
 
 ### Updating Jira from a session
 

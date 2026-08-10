@@ -46,7 +46,7 @@ cf[10785] is EMPTY
 
 ## Labels
 
-All lowercase, hyphen-separated. Labels are global to the Jira instance.
+Most labels are lowercase and hyphen-separated. Labels are global to the Jira instance. **Exception:** prefer the capitalization `RHDH-Customer` when applying that label (see below).
 
 | Label | Usage |
 |-------|-------|
@@ -60,10 +60,24 @@ All lowercase, hyphen-separated. Labels are global to the Jira instance.
 | `ci-fail` | Identifies CI failures |
 | `must-have` | Documentation team — must-have for release doc plan |
 | `nice-to-have` | Documentation team — nice-to-have for release doc plan |
-| `rhdh-customer` | Issues from customer interactions (support cases, engagements) |
+| `RHDH-Customer` | Issues from customer interactions (support cases, engagements). **Preferred capitalization.** Apply this label alone — never also apply `rhdh-customer`. Jira label search is case-insensitive, so both spellings collide in search. |
 | `ga-support` | Target support level: GA (generally available) |
 | `tp-support` | Target support level: Tech Preview |
 | `dp-support` | Target support level: Developer Preview |
+
+### Customer identity in unprotected fields (authoritative)
+
+Do not put customer names or other customer-identifying detail in unprotected fields (summary, description, and other public/default-visibility fields).
+
+**Preferred pattern:**
+
+1. Reference the support ticket / case key (or similar non-identifying handle) in summary/description when needed.
+2. Apply a single `RHDH-Customer` label for customer-origin work.
+3. Put customer-identifying detail only in comments with appropriate restricted visibility (e.g. RH employee-only) when the project supports security levels — or keep identity out of Jira fields entirely and rely on the support-system link.
+
+**Label rule:** Prefer one `RHDH-Customer` label. Never apply both `RHDH-Customer` and `rhdh-customer`.
+
+Enforce these checks on every create/grill path before create (`to-feature`, `to-epic`, `to-issue`, and shared `references/grill.md`). See also `references/support.md` for RHDHSUPP ↔ RHDHBUGS project boundaries.
 
 ## Link Types
 

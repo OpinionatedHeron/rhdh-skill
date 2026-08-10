@@ -2,7 +2,7 @@
 
 Lessons learned from building skills that wrap CLIs, REST APIs, and GraphQL APIs. Read this when the skill interacts with external services or APIs.
 
-For general reference architecture patterns (transitive loading, error placement, decision tables, agent-only audience), see `references/spec-guide.md` → Reference Architecture.
+For general reference architecture patterns (transitive loading, error placement, decision tables, agent-only audience), see `spec-guide.md` → Reference Architecture.
 
 ## Credential handling
 

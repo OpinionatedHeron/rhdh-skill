@@ -2,6 +2,8 @@
 
 Common failures and how to fix them. Read this during Phase 2 (drafting) to avoid known pitfalls.
 
+For the shared quality vocabulary (predictability, progressive disclosure, completion criteria, failure modes like sediment/sprawl/no-op/negation), see `skill-quality.md`.
+
 ## Discovery Failures
 
 ### Context Selection Omission (CSO)

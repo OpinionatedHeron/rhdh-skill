@@ -6,6 +6,8 @@ Uses GraphQL for bulk reads (skip acli). Writes follow the API preference order 
 
 Authentication setup: see `references/auth.md`. All examples below assume `AUTH`, `CLOUD_ID`, and `GRAPHQL_URL` are set per that file.
 
+**Intentional load:** Steps 4 and 7 reuse roster/capacity/expertise from `references/assign.md` Layers 1–3. Load those sections of `assign.md` only when needed — not a further hop into other refs.
+
 ## Input
 
 The caller provides:
@@ -107,10 +109,10 @@ For each ready-for-planning issue, score against each team member using the same
 
 ### Step 8 — Critical Customer Bugs
 
-Separately surface any critical/blocker bugs with `rhdh-customer` label:
+Separately surface any critical/blocker bugs with the `RHDH-Customer` label (Jira label search is case-insensitive):
 
 ```bash
-jql: "project in (RHIDP, RHDHBUGS) AND priority in (Blocker, Critical) AND labels = rhdh-customer AND \"Team[Team]\" = TEAM_ID AND status != Closed"
+jql: "project in (RHIDP, RHDHBUGS) AND priority in (Blocker, Critical) AND labels = \"RHDH-Customer\" AND \"Team[Team]\" = TEAM_ID AND status != Closed"
 ```
 
 Note: "Critical customer bugs are exempt from capacity constraints — work immediately regardless of sprint load."

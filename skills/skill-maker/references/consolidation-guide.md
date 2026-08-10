@@ -107,7 +107,7 @@ Reference files use relative paths. After moving files, paths break in subtle wa
 
 ### Step 7: Review
 
-Run the standard Phase 5 review checklist from SKILL.md, plus these consolidation-specific checks:
+Run the standard Phase 5 review checklist from `references/create.md`, plus these consolidation-specific checks:
 
 - [ ] No references to old skill names anywhere in the project
 - [ ] Router intake menu is sequentially numbered (no gaps)

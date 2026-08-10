@@ -135,6 +135,8 @@ Define gates as a table with required check and fail action:
 | Mutation | All gates above pass | Do not edit project files |
 ```
 
+`scripts/load_context.py` above is **example only** — name the loader to match the skill you are building.
+
 The **Mutation** gate is always last. No file edits until every other gate passes.
 
 ### Preflight declaration
@@ -206,7 +208,7 @@ The names should match the domain. A design skill uses `PRODUCT.md` and `DESIGN.
 
 ### Loader script
 
-Write a script that finds, reads, and returns context as JSON:
+Write a script that finds, reads, and returns context as JSON. The `load_context` / `load_context.py` names below are **example only**.
 
 ```python
 #!/usr/bin/env python3

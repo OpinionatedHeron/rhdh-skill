@@ -59,7 +59,7 @@ acli jira workitem view RHIDP-123 --web
 acli jira workitem create --project RHIDP --type Story --summary "Implement auth plugin" --description "As a user..." --assignee "@me"
 
 # With labels
-acli jira workitem create --project RHDHBUGS --type Bug --summary "Login fails" --label "rhdh-customer,ci-fail"
+acli jira workitem create --project RHDHBUGS --type Bug --summary "Login fails" --label "RHDH-Customer,ci-fail"
 
 # With parent (sub-task or child of epic)
 acli jira workitem create --project RHIDP --type Task --summary "Write tests" --parent RHIDP-12968

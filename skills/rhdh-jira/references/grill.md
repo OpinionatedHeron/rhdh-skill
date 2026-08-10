@@ -4,9 +4,26 @@ Shared challenging behavior for issue creation workflows. Each caller defines it
 
 Load this alongside the command's type-specific questions. Apply every applicable behavior during the grill — don't skip challenges to be polite.
 
+Create commands load `references/sizing.md` and `references/fields.md` before the grill. Do not load those files from here.
+
 ## Cadence
 
-Ask one question at a time. Wait for the answer before asking the next. Adapt follow-ups based on what you learn. If the conversation already established context (e.g., chained from a parent issue), don't re-ask — carry it forward.
+**Invoke the installed `grilling` skill once covering Fill Gaps + Challenge** (read its SKILL.md and follow it; `/grilling` if host supports slash-commands). Do not re-implement cadence in this skill.
+
+**Grill complete when:** every applicable Challenge Behavior from the matrix below has been applied (or explicitly skipped with a reason), inferred fields are confirmed, and Validate before creating passes.
+
+Domain-specific challenges below stay in this skill. If the conversation already established context (e.g., chained from a parent issue), don't re-ask — carry it forward.
+
+### Grilling prerequisite
+
+Before any create/grill path (`to-feature`, `to-epic`, `to-issue`):
+
+1. Run `python scripts/setup.py --grilling-only --json` and check `grilling_found`.
+2. If missing: hard-stop. State that Matt Pocock's `grilling` skill is required. Recommend the full pack (`npx skills@latest add mattpocock/skills --all -g`). Ask for confirmation, then install the minimal command from the setup output (`minimal_install`). Re-run the check. Continue only when `grilling_found` is true.
+3. The setup script detects only — it does not install. Confirm + install are owned by this skill.
+4. Use `--grilling-only` so acli/auth failures do not hide the grilling-specific message.
+
+Do **not** gate refine/assign/plan/sprint-report/release/update-jira-status on grilling.
 
 ## Field Inference
 
@@ -21,7 +38,7 @@ After the grill questions are complete, present all inferred fields at once:
 > - **Size**: M (3) — cross-team coordination + 4 AC items suggests ~3 sprints
 > - **Component**: Plugins — primary area of change
 > - **Assignee**: Allison Hill — top expertise in plugins per assign analysis
-> - **Labels**: `rhdh-2.1-candidate`, `demo` — customer-facing feature targeting 2.1
+> - **Labels**: `rhdh-2.1-candidate`, `demo`, `RHDH-Customer` — customer-origin feature (CASE-12345) targeting 2.1
 >
 > "Adjust any of these? [y to confirm / list changes]"
 
@@ -31,10 +48,10 @@ After the grill questions are complete, present all inferred fields at once:
 |-------|------------|
 | **Priority** | Severity of the problem, customer impact, blocker language, urgency words. Default to Major unless clear signals suggest otherwise. |
 | **Team** | Components mentioned, domain area, who the user is, parent issue's team, which team owns the affected code. |
-| **Size** | AC count, dependency count, complexity signals from the grill ("need to investigate", "multiple PRs", "cross-team"). Cross-reference against `references/sizing.md`. |
-| **Component** | Technical domain discussed (RBAC, plugins, catalog, helm, operator, CI/CD, docs). Match against known components in `references/fields.md`. Also check codebase context — if the user has been editing files during the session, infer from file paths (see below). |
+| **Size** | AC count, dependency count, complexity signals from the grill ("need to investigate", "multiple PRs", "cross-team"). Use the sizing guide already loaded by the create command. |
+| **Component** | Technical domain discussed (RBAC, plugins, catalog, helm, operator, CI/CD, docs). Match against known components (catalog already loaded via create command). Also check codebase context — if the user has been editing files during the session, infer from file paths (see below). |
 | **Assignee** | If the user is describing their own work, suggest them. Otherwise, run a lightweight expertise match from the conversation context (component + domain keywords against team roster). For deep analysis, suggest running `assign`. |
-| **Labels** | Customer-facing → `demo`. Release target mentioned → `rhdh-X.Y-candidate`. Stretch goal language → `stretch`. Support origin → `rhdh-customer`. |
+| **Labels** | Customer-facing → `demo`. Release target mentioned → `rhdh-X.Y-candidate`. Stretch goal language → `stretch`. Support/customer origin → single `RHDH-Customer` (never also apply `rhdh-customer`). |
 
 ### Codebase-aware component inference
 
@@ -77,7 +94,7 @@ After the user proposes a size (T-shirt or story points):
 - Count the acceptance criteria items. If the AC count seems high for the proposed size, push back: "You have {N} acceptance criteria items — is {size} realistic?"
 - Check for cross-team dependencies. Dependencies add coordination overhead that inflates effort.
 - Check for unknowns. If the user said "we need to investigate" or "not sure about," that's a spike signal — suggest time-boxing or splitting the unknown into a separate spike.
-- Cross-reference against the sizing guide. Load `references/sizing.md` for T-shirt size definitions (Features/Epics) and Fibonacci story point scale (Stories/Tasks).
+- Cross-reference against the sizing guide already loaded by the create command (T-shirt for Features/Epics; Fibonacci for Stories/Tasks).
 
 ### Challenge completeness
 
@@ -160,11 +177,17 @@ Keep this lightweight. One search during the grill is enough — don't run a sea
 
 ### Validate before creating
 
-Before proceeding to creation, verify the issue would pass the entry-status exit criteria from `references/workflows.md`:
+Before proceeding to creation, verify the issue would pass New-status entry criteria:
 
 - Are all required fields for New status determined? (Assignee, Priority, Team, Component — varies by type)
 - Is the description substantive enough? A one-sentence description on a Feature is a red flag.
 - Is the summary clear and specific? Summaries like "Update plugins" or "Fix bug" are too vague.
+
+Also enforce customer identity and label rules (create commands load `fields.md` for full detail):
+
+- **Preferred pattern:** Put support-ticket / case keys (and persona/use-case language) in summary/description when needed; apply a single `RHDH-Customer` Jira label for customer-origin work; put customer-identifying detail only in restricted-visibility comments when the project supports it.
+- **Guardrail:** Never put customer names or other identifying detail in unprotected fields (summary, description, public fields).
+- **Labels:** Apply exactly one `RHDH-Customer` — never both `RHDH-Customer` and `rhdh-customer` (Jira label search is case-insensitive).
 
 If validation fails, ask the user to fill the gap rather than creating a half-baked issue.
 
@@ -201,6 +224,6 @@ After the issue is created, proactively suggest comments for context that emerge
 - **Decision trail**: "We discussed [alternative] but chose [approach] because [reason]."
 - **Elaboration**: "Additional context about [topic] that supports the decision."
 - **Abandoned paths**: "Initially considered [approach], abandoned because [reason]."
-- **Customer context**: "This was raised by [customer type/use case] — relevant for prioritization."
+- **Customer context**: Prefer support key + use case ("Raised via CASE-123 — SSO timeout during session refresh"). Put customer-identifying detail only in a restricted-visibility comment when needed; never paste customer names into unprotected fields.
 
 Present each suggestion with a recommended comment text. The user approves, edits, or skips each one.

@@ -23,7 +23,7 @@ h3. *Out of Scope (Optional)*
 
 h3. *Customer Considerations (Optional)*
 
-Large enterprise customers (500+ developers) have expressed this as a top-3 need. Current workaround is running separate RHDH instances per catalog source, which increases operational overhead and fragments the developer experience.
+Raised via CASE-12345 — platform-engineer persona managing 500+ developers across multiple SCM backends. Top-3 need: unify catalog sources in one RHDH instance. Current workaround is separate RHDH instances per catalog source (operational overhead + fragmented search). Apply label: RHDH-Customer.
 
 h3. *Documentation Considerations*
 
