@@ -1,8 +1,7 @@
 # Optional: call this linker from `raise-pr`
 
-`raise-pr` Step 11 currently hand-rolls a Jira comment, Review transition, and
-remotelink. Prefer this skill’s linker for the Web link + comment, then keep
-`raise-pr`’s Review transition.
+`raise-pr` Step 11 should call this skill's linker for the Web link + comment,
+then keep `raise-pr`'s Review transition.
 
 ```bash
 # After PR_URL and PR_TITLE are known (raise-pr Step 10):
