@@ -1,0 +1,3 @@
+interface:
+  display_name: "RHDH CI"
+  short_description: "Inspect and change Prow and Konflux configuration"

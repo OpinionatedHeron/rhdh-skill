@@ -1,262 +1,149 @@
-# RHDH Skill
+# RHDH Skills
 
-Agent skills for the Red Hat Developer Hub team. Covers plugin development, overlay management, local testing, Jira workflows, and day-to-day RHDH engineering — so your agent knows the ecosystem instead of hallucinating through it.
+Composable Agent Skills for Red Hat Developer Hub engineering, operations, and
+repository maintenance. The pack captures RHDH-specific repository knowledge,
+version policy, delivery workflows, CI, release operations, and local testing
+behind a small set of task-oriented interfaces.
 
-> **Quick start:** `npx skills add -g redhat-developer/rhdh-skill` — works with [50+ coding agents](https://github.com/vercel-labs/skills#supported-agents).
+## Install the complete pack
 
-## Why This Exists
-
-RHDH spans a dozen repositories, four Jira projects, version-specific Backstage compatibility, overlay CI pipelines, and a copy-sync customization system for local testing. Without guidance, agents hallucinate version numbers, use the legacy backend system, construct OCI URLs by hand, and miss project-specific conventions that are impossible to learn from training data alone.
-
-These skills encode the gotchas, workflows, and tribal knowledge so you don't re-explain them every session.
-
-## How It Works
-
-The [`rhdh`](./skills/rhdh/SKILL.md) skill is the primary entry point. It detects your environment (tools, repos, auth), runs doctor checks, and routes to the right sub-skill based on what you're doing — overlay management, plugin creation, local testing, Jira, CI, and so on. You don't need to remember which skill to invoke; just describe your task and `rhdh` figures it out.
-
-Under the hood, `rhdh` maintains a config file (`~/.config/rhdh-skill/config.json`) that maps short keys to your local git checkouts. Once configured, any skill can locate the right repo without you specifying paths each time:
-
-| Key | Repository | Key | Repository |
-|-----|-----------|-----|-----------|
-| `rhdh` | rhdh | `overlay` | rhdh-plugin-export-overlays |
-| `downstream` | rhdh (midstream) | `export-utils` | rhdh-plugin-export-utils |
-| `cli` | rhdh-cli | `catalog` | rhdh-plugin-catalog |
-| `plugins` | rhdh-plugins | `operator` | rhdh-operator |
-| `chart` | rhdh-chart | `local` | rhdh-local |
-| `factory` | rhdh-dynamic-plugin-factory | `backstage` | backstage |
-
-Run `rhdh doctor` at any time to check your environment — missing tools, unconfigured repos, and auth issues are flagged with fix instructions.
-
-## What's Inside
-
-### Plugin Development
-
-Build dynamic plugins from scratch — backend or frontend — and get them deployed.
-
-- **[create-plugin](./skills/create-plugin/SKILL.md)** — Full plugin lifecycle: scaffold, implement, export, package, and wire RHDH dynamic plugins. Sub-commands for `backend`, `frontend`, `export`, and `wiring`.
-  - **[backend](./skills/create-plugin/references/backend.md)** — Backend plugins (APIs, scaffolder actions, catalog processors) using the new backend system.
-  - **[frontend](./skills/create-plugin/references/frontend.md)** — Frontend plugins (pages, entity cards, themes) with Scalprum federation.
-  - **[export](./skills/create-plugin/references/export.md)** — Export, package (OCI/tgz/npm), and push to a container registry.
-  - **[wiring](./skills/create-plugin/references/wiring.md)** — Analyze plugin source and generate `dynamic-plugins.yaml` wiring config.
-
-### NFS Migration
-
-Migrate your plugins from the legacy Backstage frontend system to the New Frontend System (NFS).
-
-- **[nfs-migration](./skills/nfs-migration/SKILL.md)** -- Analyzes your existing plugin, applies the right Blueprint patterns, updates exports, and verifies the result. Two approaches: alpha (default, NFS at `./alpha`) or colocated (NFS + legacy both from root). Reference files cover every extension type, mount point mapping, operator config, gotchas, and verification.
-
-### Backstage Upgrade
-
-Upgrade `@backstage/*` dependencies in your plugin to align with a target RHDH or Backstage release.
-
-- **[backstage-upgrade](./skills/backstage-upgrade/SKILL.md)** -- Discovers current versions, determines the target using the RHDH→Backstage version matrix, runs `backstage-cli versions:bump`, migrates moved packages, guides through breaking changes from upstream changelogs, and verifies the result. Composable — the NFS migration skill chains into it automatically when deps are outdated.
-
-### Extensions Catalog
-
-Manage plugins in the [rhdh-plugin-export-overlays](https://github.com/redhat-developer/rhdh-plugin-export-overlays) repository.
-
-- **[overlay](./skills/overlay/SKILL.md)** — Onboard new plugins, update versions, fix CI failures, triage and analyze PRs, trigger `/publish`. Covers both plugin-owner and core-team workflows.
-
-### Plugin midstream propagate
-
-Move a published `rhdh-plugins` workspace bump through overlays into catalog midstream (surgical MR preferred over full `sync-midstream.sh --force-clone`).
-
-- **[rhdh-plugin-midstream-propagate](./skills/rhdh-plugin-midstream-propagate/SKILL.md)** — (1) rhdh-plugins change + changeset → wait for Version Packages + npm, (2) overlays `source.json` → Version Packages SHA + metadata, (3) catalog `overlay-repo/` + `workspaces/` + `.tekton` PLR tags (`2.0.0--0.0.3`). See [catalog-surgical-update](./skills/rhdh-plugin-midstream-propagate/references/catalog-surgical-update.md).
+The complete setup is the 16 promoted RHDH skills plus two required external
+skills:
 
 ```bash
-npx skills add redhat-developer/rhdh-skill --skill rhdh-plugin-midstream-propagate
-```
-
-### Konflux / Tekton
-
-Update Konflux task digests and apply `MIGRATION.md` pipeline changes in [rhdh-plugin-catalog](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog) or [rhdh](https://gitlab.cee.redhat.com/rhidp/rhdh) midstream.
-
-- **[konflux-tekton-updates](./skills/konflux-tekton-updates/SKILL.md)** — Run `.tekton/updateDigests.sh --minor --no-push`, apply task migrations from [build-pipeline-tasks](https://github.com/konflux-ci/build-pipeline-tasks) (and related repos; see [migration-urls](./skills/konflux-tekton-updates/references/migration-urls.md)), update shared pipelines/templates and PLR generators. Repo-specific file lists: [plugin-catalog](./skills/konflux-tekton-updates/references/plugin-catalog.md), [RHDH midstream](./skills/konflux-tekton-updates/references/rhdh-midstream.md).
-
-```bash
-npx skills add redhat-developer/rhdh-skill --skill konflux-tekton-updates
-```
-
-### Platform Lifecycle
-
-Check version support status for platforms and integrations used by RHDH.
-
-- **[lifecycle](./skills/lifecycle/SKILL.md)** — Check version lifecycle and support status for OCP, AKS, EKS, GKE, RHDH releases, RHBK, Quay, PostgreSQL, and any Red Hat product via the Product Life Cycles API.
-
-### CI / Prow
-
-Manage Prow CI job configurations and trigger nightly E2E tests.
-
-- **[prow](./skills/prow/SKILL.md)** — Manage Prow CI job configurations for RHDH in the openshift/release repository. List, generate, add, and remove OCP test entries and cluster pools. List K8s platform test entries (AKS, EKS, GKE). Analyze coverage gaps. Commission new release branches and decommission end-of-life ones.
-- **[prow-trigger-nightly](./skills/prow-trigger-nightly/SKILL.md)** — Trigger RHDH nightly ProwJobs on demand via the OpenShift CI Gangway REST API. Supports both rhdh and rhdh-plugin-export-overlays repos with Gangway overrides for catalog index image, chart version, and Playwright version.
-
-### Base image
-
-Bump UBI / RHEC base image tags, refresh RPM lockfiles, and align node headers / go.mod in **rhdh**, **rhdh-operator**, and **rhdh-must-gather** (see [rhdh-repos](./skills/rhdh/references/rhdh-repos.md)).
-
-- **[base-images-and-rpms](./skills/base-images-and-rpms/SKILL.md)** — Weekly upstream maintenance: `updateBaseImages.sh`, `rpm-lockfile-prototype`, node headers, and go.mod (main only). Use `--analyze` for read-only Containerfile/Dockerfile scan before updating. Requires `skopeo login registry.redhat.io`.
-
-```bash
-npx skills add redhat-developer/rhdh-skill --skill base-images-and-rpms
-```
-
-### Yarn
-
-Align Yarn Berry across the RHDH plugin/export/midstream/downstream trees via `yarn set version` + install (plus Containerfile / `ENV YARN=`).
-
-- **[rhdh-bump-yarn](./skills/rhdh-bump-yarn/SKILL.md)** — Bump Yarn (e.g. 4.12/4.14 → 4.17.1) in rhdh-plugins, rhdh, overlays, rhdh-cli, plus GitLab CEE midstream ([rhdh](https://gitlab.cee.redhat.com/rhidp/rhdh), [rhdh-plugin-catalog](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog)). Lock refresh can take **>45 minutes** for a full multi-repo run; use `--scan` / `--dry-run` / `--no-refresh-locks` as needed.
-
-```bash
-npx skills add redhat-developer/rhdh-skill --skill rhdh-bump-yarn
-```
-
-### Local Testing
-
-Test plugins in a local RHDH instance before deploying.
-
-- **[rhdh-local](./skills/rhdh-local/SKILL.md)** — Enable/disable plugins, switch between customized and pristine configs, run health checks, backup/restore configurations via the `rhdh-local-setup` customization system.
-
-### Jira
-
-Track work across the four RHDH Jira projects.
-
-- **[rhdh-jira](./skills/rhdh-jira/SKILL.md)** — Search, create, view, edit, transition, link, assign, and refine issues across RHIDP, RHDHPLAN, RHDHBUGS, and RHDHSUPP. Uses `acli` for simple operations, GraphQL for bulk reads, and REST API as fallback. Sub-commands:
-  - **[assign](./skills/rhdh-jira/references/assign.md)** — Recommend assignees using team expertise profiling, sprint capacity analysis, and context proximity scoring. Supports deep mode (5-layer analysis via GraphQL) and quick mode (match from existing context). Assigns after user confirmation.
-  - **[refine](./skills/rhdh-jira/references/refine.md)** — Check issues against RHDH workflow exit criteria, detect duplicates, verify parent/child hierarchy, flag unaddressed comments, identify stale issues, and validate sprint readiness.
-  - **[plan](./skills/rhdh-jira/references/plan.md)** — Sprint planning prep: carryover report, velocity trend, per-member capacity, ready-for-planning queue, and sprint fill suggestions with expertise matching.
-  - **[sprint-report](./skills/rhdh-jira/references/sprint-report.md)** — Sprint review summary: committed vs completed, per-member breakdown, epic progress, demo checklist with naming conventions, and velocity trend.
-  - **[release](./skills/rhdh-jira/references/release.md)** — Release readiness: feature matrix, Program Increment funnel, epic roll-up, cross-team dependency map, blocker bugs, release notes readiness, and risk assessment.
-  - **[to-feature](./skills/rhdh-jira/references/to-feature.md)** — Create a RHDHPLAN Feature from conversation context. Grills on scope, customer value, and acceptance criteria. Optionally chains into Epic decomposition. **Requires** Matt Pocock's [`grilling`](https://github.com/mattpocock/skills) skill (see [Hard prerequisite: grilling](#hard-prerequisite-grilling)).
-  - **[to-epic](./skills/rhdh-jira/references/to-epic.md)** — Create an RHIDP Epic. Grills on delivery scope, dependencies, and acceptance criteria. Optionally chains into Story/Task decomposition. **Requires** [`grilling`](https://github.com/mattpocock/skills).
-  - **[to-issue](./skills/rhdh-jira/references/to-issue.md)** — Create a Story, Task, Bug, or Spike with automatic type inference. Grills on implementation details and story points. **Requires** [`grilling`](https://github.com/mattpocock/skills).
-  - **[update-jira-status](./skills/rhdh-jira/references/update-jira-status.md)** — Update an issue with session progress. Detects the related issue, adds a status comment, proposes transitions, and checks upward cascade to parent Epic/Feature.
-
-### PR Workflow
-
-Automate the full PR lifecycle — build, changeset, commit, push, and create — for plugin monorepos.
-
-- **[raise-pr](./skills/raise-pr/SKILL.md)** — Full PR workflow for `rhdh-plugins` and `community-plugins`: detect workspace from staged changes, run build/validation, generate changesets, commit with sign-off, push, and create the GitHub PR. Auto-detects which repo you're in. Supports `--a` auto-approve mode to skip all approval gates. Accepts an optional Jira key or URL to link the PR — prefers [`jira-pr-mr-link`](./skills/jira-pr-mr-link/SKILL.md) for Web link + comment, then transitions the issue to Review.
-- **[jira-pr-mr-link](./skills/jira-pr-mr-link/SKILL.md)** — Create GitHub PRs / GitLab MRs and link them to Jira (Web link, structured comment, optional missing-field defaults). Auto-moves RHDHPLAN Epic/Story/Task issues to RHIDP before applying defaults. General-purpose companion to `raise-pr`; use alone for non-plugin-monorepo repos or link-only / mark-merged flows.
-
-### Bug Fix
-
-Reproduce, diagnose, fix, and PR RHDH plugin bugs from Jira tickets with automated Playwright-based before/after screen recordings.
-
-- **[bug-fix](./skills/bug-fix/SKILL.md)** — End-to-end bug fix workflow: fetch Jira issue, map component to workspace, write Playwright reproduction test with video recording, diagnose root cause, apply fix, verify, and create PR with before/after recordings embedded. Chains into `raise-pr` for the full PR lifecycle including post-PR Jira updates.
-
-### PR Review
-
-- **[rhdh-pr-review](./skills/rhdh-pr-review/SKILL.md)** — PR code review with inline comments (GitHub, GitLab planned) and live cluster testing for rhdh-operator PRs. Layered architecture: fetch → analyze → post.
-
-### Test Plan
-
-- **[rhdh-test-plan-review](./skills/rhdh-test-plan-review/SKILL.md)** — Reviews an RHDH test plan Jira ticket and suggests platform/integration version updates based on support lifecycle pages and RHDH release milestones
-
-### Test Placement
-
-Decide where a test belongs across the RHDH ecosystem — which repo, which layer, and how to scaffold it.
-
-- **[test-placement](./skills/test-placement/SKILL.md)** — Given a change, bug, or feature, proposes the right repo (`rhdh-plugins` / `rhdh-plugin-export-overlays` / `rhdh`), the right test layer (L1 unit → L4b cluster e2e), the location, and scaffolding steps. Guiding rule: the cheapest environment that catches the bug wins. Encodes the RHIDP-13501 responsibility split and researched dead-ends so devs don't burn time on them.
-
-### Repository Readiness
-
-- **[agent-ready](./skills/agent-ready/SKILL.md)** — Assess RHDH repositories against agentready criteria and address each gap. RHDH-aware: detects the repo from its remote URL, uses `rhdh-repos.md` context to pre-fill `AGENTS.md` and skip inapplicable findings. Supports single-repo and batch modes (assess all RHDH repos in one pass).
-
-### Meta
-
-- **[skill-maker](./skills/skill-maker/SKILL.md)** — Create new skills or consolidate existing ones following the [Agent Skills open standard](https://agentskills.io/specification). Interviews you about scope and edge cases before drafting. The create/interview path **requires** Matt Pocock's [`grilling`](https://github.com/mattpocock/skills) skill (see [Hard prerequisite: grilling](#hard-prerequisite-grilling)).
-
-## Getting Started
-
-1. **Install globally** (recommended — `rhdh` manages paths across multiple repos):
-
-   ```bash
-   npx skills add -g redhat-developer/rhdh-skill
-   ```
-
-2. **Talk to your agent.** Mention what you're working on and `rhdh` takes care of the rest — including first-time setup:
-
-   ```
-   You: "I need to onboard the aws-appsync plugin to the Extensions Catalog"
-
-   Agent: runs rhdh doctor, detects missing config
-   Agent: runs rhdh config init, finds your local repos
-   Agent: routes to the overlay skill, starts the onboard workflow
-   ```
-
-   On the first run, `rhdh` auto-detects your local checkouts and creates `~/.config/rhdh-skill/config.json`. If a repo isn't found automatically, the agent will ask you for its path.
-
-### Hard prerequisite: grilling
-
-Create/interview grills in **skill-maker** and **rhdh-jira** (`to-feature`, `to-epic`, `to-issue`) hard-require Matt Pocock's [`grilling`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grilling) skill. Those paths run a setup check; if `grilling` is missing, the agent prompts you to confirm and installs it.
-
-Minimal install (what the gate installs after confirm):
-
-```bash
+npx skills@latest add redhat-developer/rhdh-skill --all -g -y
 npx skills@latest add mattpocock/skills --skill grilling -g -y
+npx skills@latest add blader/humanizer -g -y
 ```
 
-**Recommended:** install the full [mattpocock/skills](https://github.com/mattpocock/skills) set — it includes other high-value engineering and productivity skills beyond `grilling`:
+To bootstrap through the setup router instead, install only that entry skill,
+restart the agent client so it is discovered, and invoke
+`/setup-rhdh-skills install`:
 
 ```bash
-npx skills@latest add mattpocock/skills --all -g
+npx skills@latest add redhat-developer/rhdh-skill --skill setup-rhdh-skills -g -y
 ```
 
-## Installation
+The setup router then installs the complete pack (or its catalog-listed direct
+sources) and tells you when another client restart is required.
 
-### Global install (recommended)
+- `/grilling` supplies the interview discipline required by skill authoring and
+  Jira creation flows.
+- `/humanizer` is required before PR-review prose is presented or posted.
 
-```bash
-npx skills add -g redhat-developer/rhdh-skill
-```
+After installation, invoke `/setup-rhdh-skills` once to discover repository
+checkouts, verify tools and authentication, and preserve the existing RHDH CLI
+state. Invoke `/ask-rhdh` whenever you want help choosing a flow.
 
-Global install is the right default — `rhdh` manages paths across multiple repos via its config, so it doesn't need to live inside any single project.
+The two entry skills are human-invoked. The other 14 skills are model-invoked
+and can also be invoked explicitly.
 
-### Project-scope install
+## Skill catalog
 
-For single-repo use (e.g., only the `create-plugin` skill inside one plugin repo):
+Folders are editorial categories for readers. Skills compose by name, never by
+walking category-relative paths.
 
-```bash
-npx skills add redhat-developer/rhdh-skill
-```
+### Engineering
 
-Supports Claude Code, Cursor, Codex, Pi, and [50+ more](https://github.com/vercel-labs/skills#supported-agents).
+Human-invoked:
 
-```bash
-# List available skills without installing
-npx skills add redhat-developer/rhdh-skill --list
+- [`ask-rhdh`](skills/engineering/ask-rhdh/SKILL.md) — choose the RHDH skill or
+  flow that fits the request; performs no work itself.
+- [`setup-rhdh-skills`](skills/engineering/setup-rhdh-skills/SKILL.md) — set up
+  repository paths, tools, authentication, and shared state.
 
-# Install a specific skill only
-npx skills add redhat-developer/rhdh-skill --skill create-plugin
+Model-invoked:
 
-# Target a specific agent
-npx skills add redhat-developer/rhdh-skill -a claude-code
-```
+- [`rhdh-context`](skills/engineering/rhdh-context/SKILL.md) — repository map,
+  version compatibility, workspace lookup, and general RHDH ecosystem context.
+- [`rhdh-plugin-development`](skills/engineering/rhdh-plugin-development/SKILL.md)
+  — create and change plugins, upgrade Backstage, migrate to NFS, and place
+  tests.
+- [`rhdh-overlay`](skills/engineering/rhdh-overlay/SKILL.md) — onboard and
+  update Workspaces, fix Overlay builds, triage PRs, and manage publish
+  triggers.
+- [`rhdh-local`](skills/engineering/rhdh-local/SKILL.md) — run RHDH locally and
+  enable, disable, test, troubleshoot, back up, and restore plugins.
+- [`rhdh-pull-request`](skills/engineering/rhdh-pull-request/SKILL.md) — take a
+  plugin bug or prepared change through verification and PR creation.
+- [`rhdh-pr-review`](skills/engineering/rhdh-pr-review/SKILL.md) — analyze and
+  post PR reviews, including live cluster testing for operator changes.
 
-### Update
+### Operations
 
-```bash
-npx skills add -g redhat-developer/rhdh-skill -y
-```
+- [`rhdh-jira`](skills/operations/rhdh-jira/SKILL.md) — create, refine, assign,
+  plan, report, and update work in the RHDH Jira projects.
+- [`rhdh-platform-support`](skills/operations/rhdh-platform-support/SKILL.md) —
+  answer platform and product lifecycle/support questions.
+- [`rhdh-test-plan`](skills/operations/rhdh-test-plan/SKILL.md) — review an RHDH
+  release test plan against lifecycle and milestone evidence.
+- [`rhdh-release`](skills/operations/rhdh-release/SKILL.md) — release dates,
+  status, freeze communication, blocker and CVE reporting, notes, and release
+  data.
+- [`rhdh-ci`](skills/operations/rhdh-ci/SKILL.md) — manage Prow and Konflux
+  configuration and trigger nightly jobs.
+- [`rhdh-base-images`](skills/operations/rhdh-base-images/SKILL.md) — update and
+  analyze base images, RPM lockfiles, and related runtime pins.
 
-### Local Checkout (development)
+### Maintainers
 
-```bash
-npx skills add ./path/to/rhdh-skill
-```
+- [`rhdh-agent-readiness`](skills/maintainers/rhdh-agent-readiness/SKILL.md) —
+  assess and improve one repository or the RHDH repository set for coding
+  agents.
+- [`skill-authoring`](skills/maintainers/skill-authoring/SKILL.md) — create,
+  audit, and consolidate Agent Skills.
+
+Draft and retired material lives outside the promoted discovery root under
+`internal/in-progress/` and `internal/deprecated/`. It is not part of the pack.
+
+## How skills compose
+
+A skill invokes another skill by its stable name, such as `/rhdh-context` or
+`/rhdh-jira`. Category paths are not part of the interface.
+
+When a flow crosses a real seam, the producing skill writes a versioned artifact
+under `.rhdh/artifacts/`. Each artifact carries `contract` (for example,
+`ChangeHandoff/v1`), `id`, `createdAt`, and contract-specific `data`. Consumers
+validate the contract before use. The repository already ignores `.rhdh/`, so
+these session artifacts are local state rather than source files.
+
+Every external mutation is represented by a `MutationPlan`. The plan names the
+operation, target, preview, checks, and recovery information. A user approves
+the plan before the selected adapter executes it; the result is captured as a
+mutation receipt. Read-only discovery and analysis do not require mutation
+approval.
+
+See [the architecture migration and catalog reference](docs/architecture-migration.md)
+and [ADR-0005](docs/adr/0005-composable-skill-distribution.md) for the complete
+contracts.
+
+## CLI and state compatibility
+
+The architecture changes skill names and composition, not the established CLI
+or state formats:
+
+- `rhdh` and `rhdh-local` command behavior remains compatible.
+- Repository configuration remains at `~/.config/rhdh-skill/config.json`.
+- Worklog and todo state remains under `.rhdh/`.
+- New cross-skill artifacts use `.rhdh/artifacts/`.
+
+The skill rename is delivered as one breaking cutover. Old skill directories
+and aliases are removed; existing CLI configuration and local state are reused.
 
 ## Development
 
 ```bash
-uv sync --extra dev                  # Install dev dependencies
-git config core.hooksPath .githooks  # Enable pre-commit hooks (one-time)
-uv run pytest                        # Run tests
+uv sync --extra dev
+git config core.hooksPath .githooks
+uv run pytest
 ```
 
-The `core.hooksPath` setting points git at the checked-in `.githooks/` directory. If `pre-commit` is installed, linting and tests run automatically on every commit. If not, commits proceed with a warning.
+Tests protect scripts, structured artifacts, adapters, and catalog contracts.
+They do not pin incidental prose shape. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-See [AGENTS.md](./AGENTS.md) for contribution guidelines and architectural decisions.
+Versions are published exclusively as git tags. Changes to skill behavior or
+scripts require the appropriate patch, minor, or major tag after merge.
 
 ## License
 
-Apache-2.0 — see [LICENSE](./LICENSE).
+Apache-2.0 — see [LICENSE](LICENSE).

@@ -1,97 +1,145 @@
 # AGENTS.md
 
-Agent skills for Red Hat Developer Hub (RHDH) plugin development, overlay management, and local testing. Orchestrator skill (`rhdh`) routes to specialized sub-skills (`overlay`, `rhdh-local`, `create-*`). Skills follow the [Agent Skills open standard](https://agentskills.io/specification). See `CONTEXT.md` for domain language and `docs/adr/` for architectural decisions.
+Agent Skills for Red Hat Developer Hub engineering, operations, and repository
+maintenance. Skills follow the Agent Skills open standard. Read `CONTEXT.md`
+for domain language and `docs/adr/` for architectural decisions.
 
 ## 1. Think Before Coding
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+Do not assume or hide confusion.
 
-Before implementing:
-
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+- State assumptions explicitly.
+- Surface multiple interpretations and tradeoffs.
+- Prefer the simpler approach when it satisfies the request.
+- Stop and ask when ambiguity would materially change the result.
 
 ## 2. Simplicity First
 
-**Minimum code that solves the problem. Nothing speculative.**
+Write the minimum code that solves the requested problem.
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- If you write 200 lines and it could be 50, rewrite it.
-
-CLIs in this project use stdlib-only Python (see `docs/adr/0002-stdlib-only-python-clis.md`). Don't introduce dependencies.
+- Add no speculative features or single-use abstractions.
+- Keep CLI implementation stdlib-only except for the documented PEP 723 YAML
+  exception in ADR-0002.
+- If a change can be substantially smaller without losing behavior, simplify it.
 
 ## 3. Surgical Changes
 
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
-
-When your changes create orphans:
-
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: every changed line should trace directly to what was asked.
+Touch only what the request requires. Preserve unrelated work and match the
+existing style. Remove only the imports, variables, functions, or files made
+obsolete by your own change.
 
 ## 4. Goal-Driven Execution
 
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-Run `uv run pytest` before reporting any task complete. Do not report completion based on code existing — verify it works.
+Translate the request into observable success criteria and verify them. Run
+`uv run pytest` before reporting repository work complete.
 
 ## 5. No Irreversible Commands Without Confirmation
 
-Never force push, reset HEAD, merge branches, or run destructive commands without asking. If unsure whether a command is destructive, ask.
+Never force-push, reset HEAD, merge branches, or run destructive commands
+without explicit confirmation.
 
 ## 6. Learn From Corrections
 
-If told an implementation was wrong, apply the correction and then record what went wrong so the same mistake is not repeated. Patterns and gotchas specific to this project belong in the relevant `references/` file under each skill.
+When an implementation is corrected, apply the correction and record reusable
+project-specific knowledge in the owning skill reference.
 
----
+## Skill architecture
 
-## Versioning
+The promoted catalog contains exactly 16 skills:
 
-Versions are tracked exclusively via **git tags**. The `skills` CLI (`npx skills add`) resolves versions from tags, not from any file in the repo.
+- `skills/engineering/`: product engineering and the two human entry skills.
+- `skills/operations/`: Jira, lifecycle, test-plan, release, CI, and base-image
+  operations.
+- `skills/maintainers/`: repository and skill maintenance.
 
-After merging a PR that changes skill behavior, scripts, or SKILL.md files, create a tag:
+These folders are editorial. Compose through `/skill-name` prose and versioned
+artifacts, never through sibling category paths.
 
-```bash
-git tag v<VERSION> && git push origin v<VERSION>
-```
+Only `ask-rhdh` and `setup-rhdh-skills` are human-invoked. They carry
+`disable-model-invocation: true` in `SKILL.md` and
+`policy.allow_implicit_invocation: false` in `agents/openai.yaml`. Every other
+promoted skill is model-invoked and omits both flags. Every promoted skill has
+an `agents/openai.yaml` interface entry.
 
-Use **patch** (`x.y.Z`) for behavior changes, **minor** (`x.Y.0`) for new skills/features, **major** (`X.0.0`) for breaking changes. Skip tagging for docs-only or CI-only changes.
+The complete pack also requires external `/grilling` and `/humanizer` skills.
+Creation/interview flows use grilling; PR-review prose uses humanizer.
 
-## Shared modules (lifecycle ↔ prow)
+Keep drafts and retired skills outside the promoted discovery root:
 
-`skills/prow/scripts/rhdh_prow/repo.py` and `skills/prow/scripts/rhdh_prow/yaml.py` are copies of `skills/lifecycle/scripts/rhdh_lifecycle/repo.py` and `skills/lifecycle/scripts/rhdh_lifecycle/yaml.py`. The only difference is the internal import path (`rhdh_prow.repo` vs `rhdh_lifecycle.repo`). When modifying either copy, update both to keep them in sync.
+- `internal/in-progress/`
+- `internal/deprecated/`
 
-`skills/prow/scripts/rhdh_prow/utils.py` is a subset of `skills/lifecycle/scripts/rhdh_lifecycle/utils.py`. When modifying either copy, update both to keep them in sync.
+Do not add them to promoted manifests or catalogs.
 
-## Agent skills
+## Composition contracts
+
+- `/ask-rhdh` is a catalog, not an orchestrator. It recommends a named skill
+  and performs no setup or mutation.
+- `/setup-rhdh-skills` owns setup routing, configuration, authentication, and
+  compatibility with existing CLI/state locations.
+- Credentials stay inside an authenticated adapter backed by a native tool
+  store or host connector. Workflow instructions and non-adapter scripts may
+  detect capability, but only that adapter may retrieve a transient credential
+  and authenticate a request. Public arguments, output, logs, plans, and
+  artifacts remain credential-free. Setup owns login and never creates a
+  parallel credential store.
+- `/rhdh-context` owns shared repository and version context.
+- Cross-skill handoffs use typed artifacts with `contract`, `id`, `createdAt`,
+  and contract-specific `data`. The version is part of `contract`, and
+  cross-session artifacts live under the gitignored `.rhdh/artifacts/` path.
+- External mutations require a user-approved `MutationPlan` before an adapter
+  executes. Every operation declares `order`, `ownerSkill`, `adapter`,
+  `operation`, `target`, `preview`, `preconditions`, `checks`, and `recovery`.
+  The plan's `materialHash` binds all plan data except the hash itself. Record
+  the outcome as a `MutationReceipt` carrying the same hash and plan ID. Its
+  ordered outcomes map one-to-one to the plan operations by `order`,
+  `ownerSkill`, `adapter`, `operation`, and `target`; every operation records
+  `completed`, `failed`, or `skipped`.
+  `SetupReceipt` may summarize capability status, but never replaces the
+  `MutationReceipt` for an applied setup plan.
+- Adapters isolate external variation such as Jira/GitHub issues, GitHub/GitLab
+  forges, Podman/Docker, lifecycle sources, and CI systems.
+
+Keep shared behavior behind the owning skill interface. Do not reach into
+another skill's references or scripts.
+
+## Testing
+
+Test behavior and contracts:
+
+- deterministic scripts and CLIs;
+- artifact schema validation and round trips;
+- adapter contracts;
+- catalog membership, invocation metadata, distribution exclusions, and links;
+- workflow integration at named-skill and artifact seams.
+
+Do not add tests that require incidental prose, headings, menu numbering, or
+exact wording. Prose may change without changing the interface.
+
+## Versioning and cutover
+
+Git tags are the only authoritative versions. The `skills` CLI resolves tags,
+not version files.
+
+After merging changes to behavior, scripts, or `SKILL.md` files, create and push
+an appropriate semantic-version tag. Use patch for behavior fixes, minor for new
+backward-compatible capabilities, and major for breaking changes.
+
+The 24-to-16 architecture migration is one major breaking cutover. Do not add
+compatibility aliases or partial dual catalogs.
+
+## Agent project configuration
 
 ### Issue tracker
 
-GitHub Issues via `gh` CLI. See `docs/agents/issue-tracker.md`.
+GitHub Issues via `gh`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Default labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+Default labels are `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context (`CONTEXT.md` + `docs/adr/` at root). See `docs/agents/domain.md`.
+Single-context: `CONTEXT.md` plus root `docs/adr/`. See
+`docs/agents/domain.md`.

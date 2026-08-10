@@ -1,0 +1,313 @@
+{
+  "schemaVersion": 1,
+  "pack": {
+    "name": "RHDH complete",
+    "source": "redhat-developer/rhdh-skill",
+    "url": null,
+    "requiredExternalSkills": [
+      {
+        "name": "grilling",
+        "source": "mattpocock/skills"
+      },
+      {
+        "name": "humanizer",
+        "source": "blader/humanizer"
+      }
+    ]
+  },
+  "categories": [
+    "engineering",
+    "operations",
+    "maintainers"
+  ],
+  "skills": [
+    {
+      "name": "ask-rhdh",
+      "category": "engineering",
+      "invocation": "human",
+      "requiresSkills": [],
+      "requiresExternalSkills": [],
+      "consumes": [],
+      "produces": [
+        "RhdhIntent/v1"
+      ]
+    },
+    {
+      "name": "setup-rhdh-skills",
+      "category": "engineering",
+      "invocation": "human",
+      "requiresSkills": [],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "MutationPlan/v1"
+      ],
+      "produces": [
+        "SetupStatus/v1",
+        "SetupReceipt/v1",
+        "SetupRequired/v1",
+        "MutationPlan/v1",
+        "MutationReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-context",
+      "category": "engineering",
+      "invocation": "model",
+      "requiresSkills": [],
+      "requiresExternalSkills": [],
+      "consumes": [],
+      "produces": [
+        "RhdhContext/v1",
+        "WorkStateReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-plugin-development",
+      "category": "engineering",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context"
+      ],
+      "optionalSkills": [
+        "rhdh-jira"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "RhdhContext/v1",
+        "IssueContext/v1"
+      ],
+      "produces": [
+        "ChangeHandoff/v1",
+        "VerificationEvidence/v1"
+      ]
+    },
+    {
+      "name": "rhdh-overlay",
+      "category": "engineering",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "ChangeHandoff/v1",
+        "RhdhContext/v1"
+      ],
+      "produces": [
+        "OverlayChange/v1",
+        "VerificationEvidence/v1",
+        "MutationPlan/v1",
+        "MutationReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-local",
+      "category": "engineering",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "ChangeHandoff/v1",
+        "RhdhContext/v1"
+      ],
+      "produces": [
+        "LocalRuntimeStatus/v1",
+        "VerificationEvidence/v1"
+      ]
+    },
+    {
+      "name": "rhdh-pull-request",
+      "category": "engineering",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context"
+      ],
+      "optionalSkills": [
+        "rhdh-jira"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "ChangeHandoff/v1",
+        "IssueContext/v1",
+        "VerificationEvidence/v1"
+      ],
+      "produces": [
+        "MutationPlan/v1",
+        "MutationReceipt/v1",
+        "PullRequestReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-pr-review",
+      "category": "engineering",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context"
+      ],
+      "requiresExternalSkills": [
+        "humanizer"
+      ],
+      "consumes": [
+        "RhdhContext/v1"
+      ],
+      "produces": [
+        "ReviewContext/v1",
+        "ReviewFindings/v1",
+        "VerificationEvidence/v1",
+        "MutationPlan/v1",
+        "MutationReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-jira",
+      "category": "operations",
+      "invocation": "model",
+      "requiresSkills": [],
+      "requiresExternalSkills": [
+        "grilling"
+      ],
+      "consumes": [
+        "MutationPlan/v1"
+      ],
+      "produces": [
+        "IssueContext/v1",
+        "JiraCapabilities/v1",
+        "JiraQueryResult/v1",
+        "SetupRequired/v1",
+        "MutationPlan/v1",
+        "MutationReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-platform-support",
+      "category": "operations",
+      "invocation": "model",
+      "requiresSkills": [],
+      "requiresExternalSkills": [],
+      "consumes": [],
+      "produces": [
+        "LifecycleAssessment/v1"
+      ]
+    },
+    {
+      "name": "rhdh-test-plan",
+      "category": "operations",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-jira",
+        "rhdh-platform-support",
+        "rhdh-release"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "IssueContext/v1",
+        "JiraQueryResult/v1",
+        "LifecycleAssessment/v1",
+        "ReleaseSchedule/v1",
+        "ReleaseSnapshot/v1"
+      ],
+      "produces": [
+        "TestPlanDelta/v1"
+      ]
+    },
+    {
+      "name": "rhdh-release",
+      "category": "operations",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-jira",
+        "rhdh-platform-support"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "IssueContext/v1",
+        "JiraQueryResult/v1",
+        "LifecycleAssessment/v1",
+        "MutationPlan/v1"
+      ],
+      "produces": [
+        "OverlayCveManifest/v1",
+        "ReleaseAnnouncement/v1",
+        "ReleaseNotesDraft/v1",
+        "ReleaseSchedule/v1",
+        "ReleaseSnapshot/v1",
+        "RpaChange/v1",
+        "MutationPlan/v1",
+        "MutationReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-ci",
+      "category": "operations",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context",
+        "rhdh-platform-support"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "LifecycleAssessment/v1",
+        "MutationPlan/v1",
+        "RhdhContext/v1"
+      ],
+      "produces": [
+        "CiCoverageReport/v1",
+        "CiInventory/v1",
+        "KonfluxUpdateReport/v1",
+        "ProwRunReceipt/v1",
+        "MutationPlan/v1",
+        "MutationReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-base-images",
+      "category": "operations",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "RhdhContext/v1",
+        "MutationPlan/v1"
+      ],
+      "produces": [
+        "BaseImageReport/v1",
+        "MutationPlan/v1",
+        "MutationReceipt/v1"
+      ]
+    },
+    {
+      "name": "rhdh-agent-readiness",
+      "category": "maintainers",
+      "invocation": "model",
+      "requiresSkills": [
+        "rhdh-context"
+      ],
+      "requiresExternalSkills": [],
+      "consumes": [
+        "RhdhContext/v1"
+      ],
+      "produces": [
+        "ReadinessReport/v1"
+      ]
+    },
+    {
+      "name": "skill-authoring",
+      "category": "maintainers",
+      "invocation": "model",
+      "requiresSkills": [],
+      "requiresExternalSkills": [
+        "grilling"
+      ],
+      "consumes": [],
+      "produces": [
+        "SkillDesign/v1",
+        "SkillAudit/v1",
+        "SkillPackageReport/v1"
+      ]
+    }
+  ]
+}

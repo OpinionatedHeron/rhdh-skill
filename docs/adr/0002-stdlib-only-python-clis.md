@@ -6,12 +6,22 @@ Both CLIs (`rhdh` and `rhdh-local`) use only Python 3.9+ standard library — ze
 
 - **`argparse`** for argument parsing (stdlib, not click/typer)
 - **`OutputFormatter`** for auto-detecting TTY vs piped output (human-readable vs JSON)
+- **`urllib`** only inside a narrow authenticated adapter; any bearer credential is retrieved from
+  the owning native CLI, used transiently in memory for the request header, and excluded from public
+  arguments, output, logs, plans, and artifacts
 - **`uv`** as the dev tool runner (`uv run pytest`) — not shipped with the CLIs, but used for development and testing
 
 New scripts and CLI commands in this project should follow these same patterns.
 
 ## Exceptions
 
-Prow skill scripts (under `skills/prow/scripts/`) use `ruamel.yaml` for round-trip YAML processing — preserving comments, key ordering, and quoting style that the stdlib `yaml` module cannot handle. These scripts declare the dependency via PEP 723 inline script metadata (`# /// script` blocks), and `uv run --script` auto-installs it in an ephemeral virtual environment. No user-facing install step is required.
+Scripts that must round-trip YAML while preserving comments, key ordering, and
+quoting may use `ruamel.yaml`. The current uses are private adapters owned by
+`rhdh-ci` and `rhdh-platform-support`. Such scripts declare dependencies with
+PEP 723 inline metadata and run through `uv run --script`, which provides an
+ephemeral environment without a user-facing install step.
 
-The stdlib-only rule still applies to the main CLIs and any script not run via `uv run --script`.
+The exception is capability-based, not category-based: it applies only when
+the standard library cannot preserve the required YAML representation. The
+Google Sheets schedule adapter delegates to the native-store `gog` CLI and is
+not an exception. The main CLIs and every ordinary script remain stdlib-only.

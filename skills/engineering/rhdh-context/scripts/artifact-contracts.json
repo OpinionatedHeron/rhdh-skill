@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "contracts": {
+    "BaseImageReport/v1": {
+      "requiredData": ["summary", "changes"]
+    },
+    "ChangeHandoff/v1": {
+      "requiredData": ["summary", "files", "verification"]
+    },
+    "CiCoverageReport/v1": {
+      "requiredData": ["expected", "actual", "gaps"]
+    },
+    "CiInventory/v1": {
+      "requiredData": ["source", "jobs"]
+    },
+    "IssueContext/v1": {
+      "requiredData": ["key", "summary", "source"]
+    },
+    "JiraCapabilities/v1": {
+      "requiredData": ["adapters", "authenticated"]
+    },
+    "JiraQueryResult/v1": {
+      "requiredData": ["query", "issues"]
+    },
+    "KonfluxUpdateReport/v1": {
+      "requiredData": ["target", "changes", "verification"]
+    },
+    "LifecycleAssessment/v1": {
+      "requiredData": ["product", "asOf", "versions"]
+    },
+    "LocalRuntimeStatus/v1": {
+      "requiredData": ["running", "services"]
+    },
+    "MutationPlan/v1": {
+      "requiredData": ["summary", "operations", "materialHash"]
+    },
+    "MutationReceipt/v1": {
+      "requiredData": ["planId", "materialHash", "outcomes"]
+    },
+    "OverlayCveManifest/v1": {
+      "requiredData": ["version", "entries"]
+    },
+    "OverlayChange/v1": {
+      "requiredData": ["workspace", "changes", "verification"]
+    },
+    "PullRequestReceipt/v1": {
+      "requiredData": ["url", "repository", "head"]
+    },
+    "ProwRunReceipt/v1": {
+      "requiredData": ["job", "runId", "status"]
+    },
+    "ReadinessReport/v1": {
+      "requiredData": ["repository", "findings"]
+    },
+    "ReleaseSnapshot/v1": {
+      "requiredData": ["version", "asOf", "status"]
+    },
+    "ReleaseAnnouncement/v1": {
+      "requiredData": ["kind", "message"]
+    },
+    "ReleaseNotesDraft/v1": {
+      "requiredData": ["version", "sections"]
+    },
+    "ReleaseSchedule/v1": {
+      "requiredData": ["versions", "source"]
+    },
+    "ReviewContext/v1": {
+      "requiredData": ["repository", "changeRequest", "files"]
+    },
+    "ReviewFindings/v1": {
+      "requiredData": ["changeRequest", "findings", "verdict"]
+    },
+    "RhdhContext/v1": {
+      "requiredData": ["repositories", "tools", "configuration"]
+    },
+    "RhdhIntent/v1": {
+      "requiredData": ["domain", "outcome", "inputs"]
+    },
+    "RpaChange/v1": {
+      "requiredData": ["version", "changes"]
+    },
+    "SetupReceipt/v1": {
+      "requiredData": ["capabilities", "changes"]
+    },
+    "SetupRequired/v1": {
+      "requiredData": ["missing", "nextCommand"]
+    },
+    "SetupStatus/v1": {
+      "requiredData": ["installedSkills", "capabilities"]
+    },
+    "SkillAudit/v1": {
+      "requiredData": ["skill", "findings"]
+    },
+    "SkillDesign/v1": {
+      "requiredData": ["name", "purpose", "interfaces"]
+    },
+    "SkillPackageReport/v1": {
+      "requiredData": ["skill", "valid"]
+    },
+    "TestPlanDelta/v1": {
+      "requiredData": ["source", "changes", "findings"]
+    },
+    "VerificationEvidence/v1": {
+      "requiredData": ["subject", "checks", "result"]
+    },
+    "WorkStateReceipt/v1": {
+      "requiredData": ["operation", "location", "result"]
+    }
+  }
+}
