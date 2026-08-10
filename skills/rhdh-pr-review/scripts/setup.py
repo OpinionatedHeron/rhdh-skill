@@ -49,26 +49,21 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description=(
             "Detect the humanizer skill (required before presenting review drafts). "
-            "Use --humanizer-only from review-code paths."
+            "Pass --humanizer-only from review-code paths."
         )
     )
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument(
         "--humanizer-only",
         action="store_true",
+        required=True,
         help=(
-            "Only check for the humanizer skill. "
+            "Check for the humanizer skill (required). "
             "Exit non-zero if humanizer is missing. Use this from review-code paths."
         ),
     )
     args = parser.parse_args(argv)
 
-    if args.humanizer_only:
-        results = check_humanizer()
-        _output_humanizer(results, args.json)
-        sys.exit(0 if results["overall"] == "pass" else 1)
-
-    # Default mode: same detection as --humanizer-only (this skill has no other prereqs).
     results = check_humanizer()
     _output_humanizer(results, args.json)
     sys.exit(0 if results["overall"] == "pass" else 1)

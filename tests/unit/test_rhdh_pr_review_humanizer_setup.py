@@ -197,3 +197,9 @@ def test_humanizer_only_human_output_includes_install_hints(setup_mod, monkeypat
     assert setup_mod.MINIMAL_HUMANIZER_INSTALL in out
     assert setup_mod.RECOMMENDED_HUMANIZER_INSTALL in out
     assert "does not install" in out
+
+
+def test_main_requires_humanizer_only_flag(setup_mod):
+    with pytest.raises(SystemExit) as exc:
+        setup_mod.main(["--json"])
+    assert exc.value.code == 2
