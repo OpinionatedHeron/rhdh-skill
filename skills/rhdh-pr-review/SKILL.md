@@ -68,7 +68,7 @@ For cluster testing: deploy the full PR bundle/manifests, not just the operator 
 | Response | Workflow |
 |----------|----------|
 | 1, "review", "review PR", "code review", a PR URL or number | `workflows/fetch-github.md` → `workflows/review-code.md` → `workflows/post-to-github.md` |
-| 2, "analyze", "analysis only", "review locally" | `workflows/fetch-github.md` → `workflows/review-code.md` (stop after findings) |
+| 2, "analyze", "analysis only", "review locally" | `workflows/fetch-github.md` → `workflows/review-code.md` (stop after humanized draft; no post) |
 | 3, "test", "cluster", "deploy", "operator PR", "test on cluster" | `workflows/fetch-github.md` → `workflows/review-operator-pr.md` |
 | 4, "full", "full review", "both" | `workflows/fetch-github.md` → `workflows/review-code.md` → `workflows/post-to-github.md` → `workflows/review-operator-pr.md` |
 
@@ -141,8 +141,8 @@ findings artifact
 ├── event: "COMMENT" | "APPROVE" | "REQUEST_CHANGES"
 └── findings[]
     ├── path, line, start_line
-    ├── type: "suggestion" | "question" | "observation"
-    └── body: "comment text"
+    ├── type: "question" | "observation" | "fix"
+    └── body: "comment text (optional GitHub suggestion fence when allowed)"
 ```
 
 </artifact_contracts>
@@ -173,11 +173,11 @@ findings artifact
 
 - [ ] PR context fetched (metadata, diff, linked issues, existing comments)
 - [ ] User asked which specialist skills (if any) to invoke; "None" accepted
-- [ ] Review perspectives chosen based on PR content
+- [ ] Review perspectives chosen after that ask (reference is a thin router, not auto-pick-only)
 - [ ] Findings verified against actual code at HEAD
-- [ ] False positives dropped with reasoning shown
+- [ ] False positives dropped; Step 3 inventory is triage labels only (not draft prose)
 - [ ] Humanizer gate passed (`setup.py --humanizer-only`); draft humanized before show-user
-- [ ] Review draft presented to user with event type choice (top-level = merge blockers, not inline roll-up)
+- [ ] Humanized review draft presented (top-level = merge blockers, not inline roll-up); event type asked only when posting
 - [ ] Review posted to forge (if posting route selected)
 
 ### Cluster testing

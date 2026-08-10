@@ -9,7 +9,7 @@ Before drafting or presenting any review draft (top-level summary + inlines):
 1. Run `python scripts/setup.py --humanizer-only --json` and check `humanizer_found`.
 2. If missing: hard-stop. State that the `humanizer` skill is required before presenting review prose. Ask for confirmation, then install the minimal command from the setup output (`minimal_install`). Prefer recommending the recommended install when the user wants a fuller setup. Re-run the check. Continue only when `humanizer_found` is true.
 3. The setup script detects only — it does not install. Confirm + install are owned by this skill.
-4. Use `--humanizer-only` so the gate message stays humanizer-specific.
+4. Pass `--humanizer-only` (required by the CLI). This script only checks humanizer.
 
 ## When to invoke
 
