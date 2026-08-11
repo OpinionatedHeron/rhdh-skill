@@ -90,6 +90,16 @@ Bump UBI / RHEC base image tags, refresh RPM lockfiles, and align node headers /
 npx skills add redhat-developer/rhdh-skill --skill base-images-and-rpms
 ```
 
+### Yarn
+
+Align Yarn Berry across the RHDH plugin/export/midstream/downstream trees via `yarn set version` + install (plus Containerfile / `ENV YARN=`).
+
+- **[rhdh-bump-yarn](./skills/rhdh-bump-yarn/SKILL.md)** — Bump Yarn (e.g. 4.12/4.14 → 4.17.1) in rhdh-plugins, rhdh, overlays, rhdh-cli, plus GitLab CEE midstream ([rhdh](https://gitlab.cee.redhat.com/rhidp/rhdh), [rhdh-plugin-catalog](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog)). Lock refresh can take **>45 minutes** for a full multi-repo run; use `--scan` / `--dry-run` / `--no-refresh-locks` as needed.
+
+```bash
+npx skills add redhat-developer/rhdh-skill --skill rhdh-bump-yarn
+```
+
 ### Local Testing
 
 Test plugins in a local RHDH instance before deploying.
