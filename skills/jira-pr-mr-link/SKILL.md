@@ -96,11 +96,17 @@ node "$SKILL/scripts/link-pr-mr.js" mark-merged --issue RHIDP-12345
 ```
 
 Prefixes Web link titles with `[x] merged: `. Does not re-apply defaults/comment.
+Stdout lists each title **and** its PR/MR URL (indented under the title).
 
-`mark-merged` checks merge status via `gh` / `glab`. For GitLab remotelinks it
-passes `--hostname` from the URL (e.g. `gitlab.cee.redhat.com`), so CEE MRs are
-not queried against `gitlab.com`. Prefer `glab` default `host: gitlab.cee.redhat.com`
-in `~/.config/glab-cli/config.yml` for day-to-day CEE work.
+`mark-merged` checks merge status via `gh` / `glab`. Failed checks print a
+`warn:` line (do not treat silent failures as “still open”). For GitLab
+remotelinks it passes `--hostname` from the URL (e.g. `gitlab.cee.redhat.com`),
+so CEE MRs are not queried against `gitlab.com`. Prefer `glab` default
+`host: gitlab.cee.redhat.com` in `~/.config/glab-cli/config.yml` for day-to-day
+CEE work.
+
+When summarizing updated/left-open items to the user, always use markdown links
+(`[title](url)`), never bare `repo #N` text.
 
 ## Title format (for `link --title`)
 
@@ -161,4 +167,8 @@ instead of hand-rolling remotelink/comment (see
    `xdg-open` / `open` / equivalent unless you used raw `gh`/`glab` (or passed
    `--no-open`).
 6. Fallback: raw create → run `link-pr-mr.js`, then open diffs yourself once.
-7. For mark-merged: `link-pr-mr.js mark-merged --issue KEY`.
+7. For mark-merged: `link-pr-mr.js mark-merged --issue KEY`. Report results with
+   markdown links (`[title](url)`), never bare `repo #N`. Prefer script stdout
+   URL lines / remotelink URLs when present.
+8. **Always link PR/MRs in user-facing summaries** (create, link, or
+   mark-merged). Never list title-only `repo #N` text.

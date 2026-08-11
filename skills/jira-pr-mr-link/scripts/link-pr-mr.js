@@ -698,13 +698,20 @@ function parsePrMrUrl(url) {
 
 function isMerged(ref) {
   if (ref.kind === 'github') {
+    const label = `${ref.owner}/${ref.repo}#${ref.id}`;
     const out = spawnSync(
       'gh',
       ['api', `repos/${ref.owner}/${ref.repo}/pulls/${ref.id}`, '--jq', '.merged'],
       { encoding: 'utf8' },
     );
-    return out.status === 0 && String(out.stdout).trim() === 'true';
+    if (out.status !== 0) {
+      const err = (out.stderr || out.stdout || '').trim().slice(0, 240);
+      console.error(`warn: merge-check failed for github ${label}: ${err || `exit ${out.status}`}`);
+      return false;
+    }
+    return String(out.stdout).trim() === 'true';
   }
+  const label = `${ref.project}!${ref.id}`;
   const project = encodeURIComponent(ref.project);
   const glabArgs = ['api'];
   if (ref.host) {
@@ -713,12 +720,15 @@ function isMerged(ref) {
   glabArgs.push(`projects/${project}/merge_requests/${ref.id}`);
   const out = spawnSync('glab', glabArgs, { encoding: 'utf8' });
   if (out.status !== 0) {
+    const err = (out.stderr || out.stdout || '').trim().slice(0, 240);
+    console.error(`warn: merge-check failed for gitlab ${label}: ${err || `exit ${out.status}`}`);
     return false;
   }
   try {
     const mr = JSON.parse(out.stdout);
     return Boolean(mr.merged_at) || mr.state === 'merged';
-  } catch {
+  } catch (err) {
+    console.error(`warn: merge-check parse failed for gitlab ${label}: ${err.message}`);
     return false;
   }
 }
@@ -745,12 +755,12 @@ async function cmdMarkMerged(args, cfg) {
       continue;
     }
     if (!isMerged(ref)) {
-      leftOpen.push(title || url);
+      leftOpen.push({ title: title || url, url });
       continue;
     }
     const newTitle = withMergedPrefix(title);
     if (newTitle === title) {
-      updated.push(`already: ${title}`);
+      updated.push({ label: `already: ${title}`, url });
       continue;
     }
     const host = ref.kind === 'github' ? 'github' : 'gitlab';
@@ -764,17 +774,19 @@ async function cmdMarkMerged(args, cfg) {
         status: { resolved: true },
       },
     });
-    updated.push(newTitle);
+    updated.push({ label: newTitle, url });
   }
 
   console.log(`issue: ${issue}`);
   console.log(`updated: ${updated.length}`);
-  for (const t of updated) {
-    console.log(`  ${t}`);
+  for (const item of updated) {
+    console.log(`  ${item.label}`);
+    console.log(`    ${item.url}`);
   }
   console.log(`leftOpen: ${leftOpen.length}`);
-  for (const t of leftOpen) {
-    console.log(`  ${t}`);
+  for (const item of leftOpen) {
+    console.log(`  ${item.title}`);
+    console.log(`    ${item.url}`);
   }
   if (skipped.length) {
     console.log(`skippedNonPrMr: ${skipped.length}`);
