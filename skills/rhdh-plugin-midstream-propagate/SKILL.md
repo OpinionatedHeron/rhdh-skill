@@ -36,18 +36,9 @@ Confirm a Jira key before opening PRs/MRs; use `jira-pr-mr-web-link` / `create-p
 
 ## Step 1 — rhdh-plugins (+ changeset → npm)
 
-1. Implement the change in `workspaces/<ws>/` (resolutions, sources, lock refresh as needed).
-2. Add a **changeset** under `workspaces/<ws>/.changeset/` so Changesets opens a **Version Packages** PR. A merge without a changeset will not bump/publish packages.
-3. Open/merge the fix PR, then wait for the bot **Version Packages** PR to merge.
-4. Confirm npm publish for every package in that release:
+Follow [Creating changesets](https://github.com/redhat-developer/rhdh-plugins/blob/main/CONTRIBUTING.md#creating-changesets): land the fix with a changeset, merge the bot **Version Packages** PR, and wait until every package in that release is on npmjs.com.
 
-```bash
-npm view @red-hat-developer-hub/backstage-plugin-<name> version
-npm view @red-hat-developer-hub/backstage-plugin-<name>@<ver> gitHead
-# Sibling packages often publish together — list from the Version Packages PR / changeset
-```
-
-Gate: npm versions match the Version Packages bump; `gitHead` equals the Version Packages merge commit SHA.
+**Gate before Step 2:** published npm versions match the Version Packages bump; `npm view <pkg>@<ver> gitHead` equals the Version Packages merge SHA.
 
 Optional: chain [`raise-pr`](../raise-pr/SKILL.md) for build/changeset/PR on rhdh-plugins.
 
@@ -55,24 +46,11 @@ Optional: chain [`raise-pr`](../raise-pr/SKILL.md) for build/changeset/PR on rhd
 
 ## Step 2 — overlays (`source.json` → Version Packages SHA)
 
-After npm is live:
+After npm is live, follow [Metadata synchronization](https://github.com/redhat-developer/rhdh-plugin-export-overlays/blob/main/user-guide/04-metadata-synchronization.md) in `workspaces/<ws>/`: set `source.json` `repo-ref` to the **Version Packages** merge SHA (not the earlier fix commit), align `repo-backstage-version`, and bump `metadata/*.yaml` versions and `dynamicArtifact` OCI tags for every package published in the same release.
 
-1. Resolve SHA (prefer npm `gitHead`; cross-check Version Packages merge commit):
+Merge the overlays PR before catalog work. Catalog midstream must target overlays `main` (or your release branch) after this lands.
 
-```bash
-SHA=$(npm view @red-hat-developer-hub/backstage-plugin-<name>@<ver> gitHead)
-gh pr view <version-packages-pr> --repo redhat-developer/rhdh-plugins \
-  --json mergeCommit --jq .mergeCommit.oid
-```
-
-2. In overlays `workspaces/<ws>/`:
-   - Set `source.json` `repo-ref` to that full SHA.
-   - Keep `repo-backstage-version` aligned with upstream at that commit.
-   - Bump `metadata/*.yaml` `spec.version` and `dynamicArtifact` OCI tags (`bs_<bs>__<pluginVer>`) for every package published in the same Version Packages PR.
-
-3. Open/merge the overlays PR. Catalog midstream must wait until this lands on overlays `main` (or the release branch you target).
-
-See [`overlay` update-plugin](../overlay/workflows/update-plugin.md) for the generic source.json pattern; this skill requires the SHA to be the **Version Packages** commit (not the earlier fix commit).
+**Note:** [`overlay` update-plugin](../overlay/workflows/update-plugin.md) covers generic `source.json` bumps; this propagate chain requires the Version Packages SHA specifically.
 
 ---
 
