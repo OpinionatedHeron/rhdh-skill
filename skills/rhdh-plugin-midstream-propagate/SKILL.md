@@ -24,13 +24,13 @@ Prefer a **surgical** catalog MR over `build/ci/sync-midstream.sh --force-clone 
 
 | Step | Repo | Config key |
 |------|------|------------|
-| 1 | [`redhat-developer/rhdh-plugins`](https://github.com/redhat-developer/rhdh-plugins) | `plugins` |
-| 2 | [`redhat-developer/rhdh-plugin-export-overlays`](https://github.com/redhat-developer/rhdh-plugin-export-overlays) | `overlay` |
-| 3 | [`gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog`](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog) | `catalog` |
+| 1 | [`redhat-developer/rhdh-plugins`](https://github.com/redhat-developer/rhdh-plugins) | `repos.plugins` |
+| 2 | [`redhat-developer/rhdh-plugin-export-overlays`](https://github.com/redhat-developer/rhdh-plugin-export-overlays) | `repos.overlay` |
+| 3 | [`gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog`](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog) | `repos.catalog` |
 
-Resolve checkouts via `$RHDH config get <key>` when set. Use `glab` against **`gitlab.cee.redhat.com`** for catalog MRs (not `gitlab.com`).
+Resolve checkouts with `$RHDH --json config get repos.<key> | jq -r '.data.value'` (dot-notation; see [`references/catalog-surgical-update.md`](references/catalog-surgical-update.md)). Use `glab` against **`gitlab.cee.redhat.com`** for catalog MRs (not `gitlab.com`).
 
-Confirm a Jira key before opening PRs/MRs; use `jira-pr-mr-web-link` / `create-pr-mr.js`.
+Confirm a Jira key before opening PRs/MRs. Prefer [`jira-pr-mr-link`](../jira-pr-mr-link/SKILL.md) / `scripts/create-pr-mr.js` when that skill is installed; otherwise `gh`/`glab` plus [`raise-pr`](../raise-pr/SKILL.md) remotelink.
 
 ---
 
@@ -50,41 +50,31 @@ After npm is live, follow [Metadata synchronization](https://github.com/redhat-d
 
 Merge the overlays PR before catalog work. Catalog midstream must target overlays `main` (or your release branch) after this lands.
 
-**Note:** [`overlay` update-plugin](../overlay/workflows/update-plugin.md) covers generic `source.json` bumps; this propagate chain requires the Version Packages SHA specifically.
+**Note:** [`overlay` update-plugin](../overlay/workflows/update-plugin.md) covers generic `source.json` bumps; this propagate chain requires the Version Packages SHA specifically. Prefer this skill over update-plugin when the ask mentions Version Packages, promote-to-catalog, or midstream.
 
 ---
 
 ## Step 3 — catalog surgical midstream MR
 
-**Read** [`references/catalog-surgical-update.md`](references/catalog-surgical-update.md) before editing.
+**Read** [`references/catalog-surgical-update.md`](references/catalog-surgical-update.md) before editing (SSOT for paths, config capture, PLR regen, and scoped sync flags).
 
 Goal: same file set `sync-midstream.sh --force-clone '<ws>'` would refresh for **one** workspace, without cloning every workspace.
 
 ### Preferred (surgical)
 
 1. Sync `overlay-repo/workspaces/<ws>/` from overlays main (`source.json`, `plugins-list.yaml`, `metadata/`, overlays/patches if present).
-2. Apply upstream deltas at `$SHA` into `workspaces/<ws>/` — at minimum `package.json`, `yarn.lock`, and any plugin `package.json` version bumps; expand to plugin sources when the Version Packages change is not lock/metadata-only.
+2. Apply upstream deltas at `$SHA` into `workspaces/<ws>/` — at minimum root `package.json` / `yarn.lock` (the tree that owns the lockfile) and any plugin `package.json` version bumps; expand to plugin sources when the Version Packages change is not lock/metadata-only. Do not apply lock/resolution pins only under `plugins/<name>/`.
 3. Align `plugin_builds/<ws>/*.json` `registryReference` tags (`quay.io/rhdh/...:<rhdh>--<pluginVer>`, e.g. `2.0.0--0.0.3`).
 4. Bump associated `.tekton/` PLRs / Containerfiles:
    - `konflux.additional-tags` → `<xy>--<ver>,<x.y.z>--<ver>` (e.g. `2.0--0.0.3,2.0.0--0.0.3`)
    - `DESCRIPTION` plugin version fragment
    - `UPSTREAM_REPO` overlays tree SHA when known
-   - Or regenerate with `.tekton/generatePipelineRunsForPlugins.sh -v <rhdh> --path '<ws>/plugins/<plugin>'` / `--package` (after `package.json` versions are updated).
-5. Open a catalog MR via `create-pr-mr.js` (CEE GitLab). Cite sibling package versions in the body.
+   - Or regenerate via `.tekton/updatePLRs.sh` (see reference: nested `--path '<ws>/plugins/<plugin>'` vs flat `--package`; gate on `source.json` `repo-flat`). Basic full-stream regen: [`konflux-tekton-updates`](../konflux-tekton-updates/references/plugin-catalog.md).
+5. Open a catalog MR via `create-pr-mr.js` or `glab` (CEE GitLab). Cite sibling package versions in the body.
 
 ### Fallback (scoped sync)
 
-When export / annotations / `update-workspace.js` transforms are required:
-
-```bash
-# From catalog checkout — still scope to one workspace; do not --always-clone
-./build/ci/sync-midstream.sh --debug --no --nopush \
-  --force-clone '<ws>' \
-  --skip-clone 'workspaces/'
-# Review diff, then commit / open MR yourself
-```
-
-`--force-clone` alone still walks every `source.json`; pair with skip/force so only the target workspace is re-cloned. Prefer surgical when the delta is known (pin, lock, versions).
+When export / annotations / `update-workspace.js` transforms are required, use the command in [`references/catalog-surgical-update.md`](references/catalog-surgical-update.md#scoped-sync-midstream-fallback) (do not invent alternate flag sets here). Prefer surgical when the delta is known (pin, lock, versions).
 
 ---
 
@@ -94,7 +84,7 @@ When export / annotations / `update-workspace.js` transforms are required:
 - [ ] npm packages published; `gitHead` == Version Packages SHA
 - [ ] overlays `repo-ref` + metadata versions/OCI tags updated and merged
 - [ ] catalog `overlay-repo/workspaces/<ws>/` matches overlays
-- [ ] catalog `workspaces/<ws>/` reflects `$SHA` (lock/resolutions/versions as needed)
+- [ ] catalog `workspaces/<ws>/` reflects `$SHA` at the yarn.lock-owning root (lock/resolutions/versions as needed)
 - [ ] `plugin_builds/` + `.tekton/` tags match new plugin versions (`x.y.z--<pluginVer>`)
 - [ ] Catalog MR on CEE GitLab; Jira linked
 
@@ -104,4 +94,4 @@ When export / annotations / `update-workspace.js` transforms are required:
 |------|----------|
 | 1 | rhdh-plugins fix + changeset → Version Packages → `@…/app-defaults@0.0.3` (`gitHead` `18f4229…`) |
 | 2 | overlays PR bumping `workspaces/app-defaults/source.json` + metadata |
-| 3 | catalog MR syncing `overlay-repo/…/app-defaults` + workspace lock pin (surgical; no `--force-clone`) |
+| 3 | catalog MR syncing `overlay-repo/…/app-defaults` + workspace **root** lock pin (surgical; no `--force-clone`) |

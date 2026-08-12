@@ -152,13 +152,23 @@ What would you like to do?
 
 **Always check this first.**
 
+### Midstream propagate Routes
+
+Match these **before** Overlay routes. Broad overlay tokens (`"update"`, `"plugin"`, `"overlay"`) must not win when the ask is a Version Packages → catalog promote.
+
+| Response | Skill |
+|----------|-------|
+| "propagate plugin", "Version Packages", "midstream sync", "surgical catalog", "bump overlays source.json", "plugin_builds PLR", "2.0.0--", "promote to catalog" | Route to `rhdh-plugin-midstream-propagate` skill |
+
+**To route:** Read `../rhdh-plugin-midstream-propagate/SKILL.md` and follow its three-step chain.
+
 ### Overlay Repository Routes
 
 | Response | Skill |
 |----------|-------|
 | 1-5, "onboard", "update", "fix", "triage", "PR", "overlay", "plugin", "workspace" | Route to `@overlay` skill |
 
-**To route:** Read `../overlay/SKILL.md` and follow its intake process.
+**To route:** Read `../overlay/SKILL.md` and follow its intake process. If the request is promote / Version Packages SHA / catalog midstream, use Midstream propagate above instead of overlay `update-plugin`.
 
 ### Plugin Creation Routes
 
@@ -215,14 +225,6 @@ What would you like to do?
 | "upgrade backstage", "bump backstage", "update @backstage", "backstage version", "align deps", "versions:bump" | Route to `backstage-upgrade` skill |
 
 **To route:** Read `../backstage-upgrade/SKILL.md` and follow its intake process.
-
-### Midstream propagate Routes
-
-| Response | Skill |
-|----------|-------|
-| "propagate plugin", "Version Packages", "midstream sync", "surgical catalog", "bump overlays source.json", "plugin_builds PLR", "2.0.0--", "promote to catalog" | Route to `rhdh-plugin-midstream-propagate` skill |
-
-**To route:** Read `../rhdh-plugin-midstream-propagate/SKILL.md` and follow its three-step chain.
 
 ### General Routes
 

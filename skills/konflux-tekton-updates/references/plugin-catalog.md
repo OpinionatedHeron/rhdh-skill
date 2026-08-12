@@ -9,7 +9,7 @@
 | `.tekton/plugin-catalog-builder-*-{push,pull}.yaml` | Inline `pipelineSpec` (catalog builder) |
 | `.tekton/*-push.yaml` (many components) | Usually `spec.params` only when migration adds pipeline params |
 | `.tekton/*-pull.yaml` | Same when present |
-| `.tekton/generatePipelineRunsForPlugins.sh` | Heredoc for regenerated PLRs + `*.Containerfile` |
+| `.tekton/updatePLRs.sh` | Heredoc for regenerated PLRs + `*.Containerfile` |
 | `.tekton/updateToStableBranch.py` | Version renames only — not Konflux migrations |
 
 Plugin PLRs with `pipelineRef: oci-plugin-build-pipeline` inherit task wiring from the shared pipeline; add PLR `spec.params` when migrations require explicit pipeline parameters.
@@ -18,7 +18,7 @@ Plugin PLRs with `pipelineRef: oci-plugin-build-pipeline` inherit task wiring fr
 
 ```bash
 cd .tekton
-./generatePipelineRunsForPlugins.sh -v <x.y.z> --nopush
+./updatePLRs.sh -v <x.y.z> --nopush
 ```
 
 ## Generator: new pipeline params
@@ -34,7 +34,7 @@ Do not embed full `pipelineSpec` in the generator.
 
 ## Version naming (x.y.z → x-y)
 
-`generatePipelineRunsForPlugins.sh` derives `RHDH_XY_VERSION` from `-v x.y.z` (e.g. `1.10.0` → `1-10`). Use it everywhere; never hardcode `1-` in generated paths.
+`updatePLRs.sh` derives `RHDH_XY_VERSION` from `-v x.y.z` (e.g. `1.10.0` → `1-10`). Use it everywhere; never hardcode `1-` in generated paths.
 
 | Pattern | Example for 1.10.0 |
 |---------|-------------------|
