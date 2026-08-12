@@ -152,8 +152,8 @@ cp "$SKILL/config.example.json" ~/.config/jira-pr-mr-link/config.json
 # edit assigneeEmail, teamId, teamName, boardId, …
 ```
 
-Also accepted: `$JIRA_PR_MR_CONFIG`, legacy `~/.config/jira-pr-mr-web-link/config.json`,
-or `$SKILL/config.local.json` (keep personal email out of the repo).
+Also accepted: `$JIRA_PR_MR_CONFIG` or `$SKILL/config.local.json`
+(keep personal email out of the repo).
 
 Precedence: **CLI > env > config file > Jira CLI hints** (`login` / `board.id`
 from `~/.config/.jira/.config.yml` may fill assignee/board only).

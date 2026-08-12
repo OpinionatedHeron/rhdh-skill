@@ -39,17 +39,10 @@ const {
 
 const USER_CONFIG_DIR = path.join(os.homedir(), '.config', 'jira-pr-mr-link');
 const USER_CONFIG_PATH = path.join(USER_CONFIG_DIR, 'config.json');
-const LEGACY_USER_CONFIG_PATH = path.join(
-  os.homedir(),
-  '.config',
-  'jira-pr-mr-web-link',
-  'config.json',
-);
 const EXAMPLE_CONFIG_PATH = path.join(__dirname, '..', 'config.example.json');
 const SKILL_CONFIG_PATHS = [
   process.env.JIRA_PR_MR_CONFIG,
   USER_CONFIG_PATH,
-  LEGACY_USER_CONFIG_PATH,
   path.join(__dirname, '..', 'config.local.json'),
 ].filter(Boolean);
 
