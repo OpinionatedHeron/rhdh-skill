@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /*
-  Jira PR/MR Web link helper for skill jira-pr-mr-web-link.
+  Jira PR/MR Web link helper for skill jira-pr-mr-link.
 
   Commands:
-    link         Create/update a Web link, apply missing configured defaults, In Progress
+    link         Create/update a Web link, apply missing configured defaults, In Progress.
+                 Auto-moves RHDHPLAN Epic/Story/Task → RHIDP first.
     mark-merged  Prefix remotelink titles with "[x] merged: " for merged PRs/MRs
 
-  Auth: $JIRA_API_TOKEN + login/server from ~/.config/.jira/.config.yml
+  Auth (either):
+    - $JIRA_API_TOKEN + login/server from ~/.config/.jira/.config.yml
+    - .jira-token (email:token) next to acli — same as rhdh-jira REST/GraphQL
 */
 
 'use strict';
@@ -16,7 +19,22 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const JIRA_CONFIG = path.join(os.homedir(), '.config', '.jira', '.config.yml');
+const {
+  DEFAULT_JIRA_SERVER,
+  RHIDP_PROJECT,
+  buildBulkMovePayload,
+  collectAdjustedFieldLines,
+  detectHost,
+  displayTitleFromLinkTitle,
+  mergeDefaultsLayers,
+  missingDefaultKeys,
+  parsePrMrUrl,
+  pickDefined,
+  resolveJiraAuth,
+  shouldMoveRhdhplanDeliveryIssue,
+  withMergedPrefix,
+} = require('./lib.js');
+
 const USER_CONFIG_DIR = path.join(os.homedir(), '.config', 'jira-pr-mr-link');
 const USER_CONFIG_PATH = path.join(USER_CONFIG_DIR, 'config.json');
 const LEGACY_USER_CONFIG_PATH = path.join(
@@ -33,19 +51,6 @@ const SKILL_CONFIG_PATHS = [
   path.join(__dirname, '..', 'config.local.json'),
 ].filter(Boolean);
 
-/** Keys required when applying missing-field defaults (no silent builtins). */
-const REQUIRED_DEFAULT_KEYS = [
-  'assigneeEmail',
-  'teamId',
-  'teamName',
-  'boardId',
-  'storyPoints',
-  'priorityName',
-  'storyPointsField',
-  'teamField',
-  'sprintField',
-];
-
 const ICONS = {
   gitlab: {
     application: { type: 'com.gitlab', name: 'GitLab' },
@@ -61,7 +66,6 @@ const ICONS = {
 };
 
 const LEAVE_STATUS = new Set(['In Progress', 'Review', 'Closed', 'Done']);
-const MERGED_PREFIX = '[x] merged: ';
 
 function configurationError(missingKeys, configPath) {
   const missing = missingKeys.join(', ');
@@ -95,7 +99,9 @@ function usage(exitCode = 0) {
   link-pr-mr.js mark-merged --issue KEY
 
 Environment:
-  JIRA_API_TOKEN              required
+  JIRA_API_TOKEN              API token (or email:token); optional if .jira-token exists
+  JIRA_EMAIL                  login email when token is bare
+  JIRA_SERVER                 override (default ${DEFAULT_JIRA_SERVER})
   JIRA_PR_MR_CONFIG           optional path to JSON config
   JIRA_PR_MR_ASSIGNEE         assignee email
   JIRA_PR_MR_TEAM_ID          Atlassian team UUID
@@ -114,7 +120,10 @@ Config (required for defaults; first found wins):
     mkdir -p ${USER_CONFIG_DIR}
     cp ${EXAMPLE_CONFIG_PATH} ${USER_CONFIG_PATH}
 
-  Jira login/server from ${JIRA_CONFIG}
+Auth: JIRA_API_TOKEN + ~/.config/.jira/.config.yml, or .jira-token next to acli
+  (see ../rhdh-jira/references/auth.md).
+
+RHDHPLAN Epic/Story/Task issues are moved to RHIDP before defaults.
 
 After link (unless --no-comment), posts/updates a Jira comment:
   PR/MR:
@@ -165,16 +174,6 @@ function readJsonFile(filePath) {
   }
 }
 
-function pickDefined(obj) {
-  const out = {};
-  for (const [k, v] of Object.entries(obj || {})) {
-    if (v !== undefined && v !== null && v !== '') {
-      out[k] = v;
-    }
-  }
-  return out;
-}
-
 function envNumber(name) {
   const raw = process.env[name];
   if (raw === undefined || raw === '') {
@@ -200,7 +199,7 @@ function readOptionalSkillConfig() {
 }
 
 /**
- * Merge defaults: config file < jira CLI board/login hints < env < CLI.
+ * Merge defaults: jira CLI board/login hints < config file < env < CLI.
  * No silent team/assignee builtins — missing keys error when applying defaults.
  */
 function resolveDefaults(fileCfg, args = {}, { requireComplete = true } = {}) {
@@ -242,43 +241,17 @@ function resolveDefaults(fileCfg, args = {}, { requireComplete = true } = {}) {
     priorityName: args.priority,
   });
 
-  const merged = {
-    ...fromFile,
-    ...fromJiraCli,
-    ...fromEnv,
-    ...fromCli,
-  };
+  const merged = mergeDefaultsLayers({ fromJiraCli, fromFile, fromEnv, fromCli });
   merged._configPath = configPath;
 
   if (requireComplete) {
-    const missing = REQUIRED_DEFAULT_KEYS.filter((k) => {
-      const v = merged[k];
-      return v === undefined || v === null || v === '';
-    });
+    const missing = missingDefaultKeys(merged);
     if (missing.length) {
       throw configurationError(missing, configPath);
     }
   }
 
   return merged;
-}
-
-function readJiraConfig() {
-  if (!fs.existsSync(JIRA_CONFIG)) {
-    throw new Error(`Jira config not found: ${JIRA_CONFIG}`);
-  }
-  const text = fs.readFileSync(JIRA_CONFIG, 'utf8');
-  const login = (text.match(/^login:\s*(.+)$/m) || [])[1]?.trim();
-  const server = (text.match(/^server:\s*(.+)$/m) || [])[1]?.trim()?.replace(/\/$/, '');
-  if (!login || !server) {
-    throw new Error(`Could not parse login/server from ${JIRA_CONFIG}`);
-  }
-  const boardMatch = text.match(/board:\s*\n\s*id:\s*(\d+)/);
-  return {
-    login,
-    server,
-    boardId: boardMatch ? Number(boardMatch[1]) : undefined,
-  };
 }
 
 function basicAuth(login, token) {
@@ -315,25 +288,82 @@ async function jiraFetch(cfg, method, apiPath, body) {
   return { status: res.status, json };
 }
 
-function detectHost(url, explicit) {
-  if (explicit === 'gitlab' || explicit === 'github') {
-    return explicit;
-  }
-  if (/github\.com/i.test(url)) {
-    return 'github';
-  }
-  return 'gitlab';
+async function sleep(ms) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function stripMergedPrefix(title) {
-  return title
-    .replace(/^\[x\]\s*merged:\s*/i, '')
-    .replace(/^merged:\s*/i, '')
-    .trim();
+async function waitBulkTask(cfg, taskId, { timeoutMs = 90000, intervalMs = 1000 } = {}) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const { json } = await jiraFetch(cfg, 'GET', `/rest/api/3/bulk/queue/${encodeURIComponent(taskId)}`);
+    const status = String(json?.status || '').toUpperCase();
+    if (status === 'COMPLETE' || status === 'COMPLETED') {
+      return json;
+    }
+    if (status === 'FAILED' || status === 'CANCELLED' || status === 'CANCELED') {
+      throw new Error(`Bulk move ${status}: ${JSON.stringify(json).slice(0, 400)}`);
+    }
+    await sleep(intervalMs);
+  }
+  throw new Error(`Bulk move timed out after ${timeoutMs}ms (taskId=${taskId})`);
 }
 
-function withMergedPrefix(title) {
-  return `${MERGED_PREFIX}${stripMergedPrefix(title)}`;
+async function resolveIssueKeyById(cfg, issueId) {
+  const { json } = await jiraFetch(cfg, 'GET', `/rest/api/3/issue/${issueId}?fields=summary`);
+  return json?.key || null;
+}
+
+/**
+ * If issue is RHDHPLAN Epic/Story/Task, move it to RHIDP (same issue type) via bulk move.
+ * Returns { issue, moved, from?, detail }.
+ */
+async function maybeMoveRhdhplanDeliveryIssue(cfg, issueKey) {
+  const { json } = await jiraFetch(
+    cfg,
+    'GET',
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=project,issuetype`,
+  );
+  const projectKey = json?.fields?.project?.key;
+  const typeName = json?.fields?.issuetype?.name;
+  const typeId = json?.fields?.issuetype?.id;
+  if (!shouldMoveRhdhplanDeliveryIssue(projectKey, typeName)) {
+    return {
+      issue: issueKey,
+      moved: false,
+      detail: `kept ${projectKey || '?'} ${typeName || '?'}`,
+    };
+  }
+  if (!typeId) {
+    throw new Error(`Cannot move ${issueKey}: missing issuetype id`);
+  }
+
+  const payload = buildBulkMovePayload(issueKey, RHIDP_PROJECT, typeId);
+  const { json: submitted } = await jiraFetch(cfg, 'POST', '/rest/api/3/bulk/issues/move', payload);
+  const taskId = submitted?.taskId;
+  if (!taskId) {
+    throw new Error(`Bulk move submitted but no taskId: ${JSON.stringify(submitted).slice(0, 300)}`);
+  }
+  const progress = await waitBulkTask(cfg, taskId);
+  const ids = progress?.processedAccessibleIssues || [];
+  let newKey = null;
+  if (ids.length > 0) {
+    newKey = await resolveIssueKeyById(cfg, ids[0]);
+  }
+  // Fallback: old key often redirects after move
+  if (!newKey) {
+    const { json: after } = await jiraFetch(
+      cfg,
+      'GET',
+      `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=project,issuetype`,
+    );
+    newKey = after?.key || issueKey;
+  }
+  return {
+    issue: newKey,
+    moved: true,
+    from: issueKey,
+    detail: `moved ${issueKey} → ${newKey} (${typeName} ${projectKey}→${RHIDP_PROJECT})`,
+  };
 }
 
 async function getIssueFields(cfg, issue) {
@@ -346,7 +376,9 @@ async function getIssueFields(cfg, issue) {
     d.storyPointsField,
     d.teamField,
     d.sprintField,
-  ].join(',');
+  ]
+    .filter(Boolean)
+    .join(',');
   const { json } = await jiraFetch(cfg, 'GET', `/rest/api/3/issue/${issue}?fields=${fields}`);
   return json.fields;
 }
@@ -501,6 +533,9 @@ async function upsertRemoteLink(cfg, issue, { url, title, host }) {
 
 function printLinkSummary(result) {
   console.log(`issue: ${result.issue}`);
+  if (result.move) {
+    console.log(`move: ${result.move}`);
+  }
   console.log(`webLink: ${result.webLink.action} — ${result.webLink.title}`);
   console.log(`url: ${result.url}`);
   console.log(`status: ${result.status}`);
@@ -555,49 +590,13 @@ function adfPrMrBullet(url, linkTitle) {
   };
 }
 
-/** Human title from linker title `repo #N: <title>` (optional `[x] merged: ` prefix). */
-function displayTitleFromLinkTitle(title) {
-  return (
-    String(title || '')
-      .replace(/^\[x\]\s*merged:\s*/i, '')
-      .replace(/^[^#\n]+#\d+:\s*/, '')
-      .trim() || String(title || '').trim()
-  );
-}
-
-const ADJUSTED_FIELD_LABELS = {
-  storyPoints: 'Story points',
-  team: 'Team',
-  sprint: 'Sprint',
-  assignee: 'Assignee',
-  priority: 'Priority',
-};
-
-/** Only fields newly set by this run (ignore kept/unchanged). */
-function collectAdjustedFieldLines(defaults, statusLine) {
-  const items = [];
-  if (defaults) {
-    for (const [key, value] of Object.entries(defaults)) {
-      if (typeof value === 'string' && value.startsWith('set ')) {
-        const label = ADJUSTED_FIELD_LABELS[key] || key;
-        items.push(`${label}: ${value.slice(4)}`);
-      }
-    }
-  }
-  if (typeof statusLine === 'string' && statusLine.startsWith('transitioned ')) {
-    const to = (statusLine.match(/→\s*(.+)$/) || [])[1]?.trim() || 'In Progress';
-    items.push(`Status: ${to}`);
-  }
-  return items;
-}
-
 function buildLinkCommentAdf({ url, webLink, status, defaults }) {
-  // Visible text matches the Jira remote Web link title: `repo #N: <title>`
-  // ADF: <a href="{url}">{repo} #{id}: {title}</a>
   const linkTitle =
     String(webLink?.title || '')
       .replace(/^\[x\]\s*merged:\s*/i, '')
-      .trim() || displayTitleFromLinkTitle(webLink?.title) || url;
+      .trim() ||
+    displayTitleFromLinkTitle(webLink?.title) ||
+    url;
   const content = [adfParagraph('PR/MR:'), adfPrMrBullet(url, linkTitle)];
   const adjusted = collectAdjustedFieldLines(defaults, status);
   if (adjusted.length > 0) {
@@ -607,17 +606,30 @@ function buildLinkCommentAdf({ url, webLink, status, defaults }) {
   return { type: 'doc', version: 1, content };
 }
 
+/** Paginate comments (oldest-first); keep the newest match that mentions url. */
 async function findCommentMentioningUrl(cfg, issue, url) {
-  const { json } = await jiraFetch(cfg, 'GET', `/rest/api/3/issue/${issue}/comment`);
-  const comments = json?.comments || [];
-  // Prefer the latest comment that mentions this PR/MR URL
-  for (let i = comments.length - 1; i >= 0; i -= 1) {
-    const c = comments[i];
-    if (JSON.stringify(c.body || '').includes(url)) {
-      return c;
+  let startAt = 0;
+  const pageSize = 100;
+  let match = null;
+  for (;;) {
+    const { json } = await jiraFetch(
+      cfg,
+      'GET',
+      `/rest/api/3/issue/${encodeURIComponent(issue)}/comment?startAt=${startAt}&maxResults=${pageSize}`,
+    );
+    const comments = json?.comments || [];
+    const total = typeof json?.total === 'number' ? json.total : startAt + comments.length;
+    for (const c of comments) {
+      if (JSON.stringify(c.body || '').includes(url)) {
+        match = c;
+      }
+    }
+    startAt += comments.length;
+    if (comments.length === 0 || startAt >= total) {
+      break;
     }
   }
-  return null;
+  return match;
 }
 
 async function postLinkComment(cfg, issue, { url, webLink, status, defaults }) {
@@ -636,19 +648,26 @@ async function postLinkComment(cfg, issue, { url, webLink, status, defaults }) {
 }
 
 async function cmdLink(args, cfg) {
-  const issue = args.issue;
+  let issue = args.issue;
   const url = args.url;
   const title = args.title;
   if (!issue || !url || !title) {
     throw new Error('link requires --issue, --url, and --title');
   }
   const host = detectHost(url, args.host);
+  const moveResult = await maybeMoveRhdhplanDeliveryIssue(cfg, issue);
+  issue = moveResult.issue;
+
   const webLink = await upsertRemoteLink(cfg, issue, { url, title, host });
 
   const skipDefaults = args.noDefaults || envBoolFalse('JIRA_PR_MR_APPLY_DEFAULTS');
   let defaults;
   let statusLine;
   if (!skipDefaults) {
+    const missing = missingDefaultKeys(cfg.defaults);
+    if (missing.length) {
+      throw configurationError(missing, cfg.defaults._configPath);
+    }
     const fields = await getIssueFields(cfg, issue);
     defaults = await applyMissingDefaults(cfg, issue, fields);
     const statusResult = await transitionInProgress(cfg, issue, fields.status?.name || '');
@@ -676,24 +695,12 @@ async function cmdLink(args, cfg) {
   printLinkSummary({
     issue,
     url,
+    move: moveResult.detail,
     webLink,
     status: statusLine,
     defaults,
     comment: commentLine,
   });
-}
-
-function parsePrMrUrl(url) {
-  let m = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/i);
-  if (m) {
-    return { kind: 'github', owner: m[1], repo: m[2], id: m[3] };
-  }
-  // Capture host so glab targets gitlab.cee.redhat.com (not default gitlab.com).
-  m = url.match(/https?:\/\/(gitlab[^/]*)\/(.+?)\/-\/merge_requests\/(\d+)/i);
-  if (m) {
-    return { kind: 'gitlab', host: m[1], project: m[2], id: m[3] };
-  }
-  return null;
 }
 
 function isMerged(ref) {
@@ -799,18 +806,19 @@ async function main() {
   if (!cmd) {
     usage(1);
   }
-  if (!process.env.JIRA_API_TOKEN) {
-    throw new Error('JIRA_API_TOKEN is not set');
-  }
-  const fileCfg = readJiraConfig();
-  const skipDefaults =
-    cmd !== 'link' || args.noDefaults || envBoolFalse('JIRA_PR_MR_APPLY_DEFAULTS');
-  const defaults = resolveDefaults(fileCfg, args, { requireComplete: !skipDefaults });
+
+  const auth = resolveJiraAuth();
+  // Never hard-fail on incomplete defaults before Web link/comment; validate only when applying.
+  const defaults = resolveDefaults(
+    { login: auth.login, boardId: auth.boardId },
+    args,
+    { requireComplete: false },
+  );
   const cfg = {
-    login: fileCfg.login,
-    server: fileCfg.server,
-    boardId: defaults.boardId,
-    token: process.env.JIRA_API_TOKEN,
+    login: auth.login,
+    server: auth.server,
+    boardId: defaults.boardId || auth.boardId,
+    token: auth.token,
     defaults,
   };
 
@@ -825,7 +833,25 @@ async function main() {
   throw new Error(`Unknown command: ${cmd}`);
 }
 
-main().catch((err) => {
-  console.error(`[ERROR] ${err.message}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`[ERROR] ${err.message}`);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  applyMissingDefaults,
+  buildLinkCommentAdf,
+  cmdLink,
+  collectAdjustedFieldLines,
+  configurationError,
+  detectHost,
+  displayTitleFromLinkTitle,
+  findCommentMentioningUrl,
+  maybeMoveRhdhplanDeliveryIssue,
+  parseArgs,
+  parsePrMrUrl,
+  resolveDefaults,
+  withMergedPrefix,
+};

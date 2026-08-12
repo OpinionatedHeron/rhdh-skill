@@ -372,22 +372,29 @@ Use `--no-defaults` so this step can still transition to **Review**.
 
 1. **Link + comment** via `link-pr-mr.js` (preferred) or fall back to MCP/REST:
    ```
-   node "$JIRA_PR_MR_LINK_SKILL/scripts/link-pr-mr.js" link \
+   LINK_OUT="$(node "../jira-pr-mr-link/scripts/link-pr-mr.js" link \
      --issue "<jira_key>" \
      --url "<PR_URL>" \
      --title "<repo-short> #<pr_number>: <PR_title>" \
      --host github \
-     --no-defaults
+     --no-defaults)"
+   echo "$LINK_OUT"
+   EFFECTIVE_KEY="$(printf '%s\n' "$LINK_OUT" | awk -F': ' '/^issue:/{print $2; exit}')"
+   EFFECTIVE_KEY="${EFFECTIVE_KEY:-<jira_key>}"
    ```
-   Fallback if the skill is not installed:
+   Resolve the path from the installed `skills/` tree (same relative layout as this
+   file). Do not invent `$JIRA_PR_MR_LINK_SKILL`. If the issue was a RHDHPLAN
+   Epic/Story/Task, the linker may auto-move it to RHIDP — use `EFFECTIVE_KEY`
+   (from stdout `issue:`) for the Review transition below.
+   Fallback if the skill is missing:
    - Comment via Jira MCP `add_jira_comment`: `PR submitted: <PR_URL>`
    - Web link via POST `/rest/api/3/issue/<jira_key>/remotelink` (see `references/jira-input.md`)
 
 2. **Transition** the issue status to "Review" (if ACLI is available):
    ```
-   acli jira workitem transition --key "<jira_key>" --status "Review" --yes
+   acli jira workitem transition --key "<EFFECTIVE_KEY>" --status "Review" --yes
    ```
-   Query available transitions first: `acli jira workitem getTransitions --key "<jira_key>"`. If "Review" is not available, skip the transition and log a warning.
+   Query available transitions first: `acli jira workitem getTransitions --key "<EFFECTIVE_KEY>"`. If "Review" is not available, skip the transition and log a warning.
 
 **If any Jira call fails:** Log a warning and continue — the PR has been created successfully:
 ```

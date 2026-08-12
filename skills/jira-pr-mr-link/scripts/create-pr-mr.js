@@ -16,18 +16,18 @@
   Usage:
     create-pr-mr.js --issue KEY --title TITLE [--body BODY] [--target BRANCH]
       [--draft] [--no-push] [--no-link] [--no-open] [--no-defaults] [--no-comment]
+      [--no-jira-ref]
       [--assignee EMAIL] [--team-id ID] [--board-id N] … (forwarded to link-pr-mr.js)
 
-  Auth: git remotes + gh/glab; JIRA_API_TOKEN for linking (unless --no-link).
+  Auth: git remotes + gh/glab; Jira via JIRA_API_TOKEN or .jira-token (unless --no-link).
   Defaults: config required (see config.example.json); CLI > env > config > jira CLI hints.
 */
 
 'use strict';
 
-const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { shouldAppendJiraRef, resolveJiraAuth } = require('./lib.js');
 
 const LINK_SCRIPT = path.join(__dirname, 'link-pr-mr.js');
 const JIRA_BROWSE = 'https://redhat.atlassian.net/browse';
@@ -36,11 +36,13 @@ function usage(exitCode = 0) {
   console.log(`Usage:
   create-pr-mr.js --issue KEY --title TITLE [--body BODY] [--target BRANCH]
     [--draft] [--no-push] [--no-link] [--no-open] [--no-defaults] [--no-comment]
+    [--no-jira-ref]
     [--assignee EMAIL] [--team-id ID] [--team-name NAME] [--board-id N]
     [--story-points N] [--priority NAME] [--host github|gitlab]
 
 Creates a PR (GitHub) or MR (GitLab) from the current branch, links Jira, opens diffs.
 Jira defaults need ~/.config/jira-pr-mr-link/config.json (or env/CLI); see config.example.json.
+Skips appending Ref: browse URL for community-plugins remotes (or with --no-jira-ref).
 
 Examples:
   create-pr-mr.js --issue RHIDP-12345 --title 'fix: widget' --target main \\
@@ -84,6 +86,10 @@ function parseArgs(argv) {
     }
     if (a === '--no-comment') {
       args.noComment = true;
+      continue;
+    }
+    if (a === '--no-jira-ref') {
+      args.noJiraRef = true;
       continue;
     }
     if (a.startsWith('--')) {
@@ -141,10 +147,18 @@ function repoShortName() {
   return parts[parts.length - 1] || 'repo';
 }
 
-function ensureBody(body, issue) {
+function originRemoteUrl() {
+  try {
+    return git(['remote', 'get-url', 'origin']);
+  } catch {
+    return '';
+  }
+}
+
+function ensureBody(body, issue, { appendJiraRef }) {
   let text = (body || '').trim();
   const refLine = `Ref: ${JIRA_BROWSE}/${issue}`;
-  if (!text.includes(issue) && !text.includes(refLine)) {
+  if (appendJiraRef && !text.includes(issue) && !text.includes(refLine)) {
     text = text ? `${text}\n\n${refLine}` : refLine;
   }
   if (!/Generated-by:\s*cursor/i.test(text) && !/Assisted-by:\s*cursor/i.test(text)) {
@@ -195,7 +209,6 @@ function createGitlab({ title, body, target, draft }) {
   const args = ['mr', 'create', '--yes', '--title', title, '--description', body];
   if (target) args.push('--target-branch', target);
   if (draft) args.push('--draft');
-  // Prevent nested hook from double-linking if Cursor ever sees this command
   const r = run('glab', args, { env: { CURSOR_JIRA_CREATE_PR_MR: '1' } });
   if (r.status !== 0) {
     throw new Error(`glab mr create failed: ${r.combined}`);
@@ -207,11 +220,18 @@ function createGitlab({ title, body, target, draft }) {
   return { url, output: r.combined };
 }
 
-function linkJira({ issue, url, title, host, linkArgs = {} }) {
-  if (!process.env.JIRA_API_TOKEN) {
-    console.warn('[WARN] JIRA_API_TOKEN not set; skipping Jira link');
-    return 'skipped — no JIRA_API_TOKEN';
+function assertJiraAuthAvailable() {
+  try {
+    resolveJiraAuth();
+  } catch (err) {
+    throw new Error(
+      `${err.message}\n\nPass --no-link to create the PR/MR without Jira linking.`,
+    );
   }
+}
+
+function linkJira({ issue, url, title, host, linkArgs = {} }) {
+  assertJiraAuthAvailable();
   const idMatch = url.match(/\/(?:pull|merge_requests)\/(\d+)/i);
   const id = idMatch ? idMatch[1] : '?';
   const linkTitle = `${repoShortName()} #${id}: ${title}`;
@@ -268,7 +288,12 @@ function main() {
 
   const host = detectHost(args.host);
   const target = args.target || args.base || '';
-  const body = ensureBody(args.body || args.description || '', issue);
+  const remoteUrl = originRemoteUrl();
+  const appendJiraRef = shouldAppendJiraRef({
+    noJiraRef: Boolean(args.noJiraRef),
+    remoteUrl,
+  });
+  const body = ensureBody(args.body || args.description || '', issue, { appendJiraRef });
 
   if (!args.noPush) {
     console.log(`[INFO] git push -u origin HEAD`);
@@ -289,15 +314,16 @@ function main() {
 
   console.log(`[INFO] created: ${created.url}`);
 
-  let linkSummary = 'skipped (--no-link)';
+  let jiraLink = 'skipped';
   if (!args.noLink) {
-    linkSummary = linkJira({
+    linkJira({
       issue,
       url: created.url,
       title,
       host,
       linkArgs: args,
     });
+    jiraLink = 'done';
   }
 
   const diffs = diffsUrl(created.url, host);
@@ -313,14 +339,14 @@ function main() {
     console.log(`[INFO] diffs: ${diffs}`);
   }
 
-  // Machine-friendly trailer for agents / hooks
   console.log('---');
   console.log(`url: ${created.url}`);
   console.log(`diffs: ${diffs}`);
   console.log(`browserOpened: ${args.noOpen ? 'false' : 'true'}`);
   console.log(`issue: ${issue}`);
   console.log(`host: ${host}`);
-  console.log(`jiraLink: done`);
+  console.log(`jiraLink: ${jiraLink}`);
+  console.log(`jiraRef: ${appendJiraRef ? 'appended' : 'skipped'}`);
 }
 
 try {

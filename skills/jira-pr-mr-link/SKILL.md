@@ -4,9 +4,10 @@ description: >-
   Create GitHub PRs / GitLab MRs and link them to Jira (Web link, comment,
   optional missing-field defaults, open diffs) via create-pr-mr.js, or link an
   existing PR/MR with link-pr-mr.js / mark-merged. Title format `repo #N: <title>`.
-  Use when opening a PR/MR that cites a Jira key, linking existing PRs/MRs to
-  Jira, marking merged Web links, or replacing hand-rolled remotelink/comment
-  steps. Complements raise-pr (plugin monorepos) without folding into it.
+  Use when linking existing PRs/MRs to Jira, marking merged Web links, replacing
+  hand-rolled remotelink/comment steps, or creating+linking outside the
+  rhdh-plugins / community-plugins raise-pr workflow. For the full monorepo PR
+  flow (build, changeset, recordings), use raise-pr instead.
 ---
 
 # Jira PR / MR create + Web links
@@ -17,12 +18,18 @@ empty issue fields. Prefer these scripts over hand-rolled `gh`/`glab` + REST/MCP
 for the Jira side.
 
 Scripts live under this skill’s `scripts/` directory. Resolve that path from the
-installed skill root (agents already have it when reading this file).
+installed skill root (agents already have it when reading this file):
 
 ```bash
-SKILL="$(dirname "$0")"   # or absolute path to skills/jira-pr-mr-link
+SKILL="$(cd "$(dirname "$0")" && pwd)"   # or absolute path to skills/jira-pr-mr-link
 node "$SKILL/scripts/create-pr-mr.js" …
 node "$SKILL/scripts/link-pr-mr.js" …
+```
+
+From `raise-pr`, use the relative skill path (do **not** invent `$JIRA_PR_MR_LINK_SKILL`):
+
+```bash
+node "../jira-pr-mr-link/scripts/link-pr-mr.js" link …
 ```
 
 ## Preferred: one-shot create (`create-pr-mr.js`)
@@ -49,15 +56,25 @@ EOF
 1. `git push -u origin HEAD` (unless `--no-push`)
 2. Detects GitHub vs GitLab from `origin`
 3. Runs `gh pr create` or `glab mr create`
-4. Runs `link-pr-mr.js link` (unless `--no-link`)
-5. Opens the diffs page (unless `--no-open`). Agents must **not** open it again
-   after this script succeeds — that produces a duplicate browser tab.
+4. Runs `link-pr-mr.js link` (unless `--no-link`) — **fails closed** if Jira auth
+   is missing (pass `--no-link` to skip)
+5. Opens the diffs page (unless `--no-open`)
 
-Flags: `--draft`, `--no-push`, `--no-link`, `--no-open`, `--host github|gitlab`.
+Flags: `--draft`, `--no-push`, `--no-link`, `--no-open`, `--no-defaults`,
+`--no-comment`, `--no-jira-ref`, `--host github|gitlab`.
 
-Requires `JIRA_API_TOKEN` + `~/.config/.jira/.config.yml` for linking.
-Appends `Ref: https://redhat.atlassian.net/browse/KEY` and `Generated-by: cursor`
-to the body when missing.
+### Auth
+
+Either works (same token either way):
+
+1. `JIRA_API_TOKEN` + `login`/`server` in `~/.config/.jira/.config.yml`, or
+2. `.jira-token` (`email:token`) next to `acli` — same as
+   [`rhdh-jira` auth](../rhdh-jira/references/auth.md)
+
+`create-pr-mr.js` appends `Ref: https://redhat.atlassian.net/browse/KEY` and
+`Generated-by: cursor` to the **PR/MR body** when missing. It skips the Jira
+`Ref:` line for `community-plugins` remotes (or when `--no-jira-ref` is set) so
+that repo stays free of Jira browse URLs in git history / PR text.
 
 ## Link-only: `link-pr-mr.js`
 
@@ -72,9 +89,19 @@ node "$SKILL/scripts/link-pr-mr.js" link \
 ```
 
 - `--host` optional; inferred from URL when omitted.
-- `--no-defaults` skips In Progress + metadata fills.
+- `--no-defaults` skips In Progress + metadata fills (Web link + comment still run).
 - `--no-comment` skips the Jira comment.
-- If a comment already mentions the PR/MR URL, it is **updated** in place.
+- If a comment already mentions the PR/MR URL, it is **updated** in place
+  (comments are paginated so busy tickets still match).
+
+### RHDHPLAN → RHIDP auto-move
+
+If the linked issue is an **Epic**, **Story**, or **Task** in **RHDHPLAN**,
+`link` moves it to **RHIDP** (same issue type) via the Jira bulk-move API, then
+continues Web link / defaults / comment on the **new** key. Features and other
+RHDHPLAN types are left alone.
+
+Stdout includes `move: …` and the post-move `issue:` key.
 
 Comment shape (only **newly set** fields — never lists `kept` values):
 
@@ -119,7 +146,8 @@ Merged: `[x] merged: <repo-short-name> #<id>: <full PR/MR title>`
 ## Defaults `link` applies (only if empty)
 
 **No built-in team/assignee values.** First run with defaults enabled requires a
-config file (or env/CLI). Missing keys error with copy/paste setup instructions.
+config file (or env/CLI). Missing keys error **when applying defaults** (Web link
++ comment still succeed with `--no-defaults`).
 
 ```bash
 mkdir -p ~/.config/jira-pr-mr-link
@@ -159,13 +187,14 @@ instead of hand-rolling remotelink/comment (see
 ## Agent checklist
 
 1. Resolve Jira key. Ask if missing (unless user skipped Jira).
-2. Commit on a feature branch (Jira browse URL + `Generated-by: cursor` in the body).
-3. Run **`create-pr-mr.js`** once. Report `url:` / `diffs:` and the linker summary.
-4. Do **not** also hand-roll `gh`/`glab` create + MCP comments for the same PR/MR.
-5. **Do not open the diffs twice.** `create-pr-mr.js` already opens the browser
-   (look for `[INFO] opened diffs:` or `diffs:` in stdout). Do **not** also run
-   `xdg-open` / `open` / equivalent unless you used raw `gh`/`glab` (or passed
-   `--no-open`).
+2. Commit on a feature branch. Put the Jira browse URL and `Generated-by: cursor`
+   in the **PR/MR body** (`create-pr-mr.js` appends them when missing; skips
+   `Ref:` for community-plugins).
+3. Run **`create-pr-mr.js`** once.
+4. Done when: `create-pr-mr.js` ran once, and you reported `url:` / `diffs:` /
+   `browserOpened:` / `jiraLink:` from its stdout.
+5. Treat `browserOpened: true` (or `--no-open`) as the open step already handled;
+   do not start a second create or browser open for the same PR/MR.
 6. Fallback: raw create → run `link-pr-mr.js`, then open diffs yourself once.
 7. For mark-merged: `link-pr-mr.js mark-merged --issue KEY`. Report results with
    markdown links (`[title](url)`), never bare `repo #N`. Prefer script stdout
