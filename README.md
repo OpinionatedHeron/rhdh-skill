@@ -57,6 +57,16 @@ Manage plugins in the [rhdh-plugin-export-overlays](https://github.com/redhat-de
 
 - **[overlay](./skills/overlay/SKILL.md)** — Onboard new plugins, update versions, fix CI failures, triage and analyze PRs, trigger `/publish`. Covers both plugin-owner and core-team workflows.
 
+### Plugin midstream propagate
+
+Move a published `rhdh-plugins` workspace bump through overlays into catalog midstream (surgical MR preferred over full `sync-midstream.sh --force-clone`).
+
+- **[rhdh-plugin-midstream-propagate](./skills/rhdh-plugin-midstream-propagate/SKILL.md)** — (1) rhdh-plugins change + changeset → wait for Version Packages + npm, (2) overlays `source.json` → Version Packages SHA + metadata, (3) catalog `overlay-repo/` + `workspaces/` + `.tekton` PLR tags (`2.0.0--0.0.3`). See [catalog-surgical-update](./skills/rhdh-plugin-midstream-propagate/references/catalog-surgical-update.md).
+
+```bash
+npx skills add redhat-developer/rhdh-skill --skill rhdh-plugin-midstream-propagate
+```
+
 ### Konflux / Tekton
 
 Update Konflux task digests and apply `MIGRATION.md` pipeline changes in [rhdh-plugin-catalog](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog) or [rhdh](https://gitlab.cee.redhat.com/rhidp/rhdh) midstream.

@@ -25,8 +25,8 @@ After a **minor** Konflux task tag bump, update `.tekton` pipelines and generato
 | `updateDigests.sh` | `--no-push` / `--nopush` (`-p`) | Commit locally; no push/PR |
 | `updateDigests.sh` | `--minor` | Disables push; use with `--no-push` for clarity |
 | `updateDigests.sh` | `--no-commit` / `-n` | Preview only |
-| `generatePipelineRunsForPlugins.sh` | `--nopush` | Commit locally; no push |
-| `generatePipelineRunsForPlugins.sh` | `--nocommit` | Write YAML only |
+| `updatePLRs.sh` | `--nopush` | Commit locally; no push |
+| `updatePLRs.sh` | `--nocommit` | Write YAML only |
 
 `generatePipelineRuns.sh` does not commit or push.
 
@@ -36,7 +36,7 @@ After a **minor** Konflux task tag bump, update `.tekton` pipelines and generato
 
 | Marker in repo | Read |
 |----------------|------|
-| `.tekton/generatePipelineRunsForPlugins.sh` | [references/plugin-catalog.md](references/plugin-catalog.md) |
+| `.tekton/updatePLRs.sh` | [references/plugin-catalog.md](references/plugin-catalog.md) |
 | `.tekton-templates/rhdh-pipeline.yaml` | [references/rhdh-midstream.md](references/rhdh-midstream.md) — **variant A** (unified) |
 | `.tekton-templates/rhdh-hub.yaml` (no `rhdh-pipeline.yaml`) | [references/rhdh-midstream.md](references/rhdh-midstream.md) — **variant B** (1.9 shared build-pipeline) |
 
@@ -118,4 +118,4 @@ Use live `MIGRATION.md` as source of truth. Common cases:
 - Editing only PLRs when templates or `build-pipeline-*.yaml` are the source of truth.
 - Adding `verify_*` guards that fail on the next Konflux bump.
 - Dropping `image-expires-after` from PLRs only because `build-image-index` no longer uses it.
-- Hardcoding `1-` in `generatePipelineRunsForPlugins.sh` Containerfile comments; use `${RHDH_XY_VERSION}` so `1.10.0` becomes `1-10`, not `1`.
+- Hardcoding `1-` in `updatePLRs.sh` Containerfile comments; use `${RHDH_XY_VERSION}` so `1.10.0` becomes `1-10`, not `1`.
