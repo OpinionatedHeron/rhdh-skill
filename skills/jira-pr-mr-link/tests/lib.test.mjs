@@ -11,11 +11,13 @@ import {
   displayTitleFromLinkTitle,
   mergeDefaultsLayers,
   missingDefaultKeys,
+  parseArgs,
   parseEmailToken,
   parsePrMrUrl,
   resolveJiraAuth,
   shouldAppendJiraRef,
   shouldMoveRhdhplanDeliveryIssue,
+  shouldSkipTeamAndSprint,
   stripMergedPrefix,
   withMergedPrefix,
 } from '../scripts/lib.js';
@@ -87,6 +89,19 @@ describe('mergeDefaultsLayers / missingDefaultKeys', () => {
     assert.ok(missing.includes('assigneeEmail'));
     assert.ok(missing.includes('teamId'));
   });
+  it('NONE team skips team/sprint required keys', () => {
+    assert.equal(shouldSkipTeamAndSprint({ teamName: 'NONE' }), true);
+    assert.equal(shouldSkipTeamAndSprint({ teamId: 'none' }), true);
+    assert.equal(shouldSkipTeamAndSprint({ teamName: 'RHDH Cope' }), false);
+    const missing = missingDefaultKeys({
+      assigneeEmail: 'a@b.com',
+      teamName: 'NONE',
+      storyPoints: 1,
+      priorityName: 'Normal',
+      storyPointsField: 'customfield_10028',
+    });
+    assert.deepEqual(missing, []);
+  });
 });
 
 describe('shouldMoveRhdhplanDeliveryIssue', () => {
@@ -146,6 +161,19 @@ describe('parsePrMrUrl', () => {
         id: '817',
       },
     );
+  });
+});
+
+describe('parseArgs', () => {
+  it('maps boolean flags to camelCase and keeps valued flags', () => {
+    const args = parseArgs(
+      ['link', '--no-defaults', '--issue', 'RHIDP-1', '--title', 't'],
+      { booleanFlags: ['no-defaults', 'no-comment'] },
+    );
+    assert.equal(args.noDefaults, true);
+    assert.equal(args.issue, 'RHIDP-1');
+    assert.equal(args.title, 't');
+    assert.deepEqual(args._, ['link']);
   });
 });
 

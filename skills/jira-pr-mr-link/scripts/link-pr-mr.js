@@ -32,7 +32,9 @@ const {
   pickDefined,
   resolveJiraAuth,
   shouldMoveRhdhplanDeliveryIssue,
+  shouldSkipTeamAndSprint,
   withMergedPrefix,
+  parseArgs: parseArgv,
 } = require('./lib.js');
 
 const USER_CONFIG_DIR = path.join(os.homedir(), '.config', 'jira-pr-mr-link');
@@ -134,33 +136,10 @@ After link (unless --no-comment), posts/updates a Jira comment:
 }
 
 function parseArgs(argv) {
-  const args = { _: [] };
-  for (let i = 0; i < argv.length; i += 1) {
-    const a = argv[i];
-    if (a === '-h' || a === '--help') {
-      usage(0);
-    }
-    if (a.startsWith('--')) {
-      const key = a.slice(2);
-      if (key === 'no-defaults') {
-        args.noDefaults = true;
-        continue;
-      }
-      if (key === 'no-comment') {
-        args.noComment = true;
-        continue;
-      }
-      const val = argv[i + 1];
-      if (!val || val.startsWith('--')) {
-        throw new Error(`Missing value for --${key}`);
-      }
-      args[key] = val;
-      i += 1;
-      continue;
-    }
-    args._.push(a);
-  }
-  return args;
+  return parseArgv(argv, {
+    booleanFlags: ['no-defaults', 'no-comment'],
+    onHelp: () => usage(0),
+  });
 }
 
 function readJsonFile(filePath) {
@@ -437,32 +416,37 @@ async function applyMissingDefaults(cfg, issue, fields) {
     summary.storyPoints = 'skipped (not configured)';
   }
 
-  if (d.teamId) {
-    if (isEmpty(fields[d.teamField])) {
-      update[d.teamField] = { id: d.teamId };
-      summary.team = `set ${d.teamName || d.teamId}`;
-    } else {
-      summary.team = `kept ${fields[d.teamField].name || fields[d.teamField].id}`;
-    }
+  if (shouldSkipTeamAndSprint(d)) {
+    summary.team = 'skipped (NONE)';
+    summary.sprint = 'skipped (NONE)';
   } else {
-    summary.team = 'skipped (no teamId)';
-  }
-
-  if (d.boardId) {
-    if (isEmpty(fields[d.sprintField])) {
-      try {
-        const sprint = await resolveActiveSprint(cfg, d.boardId);
-        update[d.sprintField] = sprint.id;
-        summary.sprint = `set ${sprint.name}`;
-      } catch (err) {
-        summary.sprint = `skipped (${err.message})`;
+    if (d.teamId) {
+      if (isEmpty(fields[d.teamField])) {
+        update[d.teamField] = { id: d.teamId };
+        summary.team = `set ${d.teamName || d.teamId}`;
+      } else {
+        summary.team = `kept ${fields[d.teamField].name || fields[d.teamField].id}`;
       }
     } else {
-      const names = (fields[d.sprintField] || []).map((s) => s.name).join(', ');
-      summary.sprint = `kept ${names || 'existing'}`;
+      summary.team = 'skipped (no teamId)';
     }
-  } else {
-    summary.sprint = 'skipped (no boardId)';
+
+    if (d.boardId) {
+      if (isEmpty(fields[d.sprintField])) {
+        try {
+          const sprint = await resolveActiveSprint(cfg, d.boardId);
+          update[d.sprintField] = sprint.id;
+          summary.sprint = `set ${sprint.name}`;
+        } catch (err) {
+          summary.sprint = `skipped (${err.message})`;
+        }
+      } else {
+        const names = (fields[d.sprintField] || []).map((s) => s.name).join(', ');
+        summary.sprint = `kept ${names || 'existing'}`;
+      }
+    } else {
+      summary.sprint = 'skipped (no boardId)';
+    }
   }
 
   if (d.assigneeEmail) {

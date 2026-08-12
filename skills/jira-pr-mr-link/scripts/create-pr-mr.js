@@ -26,7 +26,7 @@
 
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { shouldAppendJiraRef, resolveJiraAuth } = require('./lib.js');
+const { shouldAppendJiraRef, resolveJiraAuth, parseArgs: parseArgv } = require('./lib.js');
 
 const LINK_SCRIPT = path.join(__dirname, 'link-pr-mr.js');
 const JIRA_BROWSE = 'https://redhat.atlassian.net/browse';
@@ -57,53 +57,18 @@ EOF
 }
 
 function parseArgs(argv) {
-  const args = { _: [] };
-  for (let i = 0; i < argv.length; i += 1) {
-    const a = argv[i];
-    if (a === '-h' || a === '--help') {
-      usage(0);
-    }
-    if (a === '--draft') {
-      args.draft = true;
-      continue;
-    }
-    if (a === '--no-push') {
-      args.noPush = true;
-      continue;
-    }
-    if (a === '--no-link') {
-      args.noLink = true;
-      continue;
-    }
-    if (a === '--no-open') {
-      args.noOpen = true;
-      continue;
-    }
-    if (a === '--no-defaults') {
-      args.noDefaults = true;
-      continue;
-    }
-    if (a === '--no-comment') {
-      args.noComment = true;
-      continue;
-    }
-    if (a === '--no-jira-ref') {
-      args.noJiraRef = true;
-      continue;
-    }
-    if (a.startsWith('--')) {
-      const key = a.slice(2);
-      const val = argv[i + 1];
-      if (!val || val.startsWith('--')) {
-        throw new Error(`Missing value for --${key}`);
-      }
-      args[key] = val;
-      i += 1;
-      continue;
-    }
-    args._.push(a);
-  }
-  return args;
+  return parseArgv(argv, {
+    booleanFlags: [
+      'draft',
+      'no-push',
+      'no-link',
+      'no-open',
+      'no-defaults',
+      'no-comment',
+      'no-jira-ref',
+    ],
+    onHelp: () => usage(0),
+  });
 }
 
 function run(cmd, cmdArgs, opts = {}) {

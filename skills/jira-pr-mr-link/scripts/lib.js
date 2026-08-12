@@ -31,6 +31,33 @@ const REQUIRED_DEFAULT_KEYS = [
   'sprintField',
 ];
 
+/** Keys only required when team/sprint defaults are enabled. */
+const TEAM_SPRINT_DEFAULT_KEYS = [
+  'teamId',
+  'teamName',
+  'boardId',
+  'teamField',
+  'sprintField',
+];
+
+/** Config/CLI sentinel values that mean “skip this field group”. */
+const SKIP_SENTINELS = new Set(['none', 'null', 'skip', '-']);
+
+function isSkipSentinel(value) {
+  if (value === null || value === undefined) {
+    return false;
+  }
+  if (typeof value === 'string' && value.trim() === '') {
+    return false;
+  }
+  return SKIP_SENTINELS.has(String(value).trim().toLowerCase());
+}
+
+/** Skip team + sprint when teamId or teamName is NONE (or another sentinel). */
+function shouldSkipTeamAndSprint(defaults = {}) {
+  return isSkipSentinel(defaults.teamId) || isSkipSentinel(defaults.teamName);
+}
+
 function pickDefined(obj) {
   const out = {};
   for (const [k, v] of Object.entries(obj || {})) {
@@ -104,8 +131,15 @@ function mergeDefaultsLayers({ fromJiraCli = {}, fromFile = {}, fromEnv = {}, fr
 }
 
 function missingDefaultKeys(merged) {
+  const skipTeamSprint = shouldSkipTeamAndSprint(merged);
   return REQUIRED_DEFAULT_KEYS.filter((k) => {
+    if (skipTeamSprint && TEAM_SPRINT_DEFAULT_KEYS.includes(k)) {
+      return false;
+    }
     const v = merged[k];
+    if (isSkipSentinel(v)) {
+      return false;
+    }
     return v === undefined || v === null || v === '';
   });
 }
@@ -262,6 +296,44 @@ function parsePrMrUrl(url) {
   return null;
 }
 
+/** kebab-case flag → camelCase property (`no-defaults` → `noDefaults`). */
+function flagToCamel(flag) {
+  return String(flag).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+/**
+ * Minimal argv parser.
+ * @param {string[]} argv
+ * @param {{ booleanFlags?: string[], onHelp?: () => void }} [opts]
+ */
+function parseArgs(argv, { booleanFlags = [], onHelp } = {}) {
+  const bool = new Set(booleanFlags);
+  const args = { _: [] };
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === '-h' || a === '--help') {
+      if (typeof onHelp === 'function') onHelp();
+      continue;
+    }
+    if (!a.startsWith('--')) {
+      args._.push(a);
+      continue;
+    }
+    const key = a.slice(2);
+    if (bool.has(key)) {
+      args[flagToCamel(key)] = true;
+      continue;
+    }
+    const val = argv[i + 1];
+    if (!val || val.startsWith('--')) {
+      throw new Error(`Missing value for --${key}`);
+    }
+    args[key] = val;
+    i += 1;
+  }
+  return args;
+}
+
 module.exports = {
   ADJUSTED_FIELD_LABELS,
   DEFAULT_JIRA_SERVER,
@@ -275,14 +347,18 @@ module.exports = {
   detectHost,
   displayTitleFromLinkTitle,
   findJiraTokenFile,
+  flagToCamel,
+  isSkipSentinel,
   mergeDefaultsLayers,
   missingDefaultKeys,
+  parseArgs,
   parseEmailToken,
   parsePrMrUrl,
   pickDefined,
   resolveJiraAuth,
   shouldAppendJiraRef,
   shouldMoveRhdhplanDeliveryIssue,
+  shouldSkipTeamAndSprint,
   stripMergedPrefix,
   withMergedPrefix,
 };

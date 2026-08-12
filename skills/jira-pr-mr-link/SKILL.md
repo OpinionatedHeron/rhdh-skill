@@ -153,7 +153,7 @@ cp "$SKILL/config.example.json" ~/.config/jira-pr-mr-link/config.json
 ```
 
 Also accepted: `$JIRA_PR_MR_CONFIG`, legacy `~/.config/jira-pr-mr-web-link/config.json`,
-or `$SKILL/config.local.json` (gitignored — keep personal email out of the repo).
+or `$SKILL/config.local.json` (keep personal email out of the repo).
 
 Precedence: **CLI > env > config file > Jira CLI hints** (`login` / `board.id`
 from `~/.config/.jira/.config.yml` may fill assignee/board only).
@@ -161,14 +161,22 @@ from `~/.config/.jira/.config.yml` may fill assignee/board only).
 | Field | Required when applying defaults |
 |-------|----------------------------------|
 | `assigneeEmail` | yes (or Jira `login` email) |
-| `teamId` / `teamName` | yes |
-| `boardId` | yes (or jira CLI `board.id`) |
+| `teamId` / `teamName` | yes, or set either to `NONE` to skip team **and** sprint |
+| `boardId` | yes (or jira CLI `board.id`), unless team/sprint skipped via `NONE` |
 | `storyPoints` | yes |
 | `priorityName` | yes (only fills when priority is empty) |
-| `storyPointsField` / `teamField` / `sprintField` | yes (examples in `config.example.json`) |
+| `storyPointsField` | yes |
+| `teamField` / `sprintField` | yes, unless team/sprint skipped via `NONE` |
 | Status | → **In Progress** unless already In Progress / Review / Closed |
 
 Skip all defaults: `--no-defaults` or `JIRA_PR_MR_APPLY_DEFAULTS=0`.
+
+Skip only team + sprint (still set points / assignee / priority / In Progress):
+
+```json
+"teamName": "NONE",
+"teamId": "NONE"
+```
 
 ## Relationship to `raise-pr`
 
