@@ -1,6 +1,6 @@
 # Superseded: orchestrator-plus-sub-skills architecture
 
-**Status:** Superseded by [ADR-0005](0005-composable-skill-distribution.md).
+**Status:** Superseded by [ADR-0005](0005-one-skill-per-trigger-phrase.md).
 
 The project is structured as an orchestrator skill (`rhdh`) that presents an
 intake menu and routes to specialized sub-skills (`overlay`, `rhdh-local`,

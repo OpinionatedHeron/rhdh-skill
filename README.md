@@ -30,8 +30,26 @@ sources) and tells you when another client restart is required. That single
 skill is a bootstrap step, not a supported end state.
 
 Upgrading from the previous 24-skill layout? Installing the new pack does not
-remove the old directories. See
-[the architecture migration reference](docs/architecture-migration.md#upgrading-an-existing-installation).
+remove the old directories, so an agent that has both sees two candidates for
+the same request and may route to the retired copy. Remove them yourself:
+
+```bash
+npx skills@latest remove agent-ready backstage-upgrade base-images-and-rpms \
+  bug-fix compute-plugin-package-overlay-cve-list create-plugin cursor-mcp-auth \
+  jira-pr-mr-link konflux-release-data-rpa konflux-tekton-updates lifecycle \
+  nfs-migration overlay prow prow-trigger-nightly raise-pr rhdh rhdh-bump-yarn \
+  rhdh-coding rhdh-jira rhdh-local rhdh-plugin-midstream-propagate \
+  rhdh-pr-review rhdh-release rhdh-test-plan-review skill-maker test-placement \
+  -g -y
+```
+
+Every name changed, so the list and the new pack do not overlap — run it before
+or after installing. Restart the agent client afterwards so the discovery cache
+reflects the new set, then invoke `/setup-rhdh-skills`. Existing
+`~/.config/rhdh-skill/config.json` and `.rhdh/` state carry over untouched.
+
+`/setup-rhdh-skills` deliberately does not remove anything it did not install:
+it cannot tell a stale copy of `overlay` from one you wrote and kept.
 
 - `/grilling` supplies the interview discipline required by skill authoring and
   Jira creation flows.
@@ -126,13 +144,14 @@ the plan before the selected adapter executes it; the result is captured as a
 mutation receipt. Read-only discovery and analysis do not require mutation
 approval.
 
-Skills share prose through foundation skills invoked by name, and share runtime
-code through one versioned package, `rhdh_common`, in `packages/rhdh-common/`.
-Neither is reached by walking the filesystem.
+Skills share prose through reference skills invoked by name, never by walking the
+filesystem. They do not share runtime code: bundled scripts are self-contained, so
+a single skill can be installed on its own.
 
-See [the architecture migration and catalog reference](docs/architecture-migration.md),
-[ADR-0005](docs/adr/0005-composable-skill-distribution.md), and
-[ADR-0006](docs/adr/0006-foundation-skills.md) for the complete contracts.
+See [ADR-0005](docs/adr/0005-one-skill-per-trigger-phrase.md),
+[ADR-0006](docs/adr/0006-duplication-by-layer.md),
+[ADR-0007](docs/adr/0007-write-gate.md), and
+[ADR-0008](docs/adr/0008-skill-naming-and-namespace-isolation.md).
 
 ## CLI and state compatibility
 
@@ -142,13 +161,13 @@ or state formats:
 - `rhdh` and `rhdh-local` command behavior remains compatible.
 - Repository configuration remains at `~/.config/rhdh-skill/config.json`.
 - Worklog and todo state remains under `.rhdh/`.
-- New cross-skill artifacts live in the operating system temporary directory.
+- Cross-session handoff is not a pack feature; run `/handoff` when you need it.
 
 The skill rename is delivered as one breaking cutover. No aliases ship, and the
 old skill directories are dropped from this repository — but an installation
-that already has them keeps them until you remove them yourself, as described in
-[the migration reference](docs/architecture-migration.md#upgrading-an-existing-installation).
-Existing CLI configuration and local state are reused.
+that already has them keeps them until you remove them yourself, using the
+command under [Install the complete pack](#install-the-complete-pack). Existing
+CLI configuration and local state are reused.
 
 ## Development
 

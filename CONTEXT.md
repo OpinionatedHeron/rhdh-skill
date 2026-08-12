@@ -28,41 +28,38 @@ A task-oriented capability that an agent may select automatically or another
 model-invoked skill may invoke by name.
 _Avoid_: sub-skill, leaf skill
 
-**Foundation skill**:
+**Reference skill**:
 A model-invoked skill whose reason for existing is material that two or more
 skills would otherwise each carry. It is reached by name like any other
-model-invoked skill.
-_Avoid_: base skill, primitive, shared skill
+model-invoked skill. Two callers is the threshold; one caller means the material
+belongs inside its single owner.
+_Avoid_: foundation skill, base skill, primitive, shared skill
+
+**Trigger phrase**:
+The user utterance a skill claims. Two promoted skills must not claim the same
+one; where they would, they are one skill. Where one skill answers to several
+unrelated utterances, it is several skills.
+_Avoid_: intent, route, keyword
 
 **Editorial category**:
-A reader-facing grouping of promoted skills. It is not a namespace, dependency
-boundary, or composition path.
+A reader-facing grouping of promoted skills by domain — `jira`, `plugins`, `ci`,
+`release`, `reference`, `meta`. It is not a namespace, dependency boundary, or
+composition path, and it is stripped when the pack is installed.
 _Avoid_: package, subsystem
 
 **Named skill composition**:
 Composition in which a model-invoked skill calls another model-invoked skill by
-its stable name and exchanges a declared artifact contract.
+its stable name. The caller never opens the callee's files, imports its
+implementation, or reaches it through a category path.
 _Avoid_: sibling load, relative-path composition
 
-**Artifact contract**:
-A versioned, credential-free handoff between skills. The contract identifies
-the meaning and required data independently of any category or filesystem path.
-_Avoid_: shared file, prompt blob
-
-**Mutation plan**:
-The complete proposed external changes bound to a material hash and presented
-for human approval before execution.
-_Avoid_: confirmation prompt, dry run
-
-**Material hash**:
-The digest that binds the canonical content of a mutation plan, so that one
-approval names one exact set of proposed changes.
-_Avoid_: plan hash, checksum, fingerprint
-
-**Mutation receipt**:
-The one-to-one ordered record of every completed, failed, or skipped operation
-in an approved mutation plan, tied to its plan ID and material hash.
-_Avoid_: success message, command output
+**Write gate**:
+The rule that an external change is stated in full, approved, and then reported
+on. State every operation with its target, exact command, preview, and failure
+behaviour; get approval for that stated set; execute; report the outcome of every
+operation including the skipped ones. It renders in the conversation, because
+that is where approval happens.
+_Avoid_: mutation plan, material hash, confirmation prompt, dry run
 
 **Setup capability**:
 A prerequisite such as an installed skill, repository location, tool, or

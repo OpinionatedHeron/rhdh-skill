@@ -1,27 +1,43 @@
-# stdlib-only Python CLIs
+# Zero-install portability for bundled scripts
 
-Both CLIs (`rhdh` and `rhdh-local`) use only Python 3.9+ standard library — zero external dependencies. This means no `click`, `rich`, `typer`, or any other package. The trade-off is rougher developer ergonomics in exchange for zero-install portability. The CLIs run wherever Python exists — no `pip install`, no virtualenv, no version conflicts. For agent tooling that needs to "just work" in any environment an agent might run in, that constraint is worth the cost.
+A script shipped inside a skill runs in whatever environment the agent happens to
+be in. It cannot assume a package manager has run. Every bundled script therefore
+uses only its runtime's standard library — no `pip install`, no `npm install`, no
+virtualenv, no lockfile. The trade-off is rougher ergonomics for the author in
+exchange for a script that works the first time, everywhere.
 
-## Implementation patterns
+The rule is about the *install step*, not about Python. Two runtimes qualify today.
 
-- **`argparse`** for argument parsing (stdlib, not click/typer)
-- **`OutputFormatter`** for auto-detecting TTY vs piped output (human-readable vs JSON)
-- **`urllib`** only inside a narrow authenticated adapter; any bearer credential is retrieved from
-  the owning native CLI, used transiently in memory for the request header, and excluded from public
-  arguments, output, logs, plans, and artifacts
-- **`uv`** as the dev tool runner (`uv run pytest`) — not shipped with the CLIs, but used for development and testing
+## Python
 
-New scripts and CLI commands in this project should follow these same patterns.
+The `rhdh` and `rhdh-local` CLIs and every bundled Python script use only the
+Python 3.9+ standard library. No `click`, `rich`, `typer`, or any other package.
+
+- **`argparse`** for argument parsing, not click/typer
+- **`OutputFormatter`** for auto-detecting TTY vs piped output
+- **`urllib`** only inside a narrow authenticated adapter; any bearer credential
+  is retrieved from the owning native CLI, used transiently in memory for the
+  request header, and excluded from public arguments, output, and logs
+- **`uv`** as the dev tool runner (`uv run pytest`) — used for development and
+  testing, never shipped as a runtime requirement
+
+## Node
+
+Bundled Node scripts use only `node:`-prefixed builtins — `node:fs`, `node:os`,
+`node:path`, `node:child_process`. No `package.json`, no `node_modules`. Tests
+run under the built-in runner (`node --test`), which needs no framework.
+
+This is the same rule, not an exception to it. A Node script that would need a
+dependency does not qualify and should be Python or a native CLI call instead.
 
 ## Exceptions
 
 Scripts that must round-trip YAML while preserving comments, key ordering, and
-quoting may use `ruamel.yaml`. The current uses are private adapters owned by
-`rhdh-ci` and `rhdh-platform-support`. Such scripts declare dependencies with
-PEP 723 inline metadata and run through `uv run --script`, which provides an
-ephemeral environment without a user-facing install step.
+quoting may use `ruamel.yaml`. Such scripts declare dependencies with PEP 723
+inline metadata and run through `uv run --script`, which provides an ephemeral
+environment without a user-facing install step.
 
-The exception is capability-based, not category-based: it applies only when
-the standard library cannot preserve the required YAML representation. The
-Google Sheets schedule adapter delegates to the native-store `gog` CLI and is
-not an exception. The main CLIs and every ordinary script remain stdlib-only.
+The exception is capability-based, not category-based: it applies only when the
+standard library cannot preserve the required representation. An adapter that
+delegates to a native CLI is not an exception, because the native CLI is the
+user's install, not ours.

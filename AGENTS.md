@@ -45,9 +45,16 @@ project-specific knowledge in the owning skill reference.
 
 ## Skill architecture
 
-The `skills/engineering/`, `skills/operations/`, and `skills/maintainers/`
-folders are editorial. Compose through `/skill-name` prose and versioned
-artifacts, never through sibling category paths.
+Skills are grouped by domain: `skills/jira/`, `skills/plugins/`, `skills/ci/`,
+`skills/release/`, `skills/reference/`, `skills/meta/`. Those folders are
+editorial and are stripped at install. Compose through `/skill-name`, never
+through sibling category paths.
+
+A promoted skill claims exactly one trigger phrase. Two skills that would claim
+the same utterance are one skill; one skill answering several unrelated
+utterances is several skills. Split by verb, never by noun, and weight the split
+by what a misroute costs — merge where a misroute produces a wrong write, split
+where it produces an obvious wrong answer. See ADR-0005.
 
 Only `ask-rhdh` and `setup-rhdh-skills` are human-invoked. They carry
 `disable-model-invocation: true` in `SKILL.md` and
@@ -78,44 +85,47 @@ Do not add them to promoted manifests or catalogs.
   artifacts remain credential-free. Setup owns login and never creates a
   parallel credential store.
 - `/rhdh-context` owns shared repository and version context.
-- Cross-skill handoffs use typed artifacts with `contract`, `id`, `createdAt`,
-  and contract-specific `data`. The version is part of `contract`. Artifacts
-  persist under the operating system temporary directory, so a cross-session
-  handoff may expire; the store reports the expiry and names the producing skill
-  to re-run.
-- External mutations require a user-approved `MutationPlan` before an adapter
-  executes. Every operation declares `order`, `ownerSkill`, `adapter`,
-  `operation`, `target`, `preview`, `preconditions`, `checks`, and `recovery`.
-  The plan's `materialHash` binds all plan data except the hash itself. Record
-  the outcome as a `MutationReceipt` carrying the same hash and plan ID. Its
-  ordered outcomes map one-to-one to the plan operations by `order`,
-  `ownerSkill`, `adapter`, `operation`, and `target`; every operation records
-  `completed`, `failed`, or `skipped`.
-  `SetupReceipt` may summarize capability status, but never replaces the
-  `MutationReceipt` for an applied setup plan.
+- Skills pass context by invoking each other by name. There is no artifact
+  envelope and no artifact store. When the user needs context to survive into a
+  later session, tell them to run `/handoff`.
+- Every external write goes through the write gate in `/rhdh-mutation-gate`:
+  state each operation with its target, exact command, preview, and failure
+  behaviour; get approval for that stated set; execute; report the outcome of
+  every operation, including the skipped ones. The plan renders as a table in
+  the conversation. A plan too large for the transcript goes to a file in the
+  temporary directory and the path is printed. Read-only inspection needs no
+  gate. See ADR-0007.
+- `/rhdh-forge` constructs forge payloads and never executes them. A caller that
+  needs a write receives a command, not an effect.
 - Adapters isolate external variation such as Jira/GitHub issues, GitHub/GitLab
   forges, Podman/Docker, lifecycle sources, and CI systems.
 
 Keep shared behavior behind the owning skill interface. Do not reach into
 another skill's references or scripts.
 
-When the same material would appear in two skills, decide which module owns it:
-**extract** a foundation skill when nothing does, **enforce** the existing
-interface when a module already does, or **document** the rule once here and in
-`skill-authoring` when it is a rule rather than a capability. Copying is not a
-fourth option. Shared runtime *code* is the one case no skill can serve: it
-lives in the versioned `rhdh_common` package, declared as a dependency, never in
-hand-synced copies between skills. See ADR-0006.
+Duplication is judged by layer. **Prompt duplication is forbidden**: when the
+same instructions, protocol, or domain rule would appear in two skills,
+**extract** a reference skill when nothing owns it, **enforce** the existing
+interface when a module already does, or **document** it once when it is a rule
+rather than a capability — here for rules governing this repository, in
+`rhdh-skill-authoring` for rules that must ship with the pack, since this file
+does not travel with it. **Code duplication is acceptable**: bundled scripts are
+self-contained so a skill can be installed alone, and there is no shared runtime
+package. See ADR-0006.
+
+Every promoted model-invoked skill keeps the `rhdh-` prefix. Folders are stripped
+at install, so the prefix is the only isolation the pack has against the router's
+global namespace. See ADR-0008.
 
 ## Testing
 
 Test behavior and contracts:
 
 - deterministic scripts and CLIs;
-- artifact schema validation and round trips;
 - adapter contracts;
 - catalog membership, invocation metadata, distribution exclusions, and links;
-- workflow integration at named-skill and artifact seams.
+- that no promoted skill directory sits outside a domain category;
+- workflow integration at named-skill seams.
 
 Do not add tests that require incidental prose, headings, menu numbering, or
 exact wording. Prose may change without changing the interface.
@@ -129,10 +139,8 @@ After merging changes to behavior, scripts, or `SKILL.md` files, create and push
 an appropriate semantic-version tag. Use patch for behavior fixes, minor for new
 backward-compatible capabilities, and major for breaking changes.
 
-No tag exists yet, so both the pack and the `rhdh-common` git source resolve the
-default branch. Tag them together: the first release tag must land in the same
-change that pins `rhdh-common` in every PEP-723 block, or scripts will import a
-runtime from a different commit than the skill that calls them.
+No tag exists yet, so the pack resolves the default branch. Bundled scripts have
+no shared runtime dependency to pin alongside it.
 
 ## Agent project configuration
 

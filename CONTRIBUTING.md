@@ -32,12 +32,15 @@ reference and deterministic work in a script.
 
 When the same material appears in two skills, do not copy it a third time. Ask
 which module owns it and pick one of three answers: **extract** it into a
-foundation skill when nothing owns it, **enforce** the existing seam when a
+reference skill when nothing owns it, **enforce** the existing seam when a
 module owns it and a caller copied past its interface, or **document** it once
-in `skills/maintainers/skill-authoring/` and `AGENTS.md` when it is a rule
-rather than a capability. Shared runtime *code* is none of those — it belongs in
-the versioned `rhdh_common` package under `packages/`. See
-[ADR-0006](docs/adr/0006-foundation-skills.md).
+when it is a rule rather than a capability — in `AGENTS.md` for rules governing
+this repository, in `skills/meta/rhdh-skill-authoring/` for rules that must ship
+with the pack, because `AGENTS.md` does not travel with it.
+
+That applies to prose only. Bundled scripts are self-contained and may duplicate
+utility code; there is no shared runtime package. See
+[ADR-0006](docs/adr/0006-duplication-by-layer.md).
 
 Draft work belongs under `internal/in-progress/`, outside the promoted discovery
 root. Retired history belongs under `internal/deprecated/`. Neither ships.
@@ -63,8 +66,7 @@ root. Retired history belongs under `internal/deprecated/`. Neither ships.
    with its category, invocation, required skills, and produced and consumed
    artifacts. A skill missing from that file fails
    `scripts/validate_skill_catalog.py`, and nothing installs it. Update
-   `README.md` and `docs/architecture-migration.md` in the same change whenever
-   membership or naming changes.
+   `README.md` in the same change whenever membership or naming changes.
 9. Add script, artifact, adapter, and catalog contract tests as applicable.
 10. Run `uv run pytest`.
 
