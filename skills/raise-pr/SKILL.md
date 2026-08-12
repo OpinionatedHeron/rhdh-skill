@@ -365,8 +365,8 @@ EOF
 
 ### If `issue_source` = `jira`
 
-Prefer the [`jira-pr-mr-link`](../jira-pr-mr-link/SKILL.md) linker for Web link +
-comment instead of hand-rolling REST/MCP (see
+Call the [`jira-pr-mr-link`](../jira-pr-mr-link/SKILL.md) linker for Web link +
+comment (see
 [`jira-pr-mr-link/references/raise-pr-integration.md`](../jira-pr-mr-link/references/raise-pr-integration.md)).
 Use `--no-defaults` so this step can still transition to **Review**.
 
@@ -382,10 +382,9 @@ Use `--no-defaults` so this step can still transition to **Review**.
    EFFECTIVE_KEY="$(printf '%s\n' "$LINK_OUT" | awk -F': ' '/^issue:/{print $2; exit}')"
    EFFECTIVE_KEY="${EFFECTIVE_KEY:-<jira_key>}"
    ```
-   Resolve the path from the installed `skills/` tree (same relative layout as this
-   file). Do not invent `$JIRA_PR_MR_LINK_SKILL`. If the issue was a RHDHPLAN
-   Epic/Story/Task, the linker may auto-move it to RHIDP — use `EFFECTIVE_KEY`
-   (from stdout `issue:`) for the Review transition below.
+   If the issue was a RHDHPLAN Epic/Story/Task, the linker may auto-move it to
+   RHIDP — use `EFFECTIVE_KEY` (from stdout `issue:`) for the Review transition
+   below.
    Fallback if the skill is missing:
    - Comment via Jira MCP `add_jira_comment`: `PR submitted: <PR_URL>`
    - Web link via POST `/rest/api/3/issue/<jira_key>/remotelink` (see `references/jira-input.md`)
