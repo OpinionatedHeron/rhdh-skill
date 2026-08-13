@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_RELEASE_SCRIPTS = PROJECT_ROOT / "skills" / "operations" / "rhdh-release" / "scripts"
+_RELEASE_SCRIPTS = PROJECT_ROOT / "skills" / "release" / "rhdh-release-status" / "scripts"
 _NO_RICH_FILTER = PROJECT_ROOT / ".test-no-rich-filter.json"
 if str(_RELEASE_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_RELEASE_SCRIPTS))

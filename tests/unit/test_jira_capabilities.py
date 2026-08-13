@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-JIRA_SCRIPTS = PROJECT_ROOT / "skills" / "operations" / "rhdh-jira" / "scripts"
+JIRA_SCRIPTS = PROJECT_ROOT / "skills" / "reference" / "rhdh-jira-api" / "scripts"
 
 
 def load_script(name: str):

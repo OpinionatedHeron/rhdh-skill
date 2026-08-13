@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_FETCH_SCHEDULE_SCRIPTS = PROJECT_ROOT / "skills" / "operations" / "rhdh-test-plan" / "scripts"
+_FETCH_SCHEDULE_SCRIPTS = PROJECT_ROOT / "skills" / "release" / "rhdh-test-plan-review" / "scripts"
 if str(_FETCH_SCHEDULE_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_FETCH_SCHEDULE_SCRIPTS))
 

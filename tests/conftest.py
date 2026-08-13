@@ -14,14 +14,14 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent
 
 # Path to the context skill directory (where the preserved rhdh package lives)
-RHDH_SKILL_DIR = PROJECT_ROOT / "skills" / "engineering" / "rhdh-context"
+RHDH_SKILL_DIR = PROJECT_ROOT / "skills" / "reference" / "rhdh-context"
 
 # Add the context skill directory to path for testing
 if str(RHDH_SKILL_DIR) not in sys.path:
     sys.path.insert(0, str(RHDH_SKILL_DIR))
 
 # Path to the rhdh-local skill directory (where rhdh_local package lives)
-RHDH_LOCAL_SKILL_DIR = PROJECT_ROOT / "skills" / "engineering" / "rhdh-local"
+RHDH_LOCAL_SKILL_DIR = PROJECT_ROOT / "skills" / "plugins" / "rhdh-local"
 
 # Add rhdh-local skill directory to path for testing
 if str(RHDH_LOCAL_SKILL_DIR) not in sys.path:

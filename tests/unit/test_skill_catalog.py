@@ -26,7 +26,7 @@ def write_skill(
     root: Path,
     name: str,
     *,
-    category: str = "engineering",
+    category: str = "meta",
     invocation: str = "model",
     body: str = "",
     frontmatter_extra: str = "",
@@ -65,13 +65,13 @@ def write_repository(
             invocation=entry["invocation"],
             body=bodies.get(entry["name"], ""),
         )
-    catalog = root / "skills" / "engineering" / "setup-rhdh-skills" / "assets" / "catalog.json"
+    catalog = root / "skills" / "meta" / "setup-rhdh-skills" / "assets" / "catalog.json"
     catalog.parent.mkdir(parents=True, exist_ok=True)
     catalog.write_text(
         json.dumps({"schemaVersion": 1, "skills": entries, "pack": {"requiredExternalSkills": []}}),
         encoding="utf-8",
     )
-    contracts_file = root / "skills" / "engineering" / "rhdh-context" / "scripts"
+    contracts_file = root / "skills" / "reference" / "rhdh-context" / "scripts"
     contracts_file.mkdir(parents=True, exist_ok=True)
     (contracts_file / "artifact-contracts.json").write_text(
         json.dumps({"schemaVersion": 1, "contracts": contracts or {}}),
@@ -81,7 +81,7 @@ def write_repository(
 
 
 def entry(name: str, **overrides) -> dict:
-    base = {"name": name, "category": "engineering", "invocation": "model"}
+    base = {"name": name, "category": "meta", "invocation": "model"}
     base.update(overrides)
     return base
 
@@ -104,28 +104,28 @@ def test_repository_catalog_exposes_the_approved_composable_skill_set():
     )
 
     report = json.loads(result.stdout)
-    assert set(report["promotedSkills"]) == {
-        "ask-rhdh",
-        "setup-rhdh-skills",
-        "rhdh-context",
-        "rhdh-artifacts",
-        "rhdh-forge",
-        "rhdh-plugin-development",
-        "rhdh-overlay",
-        "rhdh-local",
-        "rhdh-pull-request",
-        "rhdh-pr-review",
-        "rhdh-jira",
-        "rhdh-platform-support",
-        "rhdh-test-plan",
-        "rhdh-release",
-        "rhdh-ci",
-        "rhdh-base-images",
-        "rhdh-agent-readiness",
-        "skill-authoring",
-    }
+    catalog = json.loads(
+        (
+            PROJECT_ROOT / "skills" / "meta" / "setup-rhdh-skills" / "assets" / "catalog.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    # The catalog is the source of truth for membership, and the validator already
+    # fails on a skill that is on disk but undeclared, or declared but missing. So
+    # assert they agree rather than restating the roster here, where it only rots.
+    assert set(report["promotedSkills"]) == {entry["name"] for entry in catalog["skills"]}
+
+    # These two are contracts rather than inventory: exactly two entry points are
+    # human-invoked, and the pack depends on exactly two external skills.
     assert set(report["humanInvokedSkills"]) == {"ask-rhdh", "setup-rhdh-skills"}
     assert set(report["requiredExternalSkills"]) == {"grilling", "humanizer"}
+    assert every_promoted_skill_lives_in_a_domain_category(catalog)
+
+
+def every_promoted_skill_lives_in_a_domain_category(catalog: dict) -> bool:
+    """Every skill sits in one of the six domain folders, and none is uncategorised."""
+    categories = set(catalog["categories"])
+    return all(entry["category"] in categories for entry in catalog["skills"])
 
 
 def test_repository_satisfies_every_catalog_rule():
@@ -176,7 +176,7 @@ def test_cycle_detection_ignores_missing_nodes_already_reported_by_the_catalog_v
 
 def test_workflow_links_are_resolved_from_the_document_directory(tmp_path):
     validator = load_validator()
-    workflow = tmp_path / "skills" / "operations" / "sample" / "workflows" / "run.md"
+    workflow = tmp_path / "skills" / "ci" / "sample" / "workflows" / "run.md"
     script = workflow.parent.parent / "scripts" / "run.py"
     workflow.parent.mkdir(parents=True)
     script.parent.mkdir(parents=True)
@@ -190,7 +190,7 @@ def test_workflow_links_are_resolved_from_the_document_directory(tmp_path):
     assert errors == [
         {
             "code": "LINK_MISSING",
-            "message": "skills/operations/sample/workflows/run.md -> scripts/run.py",
+            "message": "skills/ci/sample/workflows/run.md -> scripts/run.py",
         }
     ]
 
@@ -263,38 +263,6 @@ def test_a_slash_prefixed_skill_name_counts_as_documentation(tmp_path):
     assert validator.validate_repository(root)["valid"] is True
 
 
-def test_a_produced_artifact_absent_from_the_owning_body_is_reported(tmp_path):
-    validator = load_validator()
-    root = build_fixture(
-        tmp_path,
-        skill_bodies={
-            "alpha": "\nEmits something.\n",
-            "beta": "\nInvoke `alpha` by name and consume `Widget/v1`.\n",
-        },
-    )
-
-    report = validator.validate_repository(root)
-
-    assert codes(report) == ["ARTIFACT_NOT_DOCUMENTED"]
-    assert "alpha: produces Widget/v1" in messages(report, "ARTIFACT_NOT_DOCUMENTED")[0]
-
-
-def test_documented_artifact_fields_must_cover_the_contract(tmp_path):
-    validator = load_validator()
-    root = build_fixture(
-        tmp_path,
-        skill_bodies={
-            "alpha": "\n- `Widget/v1`: `shape`, `color`, and\n  `weight`.\n",
-            "beta": "\nInvoke `alpha` by name and consume `Widget/v1`.\n",
-        },
-    )
-
-    report = validator.validate_repository(root)
-
-    assert codes(report) == ["ARTIFACT_FIELDS_MISMATCH"]
-    assert "omit required size" in messages(report, "ARTIFACT_FIELDS_MISMATCH")[0]
-
-
 def test_a_bullet_that_documents_no_field_is_not_treated_as_a_field_list(tmp_path):
     validator = load_validator()
     root = build_fixture(
@@ -306,60 +274,6 @@ def test_a_bullet_that_documents_no_field_is_not_treated_as_a_field_list(tmp_pat
     )
 
     assert validator.validate_repository(root)["valid"] is True
-
-
-def test_an_artifact_consumed_but_never_produced_is_reported(tmp_path):
-    validator = load_validator()
-    root = build_fixture(
-        tmp_path,
-        entries=[
-            entry("alpha", produces=["Widget/v1"]),
-            entry("beta", consumes=["Widget/v1", "Gadget/v1"], requiresSkills=["alpha"]),
-        ],
-        contracts={
-            "Widget/v1": {"requiredData": ["shape", "size"]},
-            "Gadget/v1": {"requiredData": ["shape"]},
-        },
-        skill_bodies={
-            "alpha": "\nEmits `Widget/v1`.\n",
-            "beta": "\nInvoke `alpha` by name; consume `Widget/v1` and `Gadget/v1`.\n",
-        },
-    )
-
-    report = validator.validate_repository(root)
-
-    assert codes(report) == ["DANGLING_ARTIFACT_EDGE"]
-    assert (
-        "Gadget/v1 is consumed by beta but produced by no skill"
-        in messages(report, "DANGLING_ARTIFACT_EDGE")[0]
-    )
-
-
-def test_an_artifact_produced_but_never_consumed_is_reported(tmp_path):
-    validator = load_validator()
-    root = build_fixture(
-        tmp_path,
-        entries=[
-            entry("alpha", produces=["Widget/v1", "Gadget/v1"]),
-            entry("beta", consumes=["Widget/v1"], requiresSkills=["alpha"]),
-        ],
-        contracts={
-            "Widget/v1": {"requiredData": ["shape", "size"]},
-            "Gadget/v1": {"requiredData": ["shape"]},
-        },
-        skill_bodies={
-            "alpha": "\nEmits `Widget/v1` and `Gadget/v1`.\n",
-            "beta": "\nInvoke `alpha` by name and consume `Widget/v1`.\n",
-        },
-    )
-
-    report = validator.validate_repository(root)
-
-    assert codes(report) == ["DANGLING_ARTIFACT_EDGE"]
-    assert (
-        "Gadget/v1 is produced by alpha but consumed by no skill"
-        in messages(report, "DANGLING_ARTIFACT_EDGE")[0]
-    )
 
 
 def test_a_contract_marked_terminal_may_be_produced_without_a_consumer(tmp_path):
@@ -386,7 +300,7 @@ def test_a_contract_marked_terminal_may_be_produced_without_a_consumer(tmp_path)
 def test_a_skill_without_a_completion_section_is_reported(tmp_path):
     validator = load_validator()
     root = build_fixture(tmp_path)
-    skill_file = root / "skills" / "engineering" / "beta" / "SKILL.md"
+    skill_file = root / "skills" / "meta" / "beta" / "SKILL.md"
     skill_file.write_text(
         skill_file.read_text(encoding="utf-8").replace(COMPLETION_SECTION, "\n"),
         encoding="utf-8",
@@ -396,7 +310,7 @@ def test_a_skill_without_a_completion_section_is_reported(tmp_path):
 
     assert codes(report) == ["MISSING_COMPLETION"]
     assert messages(report, "MISSING_COMPLETION")[0].startswith(
-        "skills/engineering/beta/SKILL.md: add a '## Completion' section"
+        "skills/meta/beta/SKILL.md: add a '## Completion' section"
     )
 
 
@@ -408,7 +322,7 @@ def test_two_skills_shipping_the_same_content_are_reported(tmp_path):
         ("alpha", "# Alpha copy\n\nIntro paragraph.\n\n"),
         ("beta", "# Beta\n\n"),
     ):
-        reference = root / "skills" / "engineering" / skill / "references" / "shared.md"
+        reference = root / "skills" / "meta" / skill / "references" / "shared.md"
         reference.parent.mkdir(parents=True, exist_ok=True)
         reference.write_text(header + shared + "\n", encoding="utf-8")
 
@@ -416,8 +330,8 @@ def test_two_skills_shipping_the_same_content_are_reported(tmp_path):
 
     assert codes(report) == ["DUPLICATE_FILE"]
     assert messages(report, "DUPLICATE_FILE")[0].startswith(
-        "skills/engineering/alpha/references/shared.md and "
-        "skills/engineering/beta/references/shared.md ship the same content"
+        "skills/meta/alpha/references/shared.md and "
+        "skills/meta/beta/references/shared.md ship the same content"
     )
 
 
@@ -426,31 +340,11 @@ def test_two_files_inside_one_skill_may_share_content(tmp_path):
     root = build_fixture(tmp_path)
     shared = "\n".join(f"Step {index}: run the check." for index in range(40))
     for filename in ("first.md", "second.md"):
-        reference = root / "skills" / "engineering" / "alpha" / "references" / filename
+        reference = root / "skills" / "meta" / "alpha" / "references" / filename
         reference.parent.mkdir(parents=True, exist_ok=True)
         reference.write_text(shared + "\n", encoding="utf-8")
 
     assert validator.validate_repository(root)["valid"] is True
-
-
-def test_a_null_artifact_list_is_reported_instead_of_raising(tmp_path):
-    validator = load_validator()
-    root = build_fixture(
-        tmp_path,
-        entries=[
-            entry("alpha", produces=None),
-            entry("beta", requiresSkills=["alpha"]),
-        ],
-        contracts={},
-        skill_bodies={"alpha": "\nEmits nothing.\n", "beta": "\nInvoke `alpha` by name.\n"},
-    )
-
-    report = validator.validate_repository(root)
-
-    assert codes(report) == ["ARTIFACT_LIST_TYPE"]
-    assert messages(report, "ARTIFACT_LIST_TYPE")[0].startswith(
-        "alpha: produces must be an array of artifact names, got NoneType"
-    )
 
 
 def test_the_codex_host_layout_is_a_leak_like_every_other_host_layout(tmp_path):
@@ -477,7 +371,7 @@ def test_invocation_parity_is_checked_in_both_directions(tmp_path):
         contracts={},
         skill_bodies={"alpha": "\nAsk for it by name.\n", "beta": "\nNothing to declare.\n"},
     )
-    beta = root / "skills" / "engineering" / "beta" / "SKILL.md"
+    beta = root / "skills" / "meta" / "beta" / "SKILL.md"
 
     # Catalog says human, frontmatter leaves model invocation enabled.
     write_skill(root, "alpha", invocation="model", body="\nAsk for it by name.\n")

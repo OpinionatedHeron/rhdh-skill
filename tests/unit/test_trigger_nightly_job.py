@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = PROJECT_ROOT / "skills" / "operations" / "rhdh-ci" / "scripts" / "trigger_nightly_job.py"
+SCRIPT = PROJECT_ROOT / "skills" / "ci" / "rhdh-prow-trigger" / "scripts" / "trigger_nightly_job.py"
 sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("trigger_nightly_job", SCRIPT)
 assert SPEC and SPEC.loader

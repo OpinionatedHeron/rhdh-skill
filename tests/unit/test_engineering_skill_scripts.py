@@ -17,7 +17,7 @@ def load_script(relative_path: str, module_name: str):
 
 def test_fetch_pr_context_parses_supported_references_and_issue_links():
     fetch = load_script(
-        "skills/engineering/rhdh-pr-review/scripts/fetch_pr_context.py",
+        "skills/plugins/rhdh-pr-review/scripts/fetch_pr_context.py",
         "rhdh_pr_review_fetch_context",
     )
 
@@ -37,11 +37,11 @@ def test_fetch_pr_context_parses_supported_references_and_issue_links():
 
 def test_overlay_analyzers_preserve_workspace_and_priority_classification():
     analyze = load_script(
-        "skills/engineering/rhdh-overlay/scripts/analyze-pr.py",
+        "skills/plugins/rhdh-overlay/scripts/analyze-pr.py",
         "rhdh_overlay_analyze_pr",
     )
     triage = load_script(
-        "skills/engineering/rhdh-overlay/scripts/triage-prs.py",
+        "skills/plugins/rhdh-overlay/scripts/triage-prs.py",
         "rhdh_overlay_triage_prs",
     )
 

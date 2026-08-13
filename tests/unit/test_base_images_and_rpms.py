@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SKILL_DIR = PROJECT_ROOT / "skills" / "operations" / "rhdh-base-images"
+SKILL_DIR = PROJECT_ROOT / "skills" / "ci" / "rhdh-base-images"
 ANALYZE_SCRIPT = SKILL_DIR / "scripts" / "analyze-base-images.sh"
 MAIN_SCRIPT = SKILL_DIR / "scripts" / "base-images-and-rpms.sh"
 

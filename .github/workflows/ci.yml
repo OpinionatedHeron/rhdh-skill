@@ -99,7 +99,7 @@ jobs:
         run: npx --yes skills@1.5.22 add . --list
 
       - name: Test JavaScript skill scripts
-        run: node --test skills/operations/rhdh-release/tests/*.test.mjs
+        run: node --test "skills/**/tests/*.test.mjs"
 
       - name: Lint shell skill scripts
         run: find skills -name '*.sh' -print0 | xargs -0 shellcheck --severity=warning

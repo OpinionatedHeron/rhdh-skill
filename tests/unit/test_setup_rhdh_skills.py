@@ -2,20 +2,15 @@
 
 from __future__ import annotations
 
-import hashlib
 import importlib.util
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SETUP_SCRIPT = (
-    PROJECT_ROOT / "skills" / "engineering" / "setup-rhdh-skills" / "scripts" / "setup.py"
-)
-CATALOG = PROJECT_ROOT / "skills" / "engineering" / "setup-rhdh-skills" / "assets" / "catalog.json"
-SHARED_PACKAGE = PROJECT_ROOT / "packages" / "rhdh-common"
+SETUP_SCRIPT = PROJECT_ROOT / "skills" / "meta" / "setup-rhdh-skills" / "scripts" / "setup.py"
+CATALOG = PROJECT_ROOT / "skills" / "meta" / "setup-rhdh-skills" / "assets" / "catalog.json"
 
 
 def load_setup_module():
@@ -26,15 +21,24 @@ def load_setup_module():
     return module
 
 
+def read_catalog() -> dict:
+    return json.loads(CATALOG.read_text(encoding="utf-8"))
+
+
+def every_packaged_skill(catalog: dict) -> list[str]:
+    return sorted(
+        [entry["name"] for entry in catalog["skills"]]
+        + [entry["name"] for entry in catalog["pack"]["requiredExternalSkills"]]
+    )
+
+
 def run_setup(*args: str) -> subprocess.CompletedProcess[str]:
-    # The script depends on rhdh_common (ADR-0006); uv resolves it from the
-    # PEP-723 block, and this subprocess resolves it from the source checkout.
+    # The script is self-contained: standard library only, no shared package.
     return subprocess.run(
         [sys.executable, str(SETUP_SCRIPT), *args],
         capture_output=True,
         text=True,
         check=False,
-        env={**os.environ, "PYTHONPATH": str(SHARED_PACKAGE)},
     )
 
 
@@ -69,20 +73,20 @@ def test_doctor_discovers_dependencies_across_supported_host_layouts(tmp_path):
     )
 
     assert result.returncode == 1
-    artifact = json.loads(result.stdout)
-    assert artifact["contract"] == "SetupStatus/v1"
-    assert set(artifact["data"]["installedSkills"]) == {"ask-rhdh", "grilling", "humanizer"}
-    assert artifact["data"]["requiredExternalSkills"] == {
+    report = json.loads(result.stdout)
+    assert "contract" not in report
+    assert set(report["installedSkills"]) == {"ask-rhdh", "grilling", "humanizer"}
+    assert report["requiredExternalSkills"] == {
         "grilling": "installed",
         "humanizer": "installed",
     }
-    assert artifact["data"]["capabilities"]["tools"]["oc"] == "not-probed"
-    assert artifact["data"]["capabilities"]["tools"]["gog"] == "not-probed"
-    assert "setup-rhdh-skills" in artifact["data"]["missingSkills"]
-    assert all("credential" not in key.lower() for key in artifact["data"])
+    assert report["capabilities"]["tools"]["oc"] == "not-probed"
+    assert report["capabilities"]["tools"]["gog"] == "not-probed"
+    assert "setup-rhdh-skills" in report["missingSkills"]
+    assert all("credential" not in key.lower() for key in report)
 
 
-def test_install_plan_uses_one_pack_command_and_binds_approval_to_material_hash():
+def test_install_plan_uses_one_pack_command_for_the_whole_collection():
     result = run_setup(
         "install-plan",
         "--catalog",
@@ -97,86 +101,27 @@ def test_install_plan_uses_one_pack_command_and_binds_approval_to_material_hash(
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
-    artifact = json.loads(result.stdout)
-    assert artifact["contract"] == "MutationPlan/v1"
-    expected_skills = sorted(
-        [
-            "ask-rhdh",
-            "grilling",
-            "humanizer",
-            "rhdh-agent-readiness",
-            "rhdh-artifacts",
-            "rhdh-base-images",
-            "rhdh-ci",
-            "rhdh-context",
-            "rhdh-forge",
-            "rhdh-jira",
-            "rhdh-local",
-            "rhdh-overlay",
-            "rhdh-platform-support",
-            "rhdh-plugin-development",
-            "rhdh-pr-review",
-            "rhdh-pull-request",
-            "rhdh-release",
-            "rhdh-test-plan",
-            "setup-rhdh-skills",
-            "skill-authoring",
-        ]
-    )
-    operation = artifact["data"]["operations"][0]
-    assert operation == {
-        "order": 1,
-        "ownerSkill": "setup-rhdh-skills",
-        "adapter": "skills-cli/v1",
-        "operation": "skills.pack.install",
-        "target": "global:codex",
-        "preview": {
-            "argv": [
-                "npx",
-                "skills",
-                "add",
-                "https://skills.sh/p/rhdh-complete-test",
-                "--agent",
-                "codex",
-                "--global",
-                "--yes",
-            ],
-            "source": "https://skills.sh/p/rhdh-complete-test",
-        },
-        "preconditions": [
-            {"check": "tool.available", "target": "npx", "required": True},
-            {"check": "catalog.schema", "expected": 1, "required": True},
-        ],
-        "checks": [
-            {
-                "check": "skills.discovered",
-                "expected": expected_skills,
-            }
-        ],
-        "recovery": [
-            {
-                "adapter": "skills-cli/v1",
-                "operation": "skills.remove",
-                "preview": {
-                    "argv": [
-                        "npx",
-                        "skills",
-                        "remove",
-                        *expected_skills,
-                        "--agent",
-                        "codex",
-                        "--global",
-                        "--yes",
-                    ]
-                },
-            }
-        ],
-    }
-    material = {key: value for key, value in artifact["data"].items() if key != "materialHash"}
-    assert set(material) == {"operations", "summary"}
-    canonical = json.dumps(material, separators=(",", ":"), sort_keys=True)
-    expected_hash = "sha256:" + hashlib.sha256(canonical.encode()).hexdigest()
-    assert artifact["data"]["materialHash"] == expected_hash
+    plan = json.loads(result.stdout)
+    assert set(plan) == {"summary", "operations"}
+    assert len(plan["operations"]) == 1
+
+    operation = plan["operations"][0]
+    assert set(operation) == {"order", "target", "command", "preview", "installs", "onFailure"}
+    assert operation["order"] == 1
+    assert operation["target"] == "global:codex"
+    assert operation["command"] == [
+        "npx",
+        "skills",
+        "add",
+        "https://skills.sh/p/rhdh-complete-test",
+        "--agent",
+        "codex",
+        "--global",
+        "--yes",
+    ]
+    assert operation["installs"] == every_packaged_skill(read_catalog())
+    assert operation["preview"].strip()
+    assert operation["onFailure"].strip()
 
 
 def test_install_plan_fallback_includes_the_repo_and_both_external_sources():
@@ -192,81 +137,61 @@ def test_install_plan_fallback_includes_the_repo_and_both_external_sources():
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
-    operations = json.loads(result.stdout)["data"]["operations"]
-    assert [operation["preview"]["argv"][3] for operation in operations] == [
+    operations = json.loads(result.stdout)["operations"]
+    assert [operation["command"][3] for operation in operations] == [
         "redhat-developer/rhdh-skill",
         "blader/humanizer",
         "mattpocock/skills",
     ]
-    assert operations[0]["preview"]["argv"][4:6] == ["--skill", "*"]
-    assert ["--skill", "humanizer"] == operations[1]["preview"]["argv"][4:6]
-    assert ["--skill", "grilling"] == operations[2]["preview"]["argv"][4:6]
+    assert operations[0]["command"][4:6] == ["--skill", "*"]
+    assert ["--skill", "humanizer"] == operations[1]["command"][4:6]
+    assert ["--skill", "grilling"] == operations[2]["command"][4:6]
 
 
-def test_apply_rejects_an_approval_for_different_plan_material(tmp_path):
+def test_apply_runs_nothing_until_the_stated_plan_is_confirmed(monkeypatch):
     setup = load_setup_module()
-    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
-    plan = setup.install_plan(catalog, "codex", "project", "https://skills.sh/p/test")
-    plan["data"]["materialHash"] = "sha256:tampered"
-    plan_file = tmp_path / "plan.json"
-    plan_file.write_text(json.dumps(plan), encoding="utf-8")
-
-    result = run_setup(
-        "apply",
-        "--plan",
-        str(plan_file),
-        "--approved-material-hash",
-        "sha256:another-plan",
-        "--json",
+    plan = setup.install_plan(read_catalog(), "codex", "project", "https://skills.sh/p/test")
+    calls = []
+    monkeypatch.setattr(
+        setup.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs))
     )
 
-    assert result.returncode == 1
-    assert json.loads(result.stdout)["errors"][0]["code"] == "PLAN_INVALID"
+    result, returncode = setup.apply_plan(plan, confirmed=False)
+
+    assert returncode == 1
+    assert result["errors"][0]["code"] == "NOT_CONFIRMED"
+    assert calls == []
 
 
 def test_apply_validates_every_operation_before_executing_any(monkeypatch):
     setup = load_setup_module()
-    operations = [
-        {
-            "order": 1,
-            "ownerSkill": "setup-rhdh-skills",
-            "adapter": "skills-cli/v1",
-            "operation": "skills.repository.install",
-            "target": "project:codex",
-            "preview": {"argv": ["npx", "skills", "add", "example/skills"]},
-            "preconditions": [],
-            "checks": [],
-            "recovery": [],
-        },
-        {
-            "order": 2,
-            "ownerSkill": "setup-rhdh-skills",
-            "adapter": "skills-cli/v1",
-            "operation": "unexpected",
-            "target": "project:codex",
-            "preview": {"argv": ["powershell", "Invoke-Anything"]},
-            "preconditions": [],
-            "checks": [],
-            "recovery": [],
-        },
-    ]
-    material = {
-        "summary": "Install skills",
-        "operations": operations,
-    }
-    material_hash = setup.material_hash(material)
     plan = {
-        "contract": "MutationPlan/v1",
-        "id": "setup-install",
-        "createdAt": "2026-08-10T12:00:00Z",
-        "data": {**material, "materialHash": material_hash},
+        "summary": "Install skills",
+        "operations": [
+            {
+                "order": 1,
+                "target": "project:codex",
+                "command": ["npx", "skills", "add", "example/skills"],
+                "preview": "Install example skills",
+                "installs": ["example"],
+                "onFailure": "Stop and report.",
+            },
+            {
+                "order": 2,
+                "target": "project:codex",
+                "command": ["powershell", "Invoke-Anything"],
+                "preview": "Run something else entirely",
+                "installs": [],
+                "onFailure": "Stop and report.",
+            },
+        ],
     }
     calls = []
     monkeypatch.setattr(
         setup.subprocess, "run", lambda *args, **kwargs: calls.append((args, kwargs))
     )
 
-    result, returncode = setup.apply_plan(plan, material_hash)
+    result, returncode = setup.apply_plan(plan, confirmed=True)
 
     assert returncode == 1
     assert result["errors"][0]["code"] == "OPERATION_NOT_ALLOWED"
@@ -308,9 +233,8 @@ def test_windows_npx_wrapper_resolves_to_node_without_a_shell(tmp_path, monkeypa
 
 def test_apply_executes_argument_arrays_without_a_command_shell(monkeypatch):
     setup = load_setup_module()
-    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     plan = setup.install_plan(
-        catalog,
+        read_catalog(),
         agent="codex",
         scope="project",
         pack_url="https://skills.sh/p/rhdh-complete-test",
@@ -329,10 +253,10 @@ def test_apply_executes_argument_arrays_without_a_command_shell(monkeypatch):
 
     monkeypatch.setattr(setup.subprocess, "run", fake_run)
 
-    receipt, returncode = setup.apply_plan(plan, plan["data"]["materialHash"])
+    report, returncode = setup.apply_plan(plan, confirmed=True)
 
     assert returncode == 0
-    assert receipt["valid"] is True
+    assert report["valid"] is True
     assert len(calls) == 1
     command, kwargs = calls[0]
     assert command == [
@@ -346,16 +270,44 @@ def test_apply_executes_argument_arrays_without_a_command_shell(monkeypatch):
         "--yes",
     ]
     assert kwargs["shell"] is False
-    assert receipt["data"]["outcomes"] == [
+    assert report["outcomes"] == [
         {
             "order": 1,
-            "ownerSkill": "setup-rhdh-skills",
-            "adapter": "skills-cli/v1",
-            "operation": "skills.pack.install",
             "target": "project:codex",
+            "preview": plan["operations"][0]["preview"],
             "status": "completed",
             "returnCode": 0,
             "stdout": "installed",
             "stderr": "",
         }
     ]
+
+
+def test_apply_reports_an_outcome_for_every_operation_including_skipped_ones(monkeypatch):
+    setup = load_setup_module()
+    plan = setup.install_plan(read_catalog(), agent="codex", scope="project", pack_url=None)
+    assert len(plan["operations"]) == 3
+
+    monkeypatch.setattr(
+        setup,
+        "_resolve_npx_command",
+        lambda argv: ["node", "npx-cli.js", *argv[1:]],
+    )
+
+    def fake_run(command, **kwargs):
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="network unreachable")
+
+    monkeypatch.setattr(setup.subprocess, "run", fake_run)
+
+    report, returncode = setup.apply_plan(plan, confirmed=True)
+
+    assert returncode == 1
+    assert report["valid"] is False
+    assert [outcome["order"] for outcome in report["outcomes"]] == [1, 2, 3]
+    assert [outcome["status"] for outcome in report["outcomes"]] == [
+        "failed",
+        "skipped",
+        "skipped",
+    ]
+    assert report["outcomes"][0]["stderr"] == "network unreachable"
+    assert report["outcomes"][1]["returnCode"] is None
