@@ -11,10 +11,9 @@ Install the pack and the three external skills it depends on. Each command opens
 the skills wizard, which asks where to put them:
 
 ```bash
-npx skills add redhat-developer/rhdh-skills --all
-npx skills add mattpocock/skills --skill grilling
-npx skills add mattpocock/skills --skill handoff
-npx skills add blader/humanizer
+npx skills add redhat-developer/rhdh-skills --global
+npx skills add mattpocock/skills --global
+npx skills add blader/humanizer --global
 ```
 
 Restart your agent client so it discovers them.
@@ -55,7 +54,7 @@ name.
 Skills are grouped into six folders:
 
 | Folder | Covers |
-|---|---|
+| --- | --- |
 | `jira/` | Creating, refining, updating, and reporting on RHIDP, RHDHPLAN, RHDHBUGS, and RHDHSUPP work, plus sprint ceremonies and linking PRs to issues. |
 | `plugins/` | Authoring, wiring, exporting, and fixing Backstage dynamic plugins; the overlays repository; local RHDH; opening and reviewing pull requests; midstream propagation. |
 | `ci/` | Prow job configuration and nightly triggers, Konflux and Tekton task updates, base images, and Yarn bumps. |
