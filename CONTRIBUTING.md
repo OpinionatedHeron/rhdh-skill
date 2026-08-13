@@ -64,8 +64,9 @@ root. Retired history belongs under `internal/deprecated/`. Neither ships.
    `cd skills/meta/ask-rhdh && python scripts/render_routes.py --write`
 7. Let pre-commit regenerate `.claude-plugin/marketplace.json` from the catalog
    (or run `uv run python scripts/generate_plugin_manifest.py --write`). That
-   file groups `npx skills add` by category; it is not a Claude Code marketplace
-   product — see [ADR-0009](docs/adr/0009-skills-cli-plugin-manifest.md).
+   file groups `npx skills add` by installable category and folds required
+   `reference` skills into each consumer group; it is not a Claude Code
+   marketplace product — see [ADR-0009](docs/adr/0009-skills-cli-plugin-manifest.md).
 8. Update `README.md` if membership or naming changed.
 9. Add script, adapter, and catalog contract tests as applicable.
 10. Run `uv run pytest`.

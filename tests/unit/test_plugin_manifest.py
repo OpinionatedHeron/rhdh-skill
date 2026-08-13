@@ -43,17 +43,60 @@ def test_the_generator_can_read_its_inputs():
     )
 
 
-def test_every_catalog_skill_is_listed_under_its_category_plugin():
-    """One marketplace plugin per category; every catalog skill path appears once."""
+def test_reference_is_not_an_installer_group():
+    """Reference stays editorial; the installer must not offer a Reference group."""
     generator = load_generator()
     catalog = generator.json.loads(generator.CATALOG_PATH.read_text(encoding="utf-8"))
     manifest = generator.build_manifest(catalog)
 
-    plugins = {plugin["name"]: plugin for plugin in manifest["plugins"]}
-    assert list(plugins) == [generator.plugin_name(category) for category in catalog["categories"]]
-
-    expected_paths = {
-        f"./skills/{entry['category']}/{entry['name']}" for entry in catalog["skills"]
+    assert "reference" in catalog["categories"]
+    assert generator.plugin_name("reference") not in {
+        plugin["name"] for plugin in manifest["plugins"]
     }
-    listed_paths = {path for plugin in manifest["plugins"] for path in plugin["skills"]}
-    assert listed_paths == expected_paths
+    installable = [
+        category
+        for category in catalog["categories"]
+        if category not in generator.HIDDEN_INSTALL_CATEGORIES
+    ]
+    # Manifest plugins are reversed so earlier categories win shared pluginNames.
+    assert [plugin["name"] for plugin in manifest["plugins"]] == [
+        generator.plugin_name(category) for category in reversed(installable)
+    ]
+
+
+def test_each_installable_category_includes_its_reference_requires():
+    """Selecting a category group must list that category's required reference skills."""
+    generator = load_generator()
+    catalog = generator.json.loads(generator.CATALOG_PATH.read_text(encoding="utf-8"))
+    by_name = {entry["name"]: entry for entry in catalog["skills"]}
+    manifest = generator.build_manifest(catalog)
+    plugins = {plugin["name"]: plugin for plugin in manifest["plugins"]}
+
+    for entry in catalog["skills"]:
+        category = entry["category"]
+        if category in generator.HIDDEN_INSTALL_CATEGORIES:
+            continue
+        plugin = plugins[generator.plugin_name(category)]
+        assert generator._skill_path(entry) in plugin["skills"]
+        for path in generator._reference_closure(entry["name"], by_name):
+            assert path in plugin["skills"], (
+                f"{entry['name']} requires {path}, but the {category} plugin omits it"
+            )
+
+
+def test_every_required_reference_skill_is_reachable_from_some_plugin():
+    """No required reference skill is left only in the hidden editorial category."""
+    generator = load_generator()
+    catalog = generator.json.loads(generator.CATALOG_PATH.read_text(encoding="utf-8"))
+    by_name = {entry["name"]: entry for entry in catalog["skills"]}
+    manifest = generator.build_manifest(catalog)
+    listed = {path for plugin in manifest["plugins"] for path in plugin["skills"]}
+
+    required_reference = set()
+    for entry in catalog["skills"]:
+        if entry["category"] in generator.HIDDEN_INSTALL_CATEGORIES:
+            continue
+        required_reference.update(generator._reference_closure(entry["name"], by_name))
+
+    assert required_reference
+    assert required_reference <= listed
