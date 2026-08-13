@@ -55,8 +55,8 @@ What the skill leaves behind when it finishes.
 ```
 
 A menu asking which mode the user wants belongs to no skill: those modes are
-separate skills (ADR-0005). The section names are not an interface and should not
-be prose-tested.
+separate skills. The section names are not an interface and should not be
+prose-tested.
 
 ## Progressive Disclosure
 
@@ -110,7 +110,7 @@ Every model-invoked feature must be usable by an agent with no browser, GUI, or 
 
 - Do not reference browser-only tools such as Postman, Swagger UI, or API consoles.
 - When OAuth or installation requires human interaction, stop the branch and name the exact
-  `/setup-rhdh-skills <route>`; that human entry point may guide browser consent.
+  setup entry point and route; that human entry point may guide browser consent.
 - Do not include resources that require a human to visually browse or click
 - Ask: "Can the agent use this in a `bash` or `read` tool call?" If no, cut it.
 

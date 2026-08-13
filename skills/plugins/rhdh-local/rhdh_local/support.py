@@ -1,6 +1,6 @@
 """Workspace discovery, output formatting, and subprocess execution.
 
-All bundled with this skill so the CLI runs installed alone (ADR-0006). A
+All bundled with this skill so the CLI runs installed alone. A
 sibling skill carrying something similar is expected, not a defect.
 """
 
@@ -96,7 +96,7 @@ class OutputFormatter:
     Commands log inline with log_ok/log_warn/log_fail/log_info in human mode and
     then call success() for next_steps; in JSON mode success() emits the whole
     structured response. Only the surface rhdh-local actually calls is
-    implemented here (ADR-0006) -- there is no debug channel, list renderer,
+    implemented here -- there is no debug channel, list renderer,
     banner, or raw passthrough.
 
     Attributes:

@@ -1,10 +1,10 @@
 """Read openshift/release CI configuration from a checkout or from GitHub.
 
-Bundled with this skill so the scripts run installed alone (ADR-0006). A
+Bundled with this skill so the scripts run installed alone. A
 sibling skill carrying something similar is expected, not a defect.
 
 Requires ``ruamel.yaml``: the standard library has no YAML parser, so every
-caller that reads a CI config declares it in its PEP-723 block (ADR-0002).
+caller that reads a CI config declares it in its PEP-723 block.
 """
 
 from __future__ import annotations

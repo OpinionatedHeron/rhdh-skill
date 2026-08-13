@@ -18,7 +18,8 @@ misfires or bloats.
 **Frontmatter:**
 
 - [ ] `name` matches the directory name, lowercase and hyphens, max 64 chars
-- [ ] `name` keeps the `rhdh-` prefix, and reads domain then verb
+- [ ] `name` carries the name prefix its collection publishes under, and reads
+      domain then verb
 - [ ] `description` is under 1024 chars, non-empty, third person
 - [ ] `description` includes trigger phrases, not just a summary of behaviour
 - [ ] `description` names the literal proper nouns the skill owns — project keys,
@@ -63,7 +64,7 @@ misfires or bloats.
 - [ ] Examples use fake data where appropriate
 - [ ] Steering names a positive target rather than only a prohibition
 
-**Composition (for this repository):**
+**Composition (where the host repository publishes a collection):**
 
 - [ ] Promoted membership, invocation mode, and dependencies match the machine
       catalog
@@ -71,11 +72,10 @@ misfires or bloats.
       layout probing
 - [ ] Handoffs are prose: a producer reports its result in the conversation and a
       consumer reads what the skill it invoked by name reported. An external write
-      invokes `/rhdh-mutation-gate`; context that must survive into a later session
-      is the user running `/handoff` (ADR-0007)
-- [ ] A missing capability stops the branch and names the exact
-      `/setup-rhdh-skills <route>`, and the skill neither installs nor
-      authenticates anything itself
+      invokes the skill that owns the write gate; context that must survive into a
+      later session is the user running a session-handoff skill
+- [ ] A missing capability stops the branch and names the exact setup entry point
+      and route, and the skill neither installs nor authenticates anything itself
 - [ ] Human-invoked skills are limited to the approved wayfinding and setup entry
       points
 - [ ] Prompt duplication is absent: instructions, protocols, and domain rules
@@ -83,8 +83,8 @@ misfires or bloats.
       whether the fix is extract, enforce, or document (see
       `architecture-patterns.md` → Duplication between skills)
 - [ ] Duplicated *code* in bundled scripts is fine and needs no finding — a
-      script is self-contained so its skill installs alone (ADR-0006). Flag only
-      duplicated data such as field IDs, which goes stale silently
+      script is self-contained so its skill installs alone. Flag only duplicated
+      data such as field IDs, which goes stale silently
 - [ ] Tests exercise scripts, adapters, catalog membership, and clean installs
       rather than prose shape
 

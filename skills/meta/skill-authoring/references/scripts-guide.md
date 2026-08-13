@@ -107,8 +107,9 @@ if __name__ == "__main__":
 
 ### YAML round-trip exception (PEP 723)
 
-Repository scripts stay stdlib-only. The sole capability exception is comment- and order-preserving
-YAML round-tripping with `ruamel.yaml`, as defined by ADR-0002:
+Bundled scripts stay stdlib-only, because every dependency is one more thing that has to be present
+on the user's machine for the installed skill to run. The one exception worth taking is comment- and
+order-preserving YAML round-tripping with `ruamel.yaml`, which stdlib cannot do:
 
 ```python
 #!/usr/bin/env -S uv run --script
@@ -123,8 +124,8 @@ YAML round-tripping with `ruamel.yaml`, as defined by ADR-0002:
 # ...
 ```
 
-Run with `uv run --script scripts/update_yaml.py`. Do not add other PEP 723 dependencies without an
-ADR that changes the portability boundary.
+Run with `uv run --script scripts/update_yaml.py`. Do not add other PEP 723 dependencies without a
+recorded decision that moves the portability boundary for the whole collection.
 
 ## Designing for Agents
 

@@ -5,7 +5,7 @@ are rejected by `--fields`, so every caller that needs team, story points, size,
 or sprint has to enrich search results through `acli view` and then flatten the
 nested payload.
 
-Bundled with this skill so it runs installed alone (ADR-0006). A sibling skill
+Bundled with this skill so it runs installed alone. A sibling skill
 carrying a copy of this file is expected, not a defect -- with one exception,
 called out at FIELDS below.
 """
@@ -88,11 +88,10 @@ def _adf_to_text(issue):
 # Check a copy against live Jira:
 #     acli jira workitem view RHIDP-1 --fields '*all' --json
 #
-# ADR-0006 accepts this duplication and names an automated validator as the
-# mitigation. That validator does not exist yet -- the closest thing is
-# skills/reference/rhdh-jira-api/scripts/validate_components.py, which checks
-# component names by the same acli-versus-reference method and is the pattern to
-# follow. Until a field-ID validator lands, this comment is the only guard.
+# The duplication is deliberate — this script must run installed alone. Guard:
+#     skills/reference/rhdh-jira-api/scripts/validate_field_ids.py
+# Run it with no arguments to check every copy against fields.md offline, or with
+# --live to check fields.md against Jira. Run it after editing any ID here.
 # ---------------------------------------------------------------------------
 FIELDS = {
     # Core

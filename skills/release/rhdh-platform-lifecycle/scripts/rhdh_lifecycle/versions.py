@@ -1,6 +1,6 @@
 """Version sorting, date helpers, and endoflife.date filtering.
 
-Bundled with this skill so the scripts run installed alone (ADR-0006). A
+Bundled with this skill so the scripts run installed alone. A
 sibling skill carrying something similar is expected, not a defect.
 """
 

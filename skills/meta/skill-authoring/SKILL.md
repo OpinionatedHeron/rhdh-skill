@@ -1,5 +1,5 @@
 ---
-name: rhdh-skill-authoring
+name: skill-authoring
 description: >-
   Creates, audits, and consolidates Agent Skills that follow the Agent Skills
   open standard, and hands back a drafted or repaired skill with the review
@@ -41,7 +41,7 @@ pointers, checkable completion criteria, and single-sourced behavior.
 
 ## Duplication
 
-Judge it by layer, not by volume (ADR-0006).
+Judge it by layer, not by volume.
 
 **Prompt duplication is forbidden.** When the same instructions, protocol, or
 domain rule would appear in two skills: **extract** a reference skill when nothing
@@ -52,52 +52,50 @@ the threshold for extracting; one caller means it belongs inside its owner.
 **Code duplication is expected.** Bundled scripts are self-contained so a skill
 can be installed alone. Copy the helper rather than reaching across a seam.
 
-Where a rule has to reach the agent at *runtime*, in someone else's repository,
-it must live in a skill. `AGENTS.md` governs work inside this repository and does
-not ship with the pack.
+A rule the agent needs at *runtime*, in whatever repository it is working in, has
+to live in a skill. A repository's own `AGENTS.md`, decision records, and
+glossary govern work inside that checkout and do not travel with an installed
+skill — so a skill that cites them is broken for everyone who installs it.
 
 ## Naming
 
-Every promoted model-invoked skill keeps the `rhdh-` prefix (ADR-0008). Folders
-are stripped at install, so the prefix is the only isolation the skill has in a
-namespace that already holds dozens of unrelated skills. Name by domain then
-verb, and keep the literal proper nouns — project keys, repository names, tool
-names, an example issue key — in the description, because a literal token is the
-strongest routing anchor available.
+A name describes its subject. Name by domain then verb, matching the trigger
+phrase the skill claims: `<domain>-create`, `<domain>-review`. Sibling skills use
+the same word for the same thing.
 
-## RHDH repository profile
+Ask what the skill is *about*, and let the answer decide the name. A skill about
+one product or system takes that product's name; a skill that is genuinely
+generic takes a generic name, even when it is published alongside product-specific
+ones. A prefix that overstates scope is worse than none — it promises knowledge
+the skill does not have.
 
-When authoring in this repository, read `CONTEXT.md` and the applicable ADRs
-before designing the skill. ADR-0005 through ADR-0008 are binding:
+Names are read by people, in a flat list where the folder is gone. Routing is a
+separate problem, solved by the description: keep the literal proper nouns —
+project keys, repository names, file names, tool names, an example identifier —
+because a literal token is the strongest anchor available.
 
-- A promoted skill needs an independent trigger and one cohesive outcome.
-- `ask-rhdh` and `setup-rhdh-skills` are the only human-invoked skills unless a
-  later ADR changes that boundary.
-- Category folders are editorial. Compose model skills by stable name, never
-  through sibling files, imports, or host layout probing.
-- Skills hand work over in prose: the producer reports its result in the
-  conversation and the consumer reads it. An external write invokes
-  `/rhdh-mutation-gate`; context that must survive into a later session is the
-  user running `/handoff` (ADR-0007).
-- A missing capability stops that branch and names the exact
-  `/setup-rhdh-skills <route>`. Detecting is a model skill's job; installing and
-  authenticating belong to the human entry point.
-- The setup catalog is the source of truth for promoted membership, invocation,
-  and dependencies. Update it with any promoted interface change.
-- Before writing material a second skill would copy, decide extract, enforce, or
-  document. Read `references/architecture-patterns.md` → Duplication between
-  skills. Bundled scripts stay self-contained; there is no shared runtime
-  package.
-- Test scripts, adapters, catalog membership, clean installs, and observable
-  behavior. Do not test headings, menu wording, XML tags, or README prose.
+That anchoring works on presence, so never put a literal in a description in
+order to disclaim it. "A key such as ABC-123 is not a sprint" makes the skill a
+candidate for exactly the request it is refusing. State the exclusion without the
+token: "works on a team and a board, never on a single issue key".
 
-## Required grilling dependency
+## Working inside a host repository
 
-Creating or interviewing for a skill requires Matt Pocock's `/grilling` skill.
-Treat it as a required named skill supplied by the complete pack. If the host
-cannot invoke it by name, stop before drafting anything, say that creation is
-gated on `grilling`, and name `/setup-rhdh-skills install`. Audit and
-consolidation do not require grilling unless they open an interview.
+Before designing a skill, read whatever conventions the repository states —
+typically `AGENTS.md`, a glossary, and any decision records. Those bind the skill
+you are about to write. They do not bind the skill once installed, so nothing you
+write into the skill may depend on being able to read them.
+
+Where the repository publishes a collection, expect it to define: which skills are
+human-invoked, whether a name prefix applies, how skills compose, where the
+membership manifest lives, and what the tests protect. Follow its answers.
+
+## Interview dependency
+
+Creating or interviewing for a skill requires an interview skill that stress-tests
+scope before drafting — `/grilling` in this collection. If the host cannot invoke
+it by name, stop before drafting anything and say that creation is gated on it.
+Audit and consolidation do not require it unless they open an interview.
 
 ## Conditional references
 

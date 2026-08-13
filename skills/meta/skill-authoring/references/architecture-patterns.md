@@ -7,7 +7,7 @@ varies by task type, or output another skill consumes.
 ## The sub-command router is retired
 
 A skill whose body is a menu of modes over a table of sub-commands is the thing
-to avoid. It was this pack's architecture until ADR-0005 replaced it, and the
+to avoid. One collection ran on that architecture until it broke, and the
 measurement that ended it is worth carrying: the largest router reached 7,784
 lines across 45 references that partitioned into seven components with almost no
 citation edges between them. A caller had to learn whichever of seven
@@ -30,7 +30,7 @@ Each of these means the skill is several skills:
 - The `compatibility:` line is the union of unrelated toolchains.
 
 What replaces it: one skill per trigger phrase, named domain-then-verb, composed
-by name (ADR-0005, ADR-0008). Material that two or more of the resulting skills
+by name. Material that two or more of the resulting skills
 need becomes a reference skill each of them invokes — see Duplication between
 skills below.
 
@@ -129,12 +129,13 @@ turn "the output was mediocre" into "the agent tells you what is missing".
 
 ### The gate contract
 
-One contract covers every gate in the pack. When a required precondition is
-missing, stop that branch, say what is missing, and name the exact
-`/setup-rhdh-skills <route>` that supplies it. Branches that do not need the
-capability continue. A model-invoked skill detects capability and stops there —
-installing, authenticating, and probing host skill directories belong to the
-human setup entry point.
+One contract covers every gate. When a required precondition is missing, stop
+that branch, say what is missing, and name the exact setup entry point and route
+that supplies it — whichever human-invoked skill or command the collection
+publishes for setup. Branches that do not need the capability continue. A
+model-invoked skill detects capability and stops there — installing,
+authenticating, and probing host skill directories belong to that setup entry
+point.
 
 If you find yourself writing "skip the step and proceed anyway", the precondition
 was not required. Delete the gate. A step whose absence does not change the
@@ -151,8 +152,8 @@ Define gates as a table with a required check and a fail action:
 | Gate | Required check | If fail |
 |---|---|---|
 | Context | Project context loaded via `python scripts/load_context.py` | Run the loader |
-| Config | Config file exists and is not placeholder | Stop the branch and name the exact `/setup-rhdh-skills <route>` |
-| Capability | Required adapter or CLI is ready, checked without inspecting credential material | Stop the branch and name the exact `/setup-rhdh-skills <route>` |
+| Config | Config file exists and is not placeholder | Stop the branch and name the exact setup route |
+| Capability | Required adapter or CLI is ready, checked without inspecting credential material | Stop the branch and name the exact setup route |
 | Plan | The user confirmed the plan | Present it and wait |
 | Mutation | All gates above pass | Do not edit project files |
 ```
@@ -176,11 +177,11 @@ silently.
 
 ## The write gate
 
-A skill that writes to Jira, GitHub, GitLab, or a cluster names what counts as a
-mutation in its own domain, then invokes `/rhdh-mutation-gate` by name for the
-rest: stating the operations, taking approval, and reporting every outcome
-(ADR-0007). One skill owns that protocol, so a writing skill carries a pointer to
-it rather than a copy of it.
+A skill that writes to an issue tracker, a forge, or a cluster names what counts
+as a mutation in its own domain, then invokes by name whichever skill owns the
+write protocol for the rest: stating the operations, taking approval, and
+reporting every outcome. One skill owns that protocol, so a writing skill carries
+a pointer to it rather than a copy of it.
 
 Approval happens in the conversation, where the user already is. The plan is
 prose in the transcript — a compact table, one row per operation.
@@ -312,8 +313,8 @@ Key behaviours:
 ### Context validation
 
 Handle missing, empty, or placeholder files: when `PROJECT.md` is absent or still
-carries `[TODO]` markers, stop the branch, name the exact `/setup-rhdh-skills`
-route, and resume the original task once the human reports setup complete.
+carries `[TODO]` markers, stop the branch, name the exact setup route, and resume
+the original task once the human reports setup complete.
 
 ### Session caching
 
@@ -380,8 +381,8 @@ picture:
 ```
 
 A preview is not the write gate. When the next step writes to an external system,
-invoke `/rhdh-mutation-gate` and follow it — the preview shows the content, the
-gate states the operations and collects the approval.
+invoke the skill that owns the write gate and follow it — the preview shows the
+content, the gate states the operations and collects the approval.
 
 ### Chained decomposition
 
@@ -428,9 +429,9 @@ Build cannot start until:
 
 Two rules make the seam hold. The plan must be **user-confirmed** rather than
 self-authored — a separate user response approving it, not the agent's own
-summary. And the handoff stays in the conversation, as prose both sides can read
-(ADR-0007); a user who needs context to survive into a later session runs
-`/handoff`.
+summary. And the handoff stays in the conversation, as prose both sides can read;
+a user who needs context to survive into a later session runs a session-handoff
+skill.
 
 Skills compose by name, so the handoff interface is what the producer said. A
 reference file or script path is not a handoff interface.

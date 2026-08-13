@@ -4,7 +4,7 @@
 The routing table is a projection, not a source: the set of rows comes from the
 catalog's model-invoked skills, and each row's text is that skill's own
 `description` frontmatter. Hand-editing the table produced a second inventory
-that drifted from the skills it claimed to describe (ADR-0005), so the table
+that drifted from the skills it claimed to describe, so the table
 between the generated markers in SKILL.md is rewritten from those two sources.
 
     python scripts/render_routes.py            # print the table

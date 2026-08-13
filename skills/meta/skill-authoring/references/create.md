@@ -6,14 +6,16 @@ Interview, draft, optimize, script, and review a new skill from scratch.
 
 ### Grilling prerequisite (hard gate)
 
-Creating or interviewing requires the named `/grilling` skill. It is installed
-and discovered by `/setup-rhdh-skills`; this skill neither locates nor installs
-pack dependencies.
+Creating or interviewing requires an interview skill that stress-tests scope
+before drafting — `/grilling` in this collection. This skill neither locates nor
+installs its own dependencies; installation belongs to whichever setup entry
+point the collection publishes.
 
-If `/grilling` is unavailable, stop before drafting anything, say that creation is
-gated on `grilling`, and name `/setup-rhdh-skills install`. Never probe host skill
-directories or improvise a substitute interview. Resume the original create
-request once the human reports the dependency available.
+If the interview skill cannot be invoked by name, stop before drafting anything,
+say that creation is gated on it, and name the setup entry point that installs
+it. Never probe host skill directories or improvise a substitute interview.
+Resume the original create request once the human reports the dependency
+available.
 
 ### Interview cadence
 
@@ -176,7 +178,7 @@ you are building.
 
 ### Setup and capability gates (when applicable)
 
-Non-negotiable checks before any file edits. Gates prevent generic output from missing context, and every gate follows one rule: when a required precondition is missing, stop that branch, name the missing capability, and name the exact `/setup-rhdh-skills <route>` that supplies it. Write them as a table with a required check and a fail action per row, mutation last — the table pattern and where that rule stops are in `architecture-patterns.md` → Setup and capability gates.
+Non-negotiable checks before any file edits. Gates prevent generic output from missing context, and every gate follows one rule: when a required precondition is missing, stop that branch, name the missing capability, and name the exact setup entry point and route that supplies it. Write them as a table with a required check and a fail action per row, mutation last — the table pattern and where that rule stops are in `architecture-patterns.md` → Setup and capability gates.
 
 ### Register/mode system (when applicable)
 
@@ -186,8 +188,8 @@ When behaviour varies sharply by task type while the trigger stays one, classify
 
 When one skill produces work another consumes, the producer states the result in
 the conversation, structured enough to act on, and the consumer states what it
-requires before it starts (ADR-0007). A user who needs context to survive into a
-later session runs `/handoff`. Skills compose by name, so the handoff interface is
+requires before it starts. A user who needs context to survive into a later
+session runs a session-handoff skill. Skills compose by name, so the handoff interface is
 what the producer said, never a reference file or script path. See
 `architecture-patterns.md` → Handoffs between skills for the producer and consumer
 shapes.
@@ -212,10 +214,10 @@ Quick validation:
 5. Verify under 1024 characters
 
 The description competes against every skill installed on the machine, not only
-against this pack. Read the neighbouring skills' descriptions and confirm none of
-them claims the same utterance; keep the `rhdh-` prefix and the literal proper
-nouns — project keys, repository names, tool names — because a literal token is
-the strongest routing anchor available (ADR-0008).
+against its own collection. Read the neighbouring skills' descriptions and confirm
+none of them claims the same utterance; keep the collection's name prefix and the
+literal proper nouns — project keys, repository names, tool names — because a
+literal token is the strongest routing anchor available.
 
 ## Phase 4: Scripts
 
@@ -247,8 +249,8 @@ For each piece of the skill's workflow, ask: "Could a script do this?" If yes, w
 Key patterns:
 
 - **Python without dependencies**: stdlib only, `argparse` for CLI parsing
-- **YAML round-trip exception**: PEP 723 with `ruamel.yaml` and `uv run --script`, only as allowed by
-  ADR-0002
+- **YAML round-trip exception**: PEP 723 with `ruamel.yaml` and `uv run --script`, the one dependency
+  worth taking on, because stdlib cannot round-trip YAML without losing comments and order
 - **All scripts**: Structured output (JSON when piped), clear exit codes, descriptive `--help`
 
 ### Context loader pattern
@@ -265,7 +267,7 @@ Before presenting the final skill, verify against this checklist:
 
 ### Basics
 
-- [ ] `name` is lowercase, hyphens only, max 64 chars, and keeps the `rhdh-` prefix
+- [ ] `name` is lowercase, hyphens only, max 64 chars, and carries the collection's name prefix
 - [ ] `description` is under 1024 chars and includes trigger phrases
 - [ ] `description` is slightly pushy — covers edge phrasings that should activate the skill
 - [ ] `description` names the literal proper nouns the skill owns, and collides with no sibling skill
@@ -276,11 +278,11 @@ Before presenting the final skill, verify against this checklist:
 
 - [ ] The skill claims one trigger phrase; nothing in the body asks the user which mode they want
 - [ ] Branch pointers name a load condition, and every branch shares the domain model, gates, and completion criterion
-- [ ] Every gate names a required precondition and a fail action; a missing precondition stops the branch and names the exact `/setup-rhdh-skills <route>` — no gate proceeds anyway
+- [ ] Every gate names a required precondition and a fail action; a missing precondition stops the branch and names the exact setup entry point and route — no gate proceeds anyway
 - [ ] Register/mode system classifies before loading references
 - [ ] Material shared with another skill is extracted, enforced, or documented, never copied
 - [ ] Skills compose by stable name — no sibling paths, no imports, no host layout probing
-- [ ] Handoffs are prose the producer states and the consumer reads; an external write invokes `/rhdh-mutation-gate`
+- [ ] Handoffs are prose the producer states and the consumer reads; an external write invokes the skill that owns the write gate
 - [ ] Human/model invocation metadata matches the approved repository boundary
 
 ### References
@@ -291,8 +293,8 @@ Before presenting the final skill, verify against this checklist:
 - [ ] Shared concerns (auth, config) extracted into their own reference, not embedded in a consumer
 - [ ] Error handling lives in the reference for the tool that produces the error
 - [ ] Multi-approach skills include a decision table naming which reference covers which approach
-- [ ] Model-invoked skills do not start browser-only setup; human `/setup-rhdh-skills` may own
-      required OAuth consent or installation steps
+- [ ] Model-invoked skills do not start browser-only setup; the human-invoked setup entry point
+      may own required OAuth consent or installation steps
 
 ### Scripts
 
@@ -307,7 +309,7 @@ Before presenting the final skill, verify against this checklist:
 
 - [ ] Credentials remain inside an authenticated adapter backed by a native tool store or host
       connector; workflow commands, plans, and logs contain no credential material
-- [ ] Credential setup delegates to `/setup-rhdh-skills`; domain skills only detect capability
+- [ ] Credential setup delegates to the human-invoked setup skill; domain skills only detect capability
 - [ ] Capability gate checks authenticated adapter readiness without inspecting credential material
 - [ ] API schema discovery is documented (OpenAPI download, GraphQL introspection, or live endpoints)
 - [ ] API examples have been validated against the live endpoint

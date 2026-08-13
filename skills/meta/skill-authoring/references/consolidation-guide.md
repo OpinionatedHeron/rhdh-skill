@@ -53,8 +53,8 @@ turns out to be shallow.
 
 ## Counter-signals: the consolidation went too far
 
-This guide's own rule was ignored once, and a 24-to-18 merge folded four
-independent triggers into one 7,784-line skill. These are the marks it leaves.
+In one collection this guide's own rule was ignored, and a 24-to-18 merge folded
+four independent triggers into one 7,784-line skill. These are the marks it leaves.
 Any one of them means split the skill back out.
 
 - **No citation edges.** Partition the references by which ones cite each other.
@@ -139,7 +139,7 @@ When consolidating near-identical scripts:
    - Different JSON output formats
 
 Scripts that stay in separate skills stay duplicated, and that is correct — a
-bundled script is self-contained so its skill installs alone (ADR-0006).
+bundled script is self-contained so its skill installs alone.
 
 ### Step 4: Consolidate examples
 

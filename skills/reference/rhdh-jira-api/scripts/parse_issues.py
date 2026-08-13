@@ -123,6 +123,20 @@ def _walk_adf(node, parts):
             _walk_adf(child, parts)
 
 
+# ---------------------------------------------------------------------------
+# The customfield_* IDs below are facts about the live Jira instance, not
+# constants. They are duplicated into every skill that reads Jira, so a stale
+# copy here fails SILENTLY: the extractor reads a key that is not present,
+# yields "" or None, and the caller reports missing data rather than an error.
+# _sprint_name carries one of them too (customfield_10020).
+#
+# Authoritative table:  references/fields.md
+#
+# The duplication is deliberate — this script must run installed alone. Guard:
+#     scripts/validate_field_ids.py
+# Run it with no arguments to check every copy against fields.md offline, or with
+# --live to check fields.md against Jira. Run it after editing any ID here.
+# ---------------------------------------------------------------------------
 FIELDS = {
     # Core
     "key": lambda i: i.get("key", ""),

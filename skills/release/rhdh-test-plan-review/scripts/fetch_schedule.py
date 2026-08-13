@@ -16,7 +16,7 @@ from datetime import datetime
 
 # Progress on stderr, machine-readable failure on stdout: this script writes one
 # JSON document to stdout and nothing else. Bundled here so the script runs
-# installed alone (ADR-0006).
+# installed alone.
 
 
 def log(msg):

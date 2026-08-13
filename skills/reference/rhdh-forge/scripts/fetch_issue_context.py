@@ -9,7 +9,7 @@ reads the issue with the gh CLI, and resolves the plugin workspace the issue
 belongs to. Consumers include the pull-request, plugin-development, and
 pr-review skills.
 
-Stdlib only, per ADR-0002. GitLab issues and merge requests are read through
+Stdlib only. GitLab issues and merge requests are read through
 `glab`; see references/glab-cli.md.
 
 Examples:

@@ -6,7 +6,7 @@ Auto-detects output format based on context:
 
 Override with --human or --json flags.
 
-Bundled with this skill so the CLI runs installed alone (ADR-0006). A sibling
+Bundled with this skill so the CLI runs installed alone. A sibling
 skill carrying something similar is expected, not a defect.
 """
 

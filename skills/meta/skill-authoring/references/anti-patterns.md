@@ -56,7 +56,7 @@ Two skills claim the same utterance, so which one fires is a coin toss.
 
 **Symptom:** The wrong skill activates, or the right one activates only when the user names it. Bare names are the usual cause — `plugin-development` competes with the host's own "create a plugin" skills, `raise-pr` with every PR skill on the machine.
 
-**Fix:** Keep the `rhdh-` prefix and name domain-then-verb (ADR-0008). Read the neighbouring descriptions side by side and give each one the literal proper nouns it owns — `RHIDP-1234`, `rhdh-operator`, `acli`. If two descriptions still claim one phrase, they are one skill.
+**Fix:** Name domain-then-verb, and carry whatever name prefix the publishing collection uses so the name survives a flat install alongside every other pack. Read the neighbouring descriptions side by side and give each one the literal proper nouns it owns — an issue key such as `RHIDP-1234`, a repository name such as `rhdh-operator`, a tool name such as `acli`. If two descriptions still claim one phrase, they are one skill.
 
 ## Structure Failures
 
@@ -205,9 +205,9 @@ by its stable name and use what it reports back; never reference its path.
 of modes, each with its own reference file. The user has to pick a lane before the
 skill does anything.
 
-**Fix:** Each row is a phrase a user would say on its own, so each row is a skill
-(ADR-0005). Split them, name them domain-then-verb, and let them compose by name.
-This is the pattern the pack retired, not a shape to reach for — read
+**Fix:** Each row is a phrase a user would say on its own, so each row is a skill.
+Split them, name them domain-then-verb, and let them compose by name.
+This is a shape collections retire, not one to reach for — read
 `architecture-patterns.md` → The sub-command router is retired for the symptoms
 that identify one, including a table whose rows share no domain model and a
 `compatibility:` line that unions unrelated toolchains.

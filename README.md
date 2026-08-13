@@ -31,27 +31,20 @@ The setup router then installs the complete pack (or its catalog-listed direct
 sources) and tells you when another client restart is required. That single
 skill is a bootstrap step, not a supported end state.
 
-Upgrading from the previous 24-skill layout? Installing the new pack does not
-remove the old directories, so an agent that has both sees two candidates for
-the same request and may route to the retired copy. Remove them yourself:
+Upgrading from the previous 24-skill layout? Re-running the install above
+replaces the collection, retiring the skills that no longer exist along with it.
+Restart the agent client afterwards so the discovery cache reflects the new set,
+then invoke `/setup-rhdh-skills`. Existing `~/.config/rhdh-skill/config.json` and
+`.rhdh/` state carry over untouched.
 
-```bash
-npx skills@latest remove agent-ready backstage-upgrade base-images-and-rpms \
-  bug-fix compute-plugin-package-overlay-cve-list create-plugin cursor-mcp-auth \
-  jira-pr-mr-link konflux-release-data-rpa konflux-tekton-updates lifecycle \
-  nfs-migration overlay prow prow-trigger-nightly raise-pr rhdh rhdh-bump-yarn \
-  rhdh-coding rhdh-jira rhdh-local rhdh-plugin-midstream-propagate \
-  rhdh-pr-review rhdh-release rhdh-test-plan-review skill-maker test-placement \
-  -g -y
-```
+Nearly every skill was renamed, so an agent that somehow ends up with both sets
+sees two candidates for the same request and may route to a retired copy. If you
+suspect that — an old `rhdh-jira` answering when a `rhdh-jira-*` skill should —
+list what is installed and remove the leftovers by name.
 
-Every name changed, so the list and the new pack do not overlap — run it before
-or after installing. Restart the agent client afterwards so the discovery cache
-reflects the new set, then invoke `/setup-rhdh-skills`. Existing
-`~/.config/rhdh-skill/config.json` and `.rhdh/` state carry over untouched.
-
-`/setup-rhdh-skills` deliberately does not remove anything it did not install:
-it cannot tell a stale copy of `overlay` from one you wrote and kept.
+`/setup-rhdh-skills` itself removes nothing. It installs and verifies; it cannot
+tell a stale copy of `overlay` from one you wrote and kept, so deleting anything
+it did not install is yours to do.
 
 - `/grilling` supplies the interview discipline required by skill authoring and
   Jira creation flows.
@@ -125,10 +118,9 @@ or state formats:
 - Cross-session handoff is not a pack feature; run `/handoff` when you need it.
 
 The skill rename is delivered as one breaking cutover. No aliases ship, and the
-old skill directories are dropped from this repository — but an installation
-that already has them keeps them until you remove them yourself, using the
-command under [Install the complete pack](#install-the-complete-pack). Existing
-CLI configuration and local state are reused.
+old skill directories are dropped from this repository; re-running the install
+retires them from your environment too. Existing CLI configuration and local
+state are reused.
 
 ## Development
 

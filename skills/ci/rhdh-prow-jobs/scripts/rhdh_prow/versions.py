@@ -1,6 +1,6 @@
 """Version-string helpers.
 
-Bundled with this skill so the scripts run installed alone (ADR-0006).
+Bundled with this skill so the scripts run installed alone.
 """
 
 from __future__ import annotations

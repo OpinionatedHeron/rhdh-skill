@@ -1,13 +1,13 @@
 ---
 name: rhdh-mutation-gate
 description: >-
-  Owns the rule every RHDH skill follows before changing anything outside the
-  session: state each operation with its target and exact command, get approval
-  for that stated set, execute, then report the outcome of every operation.
-  Invoke before opening a pull request or merge request, commenting on or
-  transitioning a Jira issue such as RHIDP-1234, pushing a branch, opening a
-  catalog MR, editing a file in another repository, or posting to Slack. Also
-  covers keeping credentials out of a plan preview.
+  Supplies the approval rule another RHDH skill applies when it is already about
+  to change something outside the session: how to state each operation, what
+  approval binds to, what to report afterwards, and how to keep credentials out
+  of a plan preview. Cited by name from the skill doing the work. Not an entry
+  point — it performs no forge, Jira, or repository action itself, and a request
+  to open, comment, transition, push, or post belongs to the skill that owns
+  that target.
 compatibility: "Python 3.9+ for the credential scanner. No other tools required."
 ---
 

@@ -361,15 +361,6 @@
       "requiresExternalSkills": []
     },
     {
-      "name": "rhdh-skill-authoring",
-      "category": "meta",
-      "invocation": "model",
-      "requiresSkills": [],
-      "requiresExternalSkills": [
-        "grilling"
-      ]
-    },
-    {
       "name": "setup-rhdh-skills",
       "category": "meta",
       "invocation": "human",
@@ -377,6 +368,15 @@
         "rhdh-mutation-gate"
       ],
       "requiresExternalSkills": []
+    },
+    {
+      "name": "skill-authoring",
+      "category": "meta",
+      "invocation": "model",
+      "requiresSkills": [],
+      "requiresExternalSkills": [
+        "grilling"
+      ]
     }
   ]
 }

@@ -31,8 +31,8 @@ Example capability gate in SKILL.md:
 Before attempting authenticated API calls:
 1. Run the local capability check without inspecting credential contents.
 2. Use a ready authenticated adapter backed by a native CLI or host connector.
-3. If the required adapter is unavailable, stop this branch and name the exact
-   `/setup-rhdh-skills <route>` that supplies it.
+3. If the required adapter is unavailable, stop this branch and name the exact setup
+   entry point and route that supplies it.
 4. Do not reproduce installation, login, or credential-repair steps in this model skill.
 ```
 
@@ -96,8 +96,8 @@ When a skill wraps multiple APIs (e.g., CLI + GraphQL + REST), define the prefer
 1. Use the authenticated native CLI when it supports the operation, including pagination or batch
    modes.
 2. Use an authenticated host connector for API-only fields or relationship-heavy queries.
-3. If neither capability is ready, stop the branch and name the exact `/setup-rhdh-skills <route>`;
-   do not construct a parallel raw HTTP authentication path.
+3. If neither capability is ready, stop the branch and name the exact setup entry point and
+   route; do not construct a parallel raw HTTP authentication path.
 ```
 
 Each branch names the capability it requires and defers authentication to that adapter. Branches do

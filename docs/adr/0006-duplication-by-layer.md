@@ -38,7 +38,7 @@ skills, choose:
   Delete the copy and cross the seam.
 - **Document** — the material is a rule rather than a capability. State it once
   where it will be read: `AGENTS.md` for rules governing this repository,
-  `rhdh-skill-authoring` for rules governing skill authors. Note the asymmetry —
+  `skill-authoring` for rules governing skill authors. Note the asymmetry —
   `AGENTS.md` does not ship with the pack, so a rule an agent needs *while running
   the pack in someone else's repository* must be a reference skill instead.
 
@@ -54,9 +54,15 @@ There is no shared runtime package. `rhdh_common` is retired.
 - A skill can be installed by itself again.
 - Utility code appears in more than one place, and that is expected.
 - The sharpest cost is data that looks like code: the Jira custom-field IDs now
-  live in more than one script, and a stale copy writes silently to the wrong
-  field. Accepted deliberately — a validator that checks the IDs against live Jira
-  is the mitigation, not a shared package.
+  live in five scripts. A stale copy fails *silently* — the extractor reads a
+  `customfield_*` key that is not there and yields an empty string, so the caller
+  reports missing data rather than raising. Accepted deliberately, with a guard:
+  `rhdh-jira-api/scripts/validate_field_ids.py` compares every copy against
+  `references/fields.md` offline, and `--live` compares that table against Jira
+  through `acli`. The offline half catches the real failure and needs no
+  credentials, so it is the half worth running in CI. Each copy also names the
+  script in a comment, because whoever edits an ID is reading the script rather
+  than this decision.
 - A reviewer who finds the same text in two skills asks which layer it is before
   asking what to do about it.
 - Catalog validation enforces that a declared dependency is named in the owning

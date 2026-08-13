@@ -8,7 +8,7 @@ Automates the scaffold workflow for both backend and frontend plugins:
   3. Generates a plugin via `yarn new` (backend-plugin or frontend-plugin).
   4. (Frontend only) Optionally installs the RHDH theme package.
 
-Uses only Python stdlib per project ADR-0002.
+Uses only the Python standard library, so it runs wherever Python does.
 """
 
 from __future__ import annotations

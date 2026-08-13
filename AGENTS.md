@@ -108,14 +108,36 @@ same instructions, protocol, or domain rule would appear in two skills,
 **extract** a reference skill when nothing owns it, **enforce** the existing
 interface when a module already does, or **document** it once when it is a rule
 rather than a capability — here for rules governing this repository, in
-`rhdh-skill-authoring` for rules that must ship with the pack, since this file
+`skill-authoring` for rules that must ship with the pack, since this file
 does not travel with it. **Code duplication is acceptable**: bundled scripts are
 self-contained so a skill can be installed alone, and there is no shared runtime
 package. See ADR-0006.
 
-Every promoted model-invoked skill keeps the `rhdh-` prefix. Folders are stripped
-at install, so the prefix is the only isolation the pack has against the router's
-global namespace. See ADR-0008.
+A skill's name describes its subject. `rhdh-` belongs on a skill that is about
+Red Hat Developer Hub — its repositories, Jira projects, release train, or
+plugins. Most skills here qualify, so the prefix is near-universal, but that is a
+fact about this collection rather than a rule about skills.
+
+A skill that is not about RHDH does not take the prefix. `skill-authoring` teaches
+the Agent Skills standard and should be usable by someone authoring a skill in an
+unrelated repository, so it carries a generic name and generic guidance. Ask what
+a skill is *about*; if the answer does not contain "RHDH", neither does its name.
+
+The prefix is not a namespace-isolation mechanism — the router matches
+descriptions, not names. Isolation comes from distinct trigger phrases and
+literal proper nouns in the description. See ADR-0008.
+
+## A skill may not depend on this repository
+
+Only a skill's own directory is installed. `AGENTS.md`, `CONTEXT.md`,
+`CONTRIBUTING.md`, and `docs/adr/` do not travel with it, so nothing under
+`skills/` may cite them or any path outside its own directory. A skill that does
+is broken for every user who installs it: the pointer resolves to nothing, and
+the rule it was carrying is simply absent.
+
+When a decision here produces a rule an agent needs at runtime, restate the rule
+in the skill that needs it, in its own words. Cite the ADR in this file, in
+`CONTRIBUTING.md`, or in another ADR — never in shipped prose.
 
 ## Testing
 

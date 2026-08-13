@@ -297,7 +297,7 @@ Reference of all RHDH-related repositories, what each one is used for, and how t
 - **Key concepts:**
   - **Composition:** Two human entry skills route setup and discovery; model skills compose by invoking each other by name and reading what the invoked skill reports.
   - **Skills:** Plugin and Overlay development, local testing, Prow and Konflux CI, PR review, Jira, releases, lifecycle support, and base-image maintenance.
-- **Key paths:** `skills/` (all skill definitions), `CONTEXT.md` (domain language), `docs/adr/` (architectural decisions)
+- **Key paths:** `skills/` (all skill definitions), plus that repository's own domain glossary and architectural decision records
 
 ### rhdh-users-skill-pack
 

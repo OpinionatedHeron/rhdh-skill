@@ -1,6 +1,6 @@
 """Output formatting and Atlassian CLI discovery for the release CLI.
 
-Bundled with this skill so it runs installed alone (ADR-0006). A sibling skill
+Bundled with this skill so it runs installed alone. A sibling skill
 carrying something similar is expected, not a defect.
 """
 
