@@ -13,21 +13,15 @@ import pytest
 # Path to the project root
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# Path to the orchestrator skill directory (where rhdh package lives)
-RHDH_SKILL_DIR = PROJECT_ROOT / "skills" / "rhdh"
+# Path to the context skill directory (where the preserved rhdh package lives)
+RHDH_SKILL_DIR = PROJECT_ROOT / "skills" / "reference" / "rhdh-context"
 
-# Path to the overlay skill directory (markdown-only)
-OVERLAY_SKILL_DIR = PROJECT_ROOT / "skills" / "overlay"
-
-# Path to the skill-maker skill directory (markdown-only)
-SKILL_MAKER_DIR = PROJECT_ROOT / "skills" / "skill-maker"
-
-# Add orchestrator skill directory to path for testing
+# Add the context skill directory to path for testing
 if str(RHDH_SKILL_DIR) not in sys.path:
     sys.path.insert(0, str(RHDH_SKILL_DIR))
 
 # Path to the rhdh-local skill directory (where rhdh_local package lives)
-RHDH_LOCAL_SKILL_DIR = PROJECT_ROOT / "skills" / "rhdh-local"
+RHDH_LOCAL_SKILL_DIR = PROJECT_ROOT / "skills" / "plugins" / "rhdh-local"
 
 # Add rhdh-local skill directory to path for testing
 if str(RHDH_LOCAL_SKILL_DIR) not in sys.path:
@@ -46,7 +40,7 @@ def skill_root():
 
 @pytest.fixture
 def skill_dir():
-    """Return the orchestrator skill directory path (skills/rhdh)."""
+    """Return the context skill directory path."""
     return RHDH_SKILL_DIR
 
 
@@ -58,20 +52,8 @@ def scripts_dir():
 
 @pytest.fixture
 def skills_dir():
-    """Return the orchestrator skills/rhdh directory path."""
+    """Return the preserved CLI package directory."""
     return SKILLS_DIR
-
-
-@pytest.fixture
-def overlay_skill_dir():
-    """Return the overlay skill directory path (skills/overlay)."""
-    return OVERLAY_SKILL_DIR
-
-
-@pytest.fixture
-def skill_maker_dir():
-    """Return the skill-maker directory path (skills/skill-maker)."""
-    return SKILL_MAKER_DIR
 
 
 @pytest.fixture
