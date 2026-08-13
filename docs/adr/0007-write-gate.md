@@ -31,8 +31,10 @@ tell the user to run `/handoff`.
 
 The write gate stays, as prose:
 
-1. Before any external write, state every operation — target, exact command,
-   preview of the change, and what happens on failure.
+1. Before any external write, state every operation: target, exact command,
+   preview of the change, the precondition it depends on, what happens to the
+   remaining operations if it fails, and how to recover from it once it has
+   happened.
 2. Get approval for that stated set.
 3. Execute, then report the outcome of every operation, including the ones that
    were skipped.
@@ -47,6 +49,15 @@ There is no envelope, no version string, and no material hash. The hash guarded
 against an agent altering the plan between approval and execution: a real threat,
 but narrow, and not worth a digest implementation plus the shared package needed
 to keep two skills computing it identically.
+
+What goes is the machinery, not the content. The retired protocol required nine
+fields per operation; the first draft of this decision kept four and dropped
+`preconditions`, `checks`, and `recovery` without arguing for it. That was an
+error, and `recovery` was the costly one: nothing else in the gate says how to
+undo an operation that already happened, so a decommission or a bulk transition
+could be approved with no stated way back. Preconditions and recovery are
+restored. `checks` is genuinely absorbed: verifying an operation landed is part of
+reporting its outcome, which step 3 already requires.
 
 The gate ships as the `mutation-gate` reference skill, cited by every skill
 that writes. It cannot live in `AGENTS.md`, which does not travel with the pack,

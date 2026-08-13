@@ -81,7 +81,8 @@ configuration and retry rather than substituting a hand-written query.
 - Announcement-scoped team counts use the freeze filters as their base query, not
   `open_issues_by_team`. Drafting the announcement is `/rhdh-release-announce`.
 - Outstanding release notes are a documentation blocker before GA, not an
-  informational number.
+  informational number. The full process lives in
+  [RHDH Release Notes Process](https://docs.google.com/document/d/1KFMkRVTkbDIhyZviZcuVn9UfJp64lKmokzT4ftMrj4w/edit).
 
 </gotchas>
 

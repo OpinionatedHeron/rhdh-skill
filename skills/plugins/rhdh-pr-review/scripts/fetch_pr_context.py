@@ -160,7 +160,7 @@ def fetch_review_comments(repo, pr_number):
             f"repos/{repo}/pulls/{pr_number}/comments",
             "--paginate",
             "-q",
-            ".[] | {user: .user.login, path: .path, line: .line, body: .body, created_at: .created_at}",
+            ".[] | {user: .user.login, path: .path, line: .line, body: .body, createdAt: .created_at}",
         ],
         check=False,
     )

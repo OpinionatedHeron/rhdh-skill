@@ -62,8 +62,9 @@ Only `ask-rhdh` and `setup-rhdh-skills` are human-invoked. They carry
 promoted skill is model-invoked and omits both flags. Every promoted skill has
 an `agents/openai.yaml` interface entry.
 
-The complete pack also requires external `/grilling` and `/humanizer` skills.
-Creation/interview flows use grilling; PR-review prose uses humanizer.
+The complete pack also requires three external skills. Creation and interview
+flows use `/grilling`; PR-review prose uses `/humanizer`; `/handoff` carries
+context into a later session, which is why no artifact store does.
 
 Keep drafts and retired skills outside the promoted discovery root:
 

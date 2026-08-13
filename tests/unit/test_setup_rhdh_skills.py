@@ -76,9 +76,12 @@ def test_doctor_discovers_dependencies_across_supported_host_layouts(tmp_path):
     report = json.loads(result.stdout)
     assert "contract" not in report
     assert set(report["installedSkills"]) == {"ask-rhdh", "grilling", "humanizer"}
+    # handoff is required but not present in this fixture, so doctor must report it
+    # rather than silently passing: three skills route the user to it.
     assert report["requiredExternalSkills"] == {
         "grilling": "installed",
         "humanizer": "installed",
+        "handoff": "missing",
     }
     assert report["capabilities"]["tools"]["oc"] == "not-probed"
     assert report["capabilities"]["tools"]["gog"] == "not-probed"

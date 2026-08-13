@@ -23,8 +23,10 @@ From a local overlays checkout on the merged branch. Resolve paths with **dot-no
 
 ```bash
 WS=app-defaults
-OVERLAY="$($RHDH --json config get repos.overlay | jq -r '.data.value')"
-CATALOG="$($RHDH --json config get repos.catalog | jq -r '.data.value')"
+# /rhdh-context owns the rhdh CLI; invoke it by name and use the paths it reports.
+# To run the wrapper directly, RHDH is the path to that skill's scripts/rhdh.
+OVERLAY="$("$RHDH" --json config get repos.overlay | jq -r '.data.value')"
+CATALOG="$("$RHDH" --json config get repos.catalog | jq -r '.data.value')"
 # Or set OVERLAY=/CATALOG to absolute checkouts if config is unset
 
 mkdir -p "$CATALOG/overlay-repo/workspaces/$WS"

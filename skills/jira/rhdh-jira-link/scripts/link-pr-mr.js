@@ -116,7 +116,7 @@ Config (required for defaults; first found wins):
     cp ${EXAMPLE_CONFIG_PATH} ${USER_CONFIG_PATH}
 
 Auth: JIRA_API_TOKEN + ~/.config/.jira/.config.yml, or .jira-token next to acli
-  (see ../rhdh-jira/references/auth.md).
+  (run /setup-rhdh-skills jira, or ask /rhdh-jira-api for the auth setup).
 
 RHDHPLAN Epic/Story/Task issues are moved to RHIDP before defaults.
 

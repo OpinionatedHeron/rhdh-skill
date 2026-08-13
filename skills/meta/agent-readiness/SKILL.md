@@ -8,6 +8,7 @@ description: >-
   supports. Use for "assess agent readiness", "run agentready", "improve our
   agent readiness score", "prepare this repository for coding agents", or
   "assess all the RHDH repositories".
+compatibility: "The agentready CLI, plus git and Python 3. Windows, macOS, Linux."
 ---
 
 # RHDH Agent Readiness

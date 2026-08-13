@@ -267,7 +267,7 @@ function resolveJiraAuth({
         '',
         'Option A (go-jira): set JIRA_API_TOKEN and ensure ~/.config/.jira/.config.yml has login/server.',
         'Option B (rhdh-jira): create email:token at .jira-token next to acli',
-        '  (see skills/rhdh-jira/references/auth.md).',
+        '  (run /setup-rhdh-skills jira, or ask /rhdh-jira-api for the auth setup).',
         'Option C: export JIRA_EMAIL and JIRA_API_TOKEN.',
       ].join('\n'),
     );

@@ -8,6 +8,7 @@ description: >-
   trigger", "audit this SKILL.md", "improve this skill", or merging overlapping
   skills into fewer deeper modules. Covers frontmatter, descriptions that
   trigger, progressive disclosure, completion criteria, and bundled scripts.
+compatibility: "No tools required. Requires an interview skill such as /grilling for the create path."
 ---
 
 # Skill Authoring

@@ -33,7 +33,7 @@ Prefer a **surgical** catalog MR over `build/ci/sync-midstream.sh --force-clone 
 | 2 | [`redhat-developer/rhdh-plugin-export-overlays`](https://github.com/redhat-developer/rhdh-plugin-export-overlays) | `repos.overlay` |
 | 3 | [`gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog`](https://gitlab.cee.redhat.com/rhidp/rhdh-plugin-catalog) | `repos.catalog` |
 
-Resolve checkouts with `$RHDH --json config get repos.<key> | jq -r '.data.value'` (dot-notation; see [`references/catalog-surgical-update.md`](references/catalog-surgical-update.md)). Use `glab` against **`gitlab.cee.redhat.com`** for catalog MRs (not `gitlab.com`).
+Resolve checkouts by invoking `/rhdh-context` by name and reading the paths it reports. To run its CLI directly instead, set `RHDH` to that skill's `scripts/rhdh` wrapper and use dot-notation keys: `"$RHDH" --json config get repos.<key> | jq -r '.data.value'` (see [`references/catalog-surgical-update.md`](references/catalog-surgical-update.md)). Use `glab` against **`gitlab.cee.redhat.com`** for catalog MRs (not `gitlab.com`).
 
 Confirm a Jira key before opening PRs/MRs. To attach the issue link, invoke the named skill `/rhdh-jira-link`. To open the PR or MR itself, invoke the named skill `/rhdh-pr-create`. Use `gh` / `glab` directly only when neither skill is installed.
 

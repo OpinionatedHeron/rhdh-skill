@@ -118,7 +118,7 @@ def test_repository_catalog_exposes_the_approved_composable_skill_set():
     # These two are contracts rather than inventory: exactly two entry points are
     # human-invoked, and the pack depends on exactly two external skills.
     assert set(report["humanInvokedSkills"]) == {"ask-rhdh", "setup-rhdh-skills"}
-    assert set(report["requiredExternalSkills"]) == {"grilling", "humanizer"}
+    assert set(report["requiredExternalSkills"]) == {"grilling", "humanizer", "handoff"}
     assert every_promoted_skill_lives_in_a_domain_category(catalog)
 
 

@@ -27,13 +27,23 @@ the order you will perform them. For each one give:
 
 | Field | What it carries |
 |---|---|
-| Target | The exact thing being changed — `owner/repo#412`, `RHIDP-1234`, a branch name, a channel |
+| Target | The exact thing being changed: `owner/repo#412`, `RHIDP-1234`, a branch name, a channel |
 | Command | The exact command or request, as it will run. Not a paraphrase |
 | Preview | The body, label, field value, or diff that will land |
+| Precondition | What must already be true. Check it immediately before executing, and stop the batch if it is not |
 | On failure | What happens to the operations after this one if it fails |
+| Recovery | How to undo or contain this operation once it has happened |
 
 Render this as a table in the conversation. Approval happens where the user
 already is, so the plan goes to them rather than to a file.
+
+**Recovery is not optional, and it is not the same as failure handling.** Failure
+handling says what happens to the operations that have not run yet. Recovery says
+what to do about the one that already did. Write it before asking for approval: an
+operation you cannot say how to undo is one the user is approving blind. Where
+there is genuinely no undo — a posted message, a triggered pipeline, a published
+package — say that, in those words. "Cannot be undone; the message stays" is a
+complete and useful recovery entry. Silence is not.
 
 When a plan is too large to read in the transcript — a multi-repository bump, a
 catalog change touching dozens of files — write it to a file in the operating

@@ -7,33 +7,38 @@ behind a small set of task-oriented interfaces.
 
 ## Install
 
-Install the pack and the two external skills it depends on:
+Install the pack and the three external skills it depends on. Each command opens
+the skills wizard, which asks where to put them:
 
 ```bash
-npx skills@latest add redhat-developer/rhdh-skill --all -g -y
-npx skills@latest add mattpocock/skills --skill grilling -g -y
-npx skills@latest add blader/humanizer -g -y
+npx skills add redhat-developer/rhdh-skill --all
+npx skills add mattpocock/skills --skill grilling
+npx skills add mattpocock/skills --skill handoff
+npx skills add blader/humanizer
 ```
 
-Restart your agent client so it discovers them, then run `/setup-rhdh-skills`
-once to find your repository checkouts and verify tools and authentication.
+Restart your agent client so it discovers them.
+
+## Set up the tools the skills need
+
+The skills drive external tools: `acli` for Jira, `gh` for pull requests, `gog`
+for the team and schedule spreadsheets, `oc` for OpenShift CI, and podman or
+docker for local RHDH. Almost nothing works until those are installed and
+authenticated.
+
+```text
+/setup-rhdh-skills
+```
+
+It reports which tools are missing or unauthenticated, walks you through each one,
+and finds your RHDH repository checkouts so the other skills stop asking for
+paths. Run it again whenever a tool or checkout changes.
+
+It can also install the skills themselves, if you would rather not run the `npx`
+commands above: invoke `/setup-rhdh-skills install` after installing that one
+skill on its own. It shows you the plan before running anything.
 
 Run `/ask-rhdh` whenever you want help choosing a skill.
-
-To update, re-run the same commands. Your `~/.config/rhdh-skill/config.json` and
-`.rhdh/` state are left alone.
-
-### Install through the setup router instead
-
-If you would rather not install everything up front, install the router alone,
-restart the client, and let it do the rest:
-
-```bash
-npx skills@latest add redhat-developer/rhdh-skill --skill setup-rhdh-skills -g -y
-```
-
-Then invoke `/setup-rhdh-skills install`. It installs the pack, or the catalog's
-direct sources, and tells you when another restart is required.
 
 ## Skill catalog
 
@@ -75,11 +80,12 @@ there is no shared runtime package, provided anything it invokes is also present
 skill it did not install from one you wrote and kept, so removing anything else
 is yours to do.
 
-Two skills come from outside this repository and are required rather than
+Three skills come from outside this repository and are required rather than
 optional. `/grilling` supplies the interview discipline that skill authoring and
 Jira creation depend on, so those flows stop rather than guess. `/humanizer` runs
 before any PR-review prose is shown or posted, so drafts do not go out reading
-like a machine wrote them.
+like a machine wrote them. `/handoff` is what carries context into a later
+session, which is why this pack ships no artifact store of its own.
 
 Every external write goes through the write gate. The skill states each operation
 with its target, exact command, preview, and what happens on failure; you approve

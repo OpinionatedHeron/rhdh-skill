@@ -10,6 +10,10 @@
         "source": "mattpocock/skills"
       },
       {
+        "name": "handoff",
+        "source": "mattpocock/skills"
+      },
+      {
         "name": "humanizer",
         "source": "blader/humanizer"
       }

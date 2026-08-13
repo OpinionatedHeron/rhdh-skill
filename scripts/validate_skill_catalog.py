@@ -15,21 +15,25 @@ from typing import Any
 
 CATALOG_PATH = Path("skills/meta/setup-rhdh-skills/assets/catalog.json")
 PROMOTED_CATEGORIES = ("jira", "plugins", "ci", "release", "reference", "meta")
-# A named invocation of an RHDH skill: /rhdh-something. Only rhdh- names and the
-# two entry points are checked, so /handoff or a bare /publish is left alone.
 # A named invocation reads as /rhdh-something in prose. It must follow a space,
-# a line start, or an opening bracket or backtick — never another path segment,
-# so `~/rhdh-local-setup` and `redhat-developer/rhdh-plugin-catalog` are paths,
-# not invocations.
+# a line start, or an opening bracket or backtick, never another path segment, so
+# `~/rhdh-local-setup` and `redhat-developer/rhdh-plugin-catalog` stay paths.
 NAMED_INVOCATION = re.compile(
     r"(?:^|(?<=[\s(\[`]))/((?:rhdh|ask-rhdh|setup-rhdh)[\w-]*)(?![\w-])",
     re.MULTILINE,
 )
 EXTERNAL_SKILLS = {"grilling", "humanizer", "handoff"}
+# A bundled script reading a file that ships *with it*, such as
+# `_DATA_DIR / "jql-release.md"`. Anchored to the handful of names that mean
+# "this script's own directory", because a bare `dir / "config.json"` is usually
+# a file in the user's home or checkout, which the skill neither ships nor should.
+SCRIPT_DATA_READ = re.compile(
+    r"(_DATA_DIR|_HERE|_SKILL_DIR|SKILL_DIR|_REFERENCES_DIR|script_dir)\s*/\s*"
+    r'"([\w.-]+\.(?:md|json|ya?ml|txt))"'
+)
 HOST_SKILL_PATHS = (".claude/skills", ".agents/skills", ".cursor/skills", ".codex/skills")
 SHIPPED_SUFFIXES = {".md", ".py", ".sh", ".mjs"}
 DUPLICATE_BLOCK_LINES = 25
-ARTIFACT_FIELD_BULLET = re.compile(r"^[ \t]*[-*]\s+`([A-Za-z][A-Za-z0-9]*/v\d+)`\s*:\s*(.*)$")
 
 
 def _frontmatter(text: str) -> dict[str, Any]:
@@ -160,6 +164,38 @@ def _validate_named_invocations(
                         ),
                     }
                 )
+
+
+def _validate_script_data_files(
+    root: Path, skill_dirs: dict[str, Path], errors: list[dict[str, str]]
+) -> None:
+    """Every data file a bundled script opens must ship inside that same skill.
+
+    A script is self-contained by design, so nothing else checks what it reads. The
+    duplicate-file rule deliberately exempts ``scripts/``, which means the data
+    those scripts parse is exempt too — and that is exactly how four release skills
+    came to ship a parser without its templates. Eleven subcommands raised an
+    uncaught ``FileNotFoundError`` while catalog validation and 366 tests stayed
+    green, because only one of the four skills had a test.
+    """
+    for name, skill_dir in sorted(skill_dirs.items()):
+        for script in sorted(skill_dir.rglob("*.py")):
+            if "__pycache__" in script.parts:
+                continue
+            text = script.read_text(encoding="utf-8", errors="replace")
+            for directory, filename in SCRIPT_DATA_READ.findall(text):
+                base = script.parent if directory in {"_DATA_DIR", "_HERE"} else skill_dir
+                if not (base / filename).exists() and not (script.parent / filename).exists():
+                    errors.append(
+                        {
+                            "code": "SCRIPT_DATA_MISSING",
+                            "message": (
+                                f"{script.relative_to(root).as_posix()} reads {filename}, "
+                                f"which {name} does not ship; the skill cannot run installed "
+                                f"alone"
+                            ),
+                        }
+                    )
 
 
 def _find_cycle(graph: dict[str, list[str]]) -> list[str] | None:
@@ -457,6 +493,7 @@ def validate_repository(root: Path) -> dict[str, Any]:
         )
 
     _validate_named_invocations(root, skill_dirs, catalog_names, errors)
+    _validate_script_data_files(root, skill_dirs, errors)
 
     discovered = set(skill_dirs)
     undeclared = sorted(discovered - internal_names)

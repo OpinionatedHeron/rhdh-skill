@@ -554,7 +554,7 @@ def cmd_check(_args: argparse.Namespace, fmt: OutputFormatter) -> None:
     if has_fail:
         next_steps.append("Fix failing checks before running other commands")
     if has_actionable_warning:
-        next_steps.append("See: references/config.md for setup instructions")
+        next_steps.append("See: invoke /rhdh-release-status for Rich Filter setup instructions")
 
     fmt.success({"checks": checks, "all_pass": all_pass}, next_steps=next_steps or None)
     if has_fail:
@@ -1292,7 +1292,7 @@ def main(argv: list[str] | None = None) -> None:
             str(e),
             next_steps=[
                 "Run: python scripts/release.py check",
-                "See: references/config.md",
+                "See: invoke /rhdh-release-status for Rich Filter setup",
             ],
         )
         sys.exit(1)

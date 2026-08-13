@@ -2,6 +2,7 @@
 name: setup-rhdh-skills
 description: Install, configure, diagnose, or repair the complete RHDH skills environment.
 disable-model-invocation: true
+compatibility: "Python 3 and npx. Detects and configures acli, gh, gog, oc, and podman or docker; it needs none of them present to run."
 ---
 
 # Set Up RHDH Skills

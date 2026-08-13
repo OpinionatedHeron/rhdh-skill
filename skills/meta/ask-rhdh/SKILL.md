@@ -2,6 +2,7 @@
 name: ask-rhdh
 description: Human wayfinder for the RHDH skills collection.
 disable-model-invocation: true
+compatibility: "No tools required. Reads the installed skill catalog only."
 ---
 
 # Ask RHDH
