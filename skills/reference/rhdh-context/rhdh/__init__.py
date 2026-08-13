@@ -10,7 +10,7 @@ This package provides stable local interfaces for:
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    __version__ = version("rhdh-skill")
+    __version__ = version("rhdh-skills")
 except PackageNotFoundError:
     __version__ = "0.0.0"
 

@@ -20,7 +20,7 @@ Static configuration values for the RHDH Release Manager skill.
 
 The Rich Filter JSON is sourced from the "RHIDP Operational" Rich Filter in Jira, maintained by Matt Reid and Jasper Chui. It is required for freeze, demo/Test Day, post-freeze, release-note lifecycle, Scrum Team, and exported ad hoc queries.
 
-The repo is discovered via `rhdh.config.get_repo("private-data")`. Register it with `rhdh config set private-data /path/to/rhdh-skill-private-data`.
+The repo is discovered via `rhdh.config.get_repo("private-data")`. Register it with `rhdh config set private-data /path/to/rhdh-skills-private-data`.
 
 **Override:** Set `RHDH_RICH_FILTER_PATH=/path/to/file.json` to use a specific file.
 

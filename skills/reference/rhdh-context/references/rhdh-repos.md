@@ -208,9 +208,9 @@ Reference of all RHDH-related repositories, what each one is used for, and how t
   - **Used by overlay workflows:** `rhdh-plugin-export-overlays` can use the factory container for local plugin builds.
 - **Key paths:** `Containerfile` (image definition)
 
-### rhdh-skill-private-data
+### rhdh-skills-private-data
 
-- **Upstream:** <https://gitlab.cee.redhat.com/rhidp/rhdh-skill-private-data>
+- **Upstream:** <https://gitlab.cee.redhat.com/rhidp/rhdh-skills-private-data>
 - **Description:** Jira Rich Filter exports and operational data used by RHDH skills. Contains exported Rich Filter JSON from the "RHIDP Operational" Jira Rich Filter managed by Matt Reid and Jasper Chui.
 - **Key concepts:**
   - **Rich Filter exports:** JSON exports from Jira Rich Filters that define project-scoped queries, component exclusion lists, team Cloud ID mappings, and queue definitions. Used by the `rhdh-release-status` skill to source JQL queries at runtime instead of hardcoding them.
@@ -289,9 +289,9 @@ Reference of all RHDH-related repositories, what each one is used for, and how t
   - **Tags:** `latest` (production), `dev` (non-PR builds), `X.Y.Z` (immutable release), `<sha>` (debugging).
 - **Key paths:** `blueprints/` (infrastructure blueprints), `docs/` (GCP infrastructure and sandbox networking), plus the repository's Fullsend agent skill
 
-### rhdh-skill
+### rhdh-skills
 
-- **Upstream:** <https://github.com/redhat-developer/rhdh-skill>
+- **Upstream:** <https://github.com/redhat-developer/rhdh-skills>
 - **Description:** Composable agent-skill collection for RHDH development and operations. Published via the [Agent Skills](https://agentskills.io) open standard.
 - **Tech stack:** Python (stdlib-only CLIs), Bash, Claude Code skills
 - **Key concepts:**
@@ -302,7 +302,7 @@ Reference of all RHDH-related repositories, what each one is used for, and how t
 ### rhdh-users-skill-pack
 
 - **Upstream:** <https://github.com/redhat-developer/rhdh-users-skill-pack>
-- **Description:** Agent Skills for adopting and using RHDH effectively. Aimed at RHDH end-users (vs `rhdh-skill` which targets the development team). Published via the [Agent Skills](https://agentskills.io) open standard.
+- **Description:** Agent Skills for adopting and using RHDH effectively. Aimed at RHDH end-users (vs `rhdh-skills` which targets the development team). Published via the [Agent Skills](https://agentskills.io) open standard.
 - **Tech stack:** Python (stdlib-only CLIs), Bash, Claude Code skills
 - **Key concepts:**
   - **`rhdh-templates`:** Interactive authoring and validation for RHDH Software Templates — templatize existing repos, create from scratch, fix common gotchas, validate locally or against a running instance.
@@ -356,7 +356,7 @@ rhdh (enterprise distribution, github.com)
     |   +-- rhdh-fullsend (agent sandbox images & /fullsend skill)
     |
     +-- Agent skills:
-        +-- rhdh-skill (dev team skills — overlay, lifecycle, prow, etc.)
+        +-- rhdh-skills (dev team skills — overlay, lifecycle, prow, etc.)
         +-- rhdh-users-skill-pack (user skills — templates, upgrade helper)
 ```
 

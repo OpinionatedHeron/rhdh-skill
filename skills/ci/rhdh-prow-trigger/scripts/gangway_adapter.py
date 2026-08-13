@@ -53,7 +53,7 @@ class GangwayAdapter:
             headers={
                 "Authorization": f"Bearer {self._token()}",
                 "Content-Type": "application/json",
-                "User-Agent": "rhdh-skill",
+                "User-Agent": "rhdh-skills",
             },
             method=method,
         )

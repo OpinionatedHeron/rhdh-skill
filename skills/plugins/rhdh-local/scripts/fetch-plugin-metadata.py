@@ -293,7 +293,7 @@ def _parse_list(lines: list[str], idx: int, base_indent: int) -> tuple[list[Any]
 
 def _fetch(url: str) -> bytes:
     """Fetch *url* and return the response body bytes."""
-    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skill/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skills/0.1"})
     with urllib.request.urlopen(req, timeout=30) as resp:
         return resp.read()
 

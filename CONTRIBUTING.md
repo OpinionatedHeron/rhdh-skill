@@ -102,7 +102,7 @@ that preserve the skill interface.
 Changes to skill layout must retain established runtime locations unless an ADR
 explicitly changes them:
 
-- `~/.config/rhdh-skill/config.json`
+- `~/.config/rhdh-skills/config.json`
 - `.rhdh/worklog.jsonl`
 - `.rhdh/TODO.md`
 

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "pack": {
     "name": "RHDH complete",
-    "source": "redhat-developer/rhdh-skill",
+    "source": "redhat-developer/rhdh-skills",
     "url": null,
     "requiredExternalSkills": [
       {

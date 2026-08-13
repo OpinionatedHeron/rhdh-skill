@@ -142,7 +142,7 @@ def test_install_plan_fallback_includes_the_repo_and_both_external_sources():
     assert result.returncode == 0, result.stderr or result.stdout
     operations = json.loads(result.stdout)["operations"]
     assert [operation["command"][3] for operation in operations] == [
-        "redhat-developer/rhdh-skill",
+        "redhat-developer/rhdh-skills",
         "blader/humanizer",
         "mattpocock/skills",
     ]

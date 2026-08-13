@@ -11,7 +11,7 @@ Install the pack and the three external skills it depends on. Each command opens
 the skills wizard, which asks where to put them:
 
 ```bash
-npx skills add redhat-developer/rhdh-skill --all
+npx skills add redhat-developer/rhdh-skills --all
 npx skills add mattpocock/skills --skill grilling
 npx skills add mattpocock/skills --skill handoff
 npx skills add blader/humanizer
@@ -108,7 +108,7 @@ See [ADR-0005](docs/adr/0005-one-skill-per-trigger-phrase.md),
 ## CLI and state
 
 - `rhdh` and `rhdh-local` are bundled wrappers, run from their skill directory.
-- Repository configuration lives at `~/.config/rhdh-skill/config.json`.
+- Repository configuration lives at `~/.config/rhdh-skills/config.json`.
 - Worklog and todo state lives under `.rhdh/`.
 - Cross-session handoff is not a pack feature; run `/handoff` when you need it.
 

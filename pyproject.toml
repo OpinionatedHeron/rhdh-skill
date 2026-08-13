@@ -1,5 +1,5 @@
 [project]
-name = "rhdh-skill"
+name = "rhdh-skills"
 version = "0.0.0"
 description = "Composable agent skills for Red Hat Developer Hub development and operations"
 readme = "README.md"

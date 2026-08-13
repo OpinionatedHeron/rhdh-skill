@@ -36,7 +36,7 @@ def scan_payload(tmp_path: Path, payload: object) -> tuple[int, dict]:
 def plan(**overrides: object) -> dict:
     """A minimal stated write, in the shape the gate presents to the user."""
     operation = {
-        "target": "redhat-developer/rhdh-skill#1",
+        "target": "redhat-developer/rhdh-skills#1",
         "command": "gh pr comment 1 --body 'ok'",
         "preview": {"commandOrRequest": {"body": "ok"}},
     }

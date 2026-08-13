@@ -46,7 +46,7 @@ Verify the target branch exists in each repo before running.
 **Execute** [scripts/base-images-and-rpms.sh](../scripts/base-images-and-rpms.sh); do not reimplement the workflow inline.
 
 ```bash
-SKILL=/path/to/installed/rhdh-base-images   # under 1-rhdh-skill checkout
+SKILL=/path/to/installed/rhdh-base-images   # under 1-rhdh-skills checkout
 chmod +x "${SKILL}/scripts/base-images-and-rpms.sh"
 
 # All three repos under a parent directory

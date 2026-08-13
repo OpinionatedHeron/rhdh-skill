@@ -33,7 +33,7 @@ CONFIG_DIR = "ci-operator/config/redhat-developer/rhdh"
 
 def fetch_text(url):
     """Fetch text content from a URL."""
-    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skill"})
+    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skills"})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return resp.read().decode("utf-8")

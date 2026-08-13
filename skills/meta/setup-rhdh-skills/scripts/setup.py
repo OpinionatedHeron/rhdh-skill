@@ -87,7 +87,7 @@ def setup_status(
             if (project_root / ".rhdh" / "config.json").is_file()
             else "missing",
             "userConfiguration": "present"
-            if (home / ".config" / "rhdh-skill" / "config.json").is_file()
+            if (home / ".config" / "rhdh-skills" / "config.json").is_file()
             else "missing",
         },
     }

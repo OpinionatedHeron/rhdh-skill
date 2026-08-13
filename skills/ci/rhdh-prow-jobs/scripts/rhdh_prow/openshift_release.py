@@ -105,7 +105,7 @@ def fetch_yaml(filepath: str, root: Path | None, is_remote: bool) -> dict | None
     if is_remote:
         raw_url = f"https://raw.githubusercontent.com/{GITHUB_REPO}/HEAD/{filepath}"
         try:
-            req = urllib.request.Request(raw_url, headers={"User-Agent": "rhdh-skill"})
+            req = urllib.request.Request(raw_url, headers={"User-Agent": "rhdh-skills"})
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return _yaml.load(resp.read().decode("utf-8"))
         except (urllib.error.URLError, OSError) as exc:
