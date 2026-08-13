@@ -87,7 +87,7 @@ def fetch_configured_jobs(repo: str) -> list[str]:
     entries. We extract job names ending in ``-nightly`` via regex.
     """
     url = f"https://prow.ci.openshift.org/configured-jobs/{repo}"
-    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skill"})
+    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skills"})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             html = resp.read().decode("utf-8")
@@ -221,7 +221,7 @@ def _fetch_quay_tags(image_repo: str, like_filter: str) -> list[dict]:
         f"https://quay.io/api/v1/repository/{encoded_repo}/tag/"
         f"?limit=100&onlyActiveTags=true&filter_tag_name=like:{encoded_filter}"
     )
-    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skill"})
+    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skills"})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))

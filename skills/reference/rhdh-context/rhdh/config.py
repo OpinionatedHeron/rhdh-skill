@@ -5,7 +5,7 @@ Layered configuration with project-local and user-global support.
 Config locations (highest to lowest priority):
 1. Environment variables (RHDH_OVERLAY_REPO, etc.)
 2. Project config (.rhdh/config.json in git root)
-3. User config (~/.config/rhdh/config.json)
+3. User config (~/.config/rhdh-skills/config.json)
 4. Auto-detection (../repo/ relative to skill install)
 
 Supports dot-notation keys (e.g., repos.overlay, user.name).
@@ -21,11 +21,15 @@ from typing import Any, Optional
 
 # Config directory names
 PROJECT_CONFIG_DIR_NAME = ".rhdh"
-USER_CONFIG_DIR = Path.home() / ".config" / "rhdh-skill"
+USER_CONFIG_DIR = Path.home() / ".config" / "rhdh-skills"
 USER_CONFIG_FILE = USER_CONFIG_DIR / "config.json"
+# Pre-rename path; load_user_config still reads it when the new file is absent.
+LEGACY_USER_CONFIG_DIR = Path.home() / ".config" / "rhdh-skill"
+LEGACY_USER_CONFIG_FILE = LEGACY_USER_CONFIG_DIR / "config.json"
 
 # Environment variable for data directory override
-DATA_DIR_ENV_VAR = "RHDH_SKILL_DATA_DIR"
+DATA_DIR_ENV_VAR = "RHDH_SKILLS_DATA_DIR"
+LEGACY_DATA_DIR_ENV_VAR = "RHDH_SKILL_DATA_DIR"
 
 # Submodule repository definitions
 # Format: name -> {has_fork, required, config_key, description}
@@ -109,13 +113,13 @@ SUBMODULE_REPOS: dict[str, dict] = {
         "description": "Upstream Backstage framework",
         "upstream_org": "backstage",
     },
-    "rhdh-skill-private-data": {
+    "rhdh-skills-private-data": {
         "has_fork": False,
         "required": False,
         "config_key": "private-data",
         "description": "Jira Rich Filter exports and operational data for RHDH skills",
         "upstream_host": "gitlab.cee.redhat.com",
-        "upstream_path": "rhidp/rhdh-skill-private-data",
+        "upstream_path": "rhidp/rhdh-skills-private-data",
     },
 }
 
@@ -158,9 +162,10 @@ def get_data_dir() -> Path:
     Always centralizes data in one location to avoid scattering
     across different repos/worktrees.
 
-    Uses RHDH_DATA_DIR env var if set, otherwise ~/.config/rhdh/.
+    Uses RHDH_SKILLS_DATA_DIR (or legacy RHDH_SKILL_DATA_DIR) if set,
+    otherwise ~/.config/rhdh-skills/.
     """
-    env_value = os.environ.get(DATA_DIR_ENV_VAR)
+    env_value = os.environ.get(DATA_DIR_ENV_VAR) or os.environ.get(LEGACY_DATA_DIR_ENV_VAR)
     if env_value:
         return Path(env_value)
     return USER_CONFIG_DIR
@@ -172,7 +177,7 @@ def get_project_config_path() -> Path:
 
 
 def get_user_config_path() -> Path:
-    """Get user config.json path."""
+    """Get the canonical user config.json path (writes always use this)."""
     return USER_CONFIG_FILE
 
 
@@ -305,12 +310,17 @@ def deep_merge(base: dict, override: dict) -> dict:
 
 
 def load_user_config() -> dict:
-    """Load user config from ~/.config/rhdh/config.json.
+    """Load user config from ~/.config/rhdh-skills/config.json.
+
+    Falls back to the pre-rename ~/.config/rhdh-skill/config.json when the
+    canonical file is absent.
 
     Returns:
         Config dict, or empty dict if file doesn't exist.
     """
     config_path = get_user_config_path()
+    if not config_path.exists():
+        config_path = LEGACY_USER_CONFIG_FILE
     if not config_path.exists():
         return {}
     try:

@@ -108,7 +108,7 @@ See [ADR-0005](docs/adr/0005-one-skill-per-trigger-phrase.md),
 ## CLI and state
 
 - `rhdh` and `rhdh-local` are bundled wrappers, run from their skill directory.
-- Repository configuration lives at `~/.config/rhdh-skill/config.json`.
+- Repository configuration lives at `~/.config/rhdh-skills/config.json`.
 - Worklog and todo state lives under `.rhdh/`.
 - Cross-session handoff is not a pack feature; run `/handoff` when you need it.
 

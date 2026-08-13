@@ -1,7 +1,7 @@
 # Configure RHDH repositories
 
 Use `rhdh doctor --json` to inspect repository discovery. The preserved configuration precedence is
-environment override, project `.rhdh/config.json`, user `~/.config/rhdh-skill/config.json`, then
+environment override, project `.rhdh/config.json`, user `~/.config/rhdh-skills/config.json`, then
 bounded workspace discovery.
 
 For each missing repository:

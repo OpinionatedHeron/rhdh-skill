@@ -107,8 +107,8 @@ jobs:
       - name: Build and smoke-test the standalone rhdh CLI
         run: |
           uv build
-          python -m venv /tmp/rhdh-skill-wheel
-          /tmp/rhdh-skill-wheel/bin/pip install dist/*.whl
-          /tmp/rhdh-skill-wheel/bin/rhdh --help
-          /tmp/rhdh-skill-wheel/bin/rhdh-local --help
-          /tmp/rhdh-skill-wheel/bin/rhdh local --help
+          python -m venv /tmp/rhdh-skills-wheel
+          /tmp/rhdh-skills-wheel/bin/pip install dist/*.whl
+          /tmp/rhdh-skills-wheel/bin/rhdh --help
+          /tmp/rhdh-skills-wheel/bin/rhdh-local --help
+          /tmp/rhdh-skills-wheel/bin/rhdh local --help

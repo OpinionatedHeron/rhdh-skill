@@ -5,7 +5,7 @@ The internal repository contains Jira Rich Filter exports used for release coord
 1. Clone it into a user-selected workspace:
 
    ```bash
-   git clone git@gitlab.cee.redhat.com:rhidp/rhdh-skill-private-data.git
+   git clone git@gitlab.cee.redhat.com:rhidp/rhdh-skills-private-data.git
    ```
 
 2. Register the resolved checkout through the `rhdh` CLI, which keeps the same key names and

@@ -46,7 +46,7 @@ def _fetch_api(product_name):
     """Fetch lifecycle data directly from the Red Hat API (fallback)."""
     url = f"{LIFECYCLE_API_URL}?name={urllib.parse.quote_plus(product_name)}"
     req = urllib.request.Request(
-        url, headers={"Accept": "application/json", "User-Agent": "rhdh-skill"}
+        url, headers={"Accept": "application/json", "User-Agent": "rhdh-skills"}
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:

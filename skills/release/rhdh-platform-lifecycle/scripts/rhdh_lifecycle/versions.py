@@ -18,7 +18,7 @@ def fetch_json(url):
 
     Returns the parsed JSON, or None on failure.
     """
-    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skill"})
+    req = urllib.request.Request(url, headers={"User-Agent": "rhdh-skills"})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.loads(resp.read().decode("utf-8"))

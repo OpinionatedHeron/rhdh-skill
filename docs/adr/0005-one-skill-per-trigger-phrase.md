@@ -57,7 +57,7 @@ or reads its private files. Human-invoked skills are entry points for people and
 are never invoked by a model-invoked skill.
 
 Setup preserves the existing `rhdh` and `rhdh-local` CLI behaviour,
-`~/.config/rhdh-skill/config.json`, and worklog and todo locations.
+`~/.config/rhdh-skills/config.json`, and worklog and todo locations.
 `/setup-rhdh-skills` is the exclusive human setup router; a domain skill may detect
 a missing capability and name the setup command, but never installs, authenticates,
 or probes host skill directories itself.
