@@ -51,10 +51,7 @@ def _configured_repo() -> Path | None:
     if env_path and Path(env_path).is_dir():
         return Path(env_path).resolve()
 
-    config_paths = [
-        Path.home() / ".config" / "rhdh-skills" / "config.json",
-        Path.home() / ".config" / "rhdh-skill" / "config.json",
-    ]
+    config_paths = [Path.home() / ".config" / "rhdh-skills" / "config.json"]
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],

@@ -23,13 +23,9 @@ from typing import Any, Optional
 PROJECT_CONFIG_DIR_NAME = ".rhdh"
 USER_CONFIG_DIR = Path.home() / ".config" / "rhdh-skills"
 USER_CONFIG_FILE = USER_CONFIG_DIR / "config.json"
-# Pre-rename path; load_user_config still reads it when the new file is absent.
-LEGACY_USER_CONFIG_DIR = Path.home() / ".config" / "rhdh-skill"
-LEGACY_USER_CONFIG_FILE = LEGACY_USER_CONFIG_DIR / "config.json"
 
 # Environment variable for data directory override
 DATA_DIR_ENV_VAR = "RHDH_SKILLS_DATA_DIR"
-LEGACY_DATA_DIR_ENV_VAR = "RHDH_SKILL_DATA_DIR"
 
 # Submodule repository definitions
 # Format: name -> {has_fork, required, config_key, description}
@@ -162,10 +158,9 @@ def get_data_dir() -> Path:
     Always centralizes data in one location to avoid scattering
     across different repos/worktrees.
 
-    Uses RHDH_SKILLS_DATA_DIR (or legacy RHDH_SKILL_DATA_DIR) if set,
-    otherwise ~/.config/rhdh-skills/.
+    Uses RHDH_SKILLS_DATA_DIR if set, otherwise ~/.config/rhdh-skills/.
     """
-    env_value = os.environ.get(DATA_DIR_ENV_VAR) or os.environ.get(LEGACY_DATA_DIR_ENV_VAR)
+    env_value = os.environ.get(DATA_DIR_ENV_VAR)
     if env_value:
         return Path(env_value)
     return USER_CONFIG_DIR
@@ -177,7 +172,7 @@ def get_project_config_path() -> Path:
 
 
 def get_user_config_path() -> Path:
-    """Get the canonical user config.json path (writes always use this)."""
+    """Get user config.json path."""
     return USER_CONFIG_FILE
 
 
@@ -312,15 +307,10 @@ def deep_merge(base: dict, override: dict) -> dict:
 def load_user_config() -> dict:
     """Load user config from ~/.config/rhdh-skills/config.json.
 
-    Falls back to the pre-rename ~/.config/rhdh-skill/config.json when the
-    canonical file is absent.
-
     Returns:
         Config dict, or empty dict if file doesn't exist.
     """
     config_path = get_user_config_path()
-    if not config_path.exists():
-        config_path = LEGACY_USER_CONFIG_FILE
     if not config_path.exists():
         return {}
     try:
