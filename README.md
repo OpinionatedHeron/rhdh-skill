@@ -11,7 +11,7 @@ Install the pack and the three external skills it depends on. Each command opens
 the skills wizard, which asks where to put them:
 
 ```bash
-npx skills add redhat-developer/rhdh-skill --all
+npx skills add redhat-developer/rhdh-skills --all
 npx skills add mattpocock/skills --skill grilling
 npx skills add mattpocock/skills --skill handoff
 npx skills add blader/humanizer

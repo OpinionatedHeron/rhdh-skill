@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for rhdh-skill tests."""
+"""Shared pytest fixtures for rhdh-skills tests."""
 
 import json
 import os
