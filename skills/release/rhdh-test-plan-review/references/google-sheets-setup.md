@@ -15,23 +15,9 @@ Expected output:
 ✓ gog can read the RHDH schedule
 ```
 
-If the check fails because the tool, authentication, or sheet access is unavailable, stop this
-branch and return:
-
-```json
-{
-  "contract": "SetupRequired/v1",
-  "id": "google-workspace-setup-required",
-  "createdAt": "YYYY-MM-DDTHH:MM:SSZ",
-  "data": {
-    "ownerSkill": "setup-rhdh-skills",
-    "route": "google-workspace",
-    "reason": "Google Sheets capability is unavailable",
-    "missing": ["gog|google-auth|sheet-access"],
-    "nextCommand": "/setup-rhdh-skills google-workspace"
-  }
-}
-```
+If the check fails, stop this branch and tell the user which piece is missing — `gog`
+itself, Google authentication, or access to the sheet — and that
+`/setup-rhdh-skills google-workspace` is the route that repairs it.
 
 Do not reproduce login or installation instructions here. Resume only after the human runs the
 setup route and this read-only check succeeds.

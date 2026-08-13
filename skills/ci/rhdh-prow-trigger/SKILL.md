@@ -40,11 +40,12 @@ tokens out of arguments, output, and anything reported back.
 
 ## Execution rules
 
-Triggering a job is an external write; `--dry-run` and `--list` are not.
+Triggering a job is an external write; `--dry-run` and `--list` are not. Follow
+`/rhdh-mutation-gate`, with the full job name as the target.
 
 - Preview with `--dry-run` first. It prints the adapter request without
   executing.
-- Show the full command, the target job, the parameters, what the run will cost
+- The preview carries the full command, the parameters, what the run will cost
   and touch, and how to abort it. Get explicit approval before running without
   `--dry-run`.
 - GKE and OSD-GCP each share one cluster. Never start a second job on the same

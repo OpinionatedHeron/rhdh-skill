@@ -30,7 +30,8 @@
       "invocation": "model",
       "requiresSkills": [
         "rhdh-jira-api",
-        "rhdh-jira-authoring"
+        "rhdh-jira-authoring",
+        "rhdh-mutation-gate"
       ],
       "requiresExternalSkills": [
         "grilling"
@@ -40,7 +41,9 @@
       "name": "rhdh-jira-link",
       "category": "jira",
       "invocation": "model",
-      "requiresSkills": [],
+      "requiresSkills": [
+        "rhdh-mutation-gate"
+      ],
       "requiresExternalSkills": []
     },
     {
@@ -50,6 +53,9 @@
       "requiresSkills": [
         "rhdh-jira-api",
         "rhdh-jira-authoring"
+      ],
+      "optionalSkills": [
+        "rhdh-mutation-gate"
       ],
       "requiresExternalSkills": []
     },
@@ -76,7 +82,8 @@
       "category": "jira",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-jira-api"
+        "rhdh-jira-api",
+        "rhdh-mutation-gate"
       ],
       "requiresExternalSkills": []
     },

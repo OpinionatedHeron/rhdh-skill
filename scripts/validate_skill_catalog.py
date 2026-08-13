@@ -15,6 +15,17 @@ from typing import Any
 
 CATALOG_PATH = Path("skills/meta/setup-rhdh-skills/assets/catalog.json")
 PROMOTED_CATEGORIES = ("jira", "plugins", "ci", "release", "reference", "meta")
+# A named invocation of an RHDH skill: /rhdh-something. Only rhdh- names and the
+# two entry points are checked, so /handoff or a bare /publish is left alone.
+# A named invocation reads as /rhdh-something in prose. It must follow a space,
+# a line start, or an opening bracket or backtick — never another path segment,
+# so `~/rhdh-local-setup` and `redhat-developer/rhdh-plugin-catalog` are paths,
+# not invocations.
+NAMED_INVOCATION = re.compile(
+    r"(?:^|(?<=[\s(\[`]))/((?:rhdh|ask-rhdh|setup-rhdh)[\w-]*)(?![\w-])",
+    re.MULTILINE,
+)
+EXTERNAL_SKILLS = {"grilling", "humanizer", "handoff"}
 HOST_SKILL_PATHS = (".claude/skills", ".agents/skills", ".cursor/skills", ".codex/skills")
 SHIPPED_SUFFIXES = {".md", ".py", ".sh", ".mjs"}
 DUPLICATE_BLOCK_LINES = 25
@@ -117,6 +128,38 @@ def _duplicate_files(root: Path, skill_dirs: dict[str, Path]) -> list[tuple[str,
             if left[0] != right[0]:
                 pairs.add((left[1], right[1]))
     return sorted(pairs)
+
+
+def _validate_named_invocations(
+    root: Path,
+    skill_dirs: dict[str, Path],
+    catalog_names: set[str],
+    errors: list[dict[str, str]],
+) -> None:
+    """Every ``/rhdh-name`` a skill cites must be a skill that exists.
+
+    Skills compose by name, so a name is the whole interface. A rename leaves the
+    citing prose pointing at nothing, and neither a link check nor a dependency
+    check catches it — the reference is not a path and not a declared dependency.
+    Four dangling ``/rhdh-jira`` citations survived a split this way.
+    """
+    known = catalog_names | EXTERNAL_SKILLS
+    for name, skill_dir in sorted(skill_dirs.items()):
+        for path in _shipped_files(skill_dir):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for cited in sorted(set(NAMED_INVOCATION.findall(text))):
+                if cited in known:
+                    continue
+                errors.append(
+                    {
+                        "code": "UNKNOWN_SKILL_REFERENCE",
+                        "message": (
+                            f"{path.relative_to(root).as_posix()} invokes /{cited}, which is "
+                            f"not a promoted skill or a required external one; it was likely "
+                            f"renamed or split"
+                        ),
+                    }
+                )
 
 
 def _find_cycle(graph: dict[str, list[str]]) -> list[str] | None:
@@ -412,6 +455,8 @@ def validate_repository(root: Path) -> dict[str, Any]:
                 ),
             }
         )
+
+    _validate_named_invocations(root, skill_dirs, catalog_names, errors)
 
     discovered = set(skill_dirs)
     undeclared = sorted(discovered - internal_names)

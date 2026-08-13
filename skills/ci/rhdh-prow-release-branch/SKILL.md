@@ -7,9 +7,9 @@ description: >-
   generates from it, the `release-{version}` branch-protection block in
   `_prowconfig.yaml`, and the `#rhdh-e2e-alerts-X-Y` Slack channel and
   `rhdh-send-alert` Vault webhook. Use for "set up CI for release 1.11",
-  "commission the 1.12 branch jobs", or "decommission 1.8". This owns Prow
-  configuration for a release branch only — shipping the release itself belongs
-  to rhdh-release.
+  "commission the 1.12 branch jobs", or "decommission 1.8". Prow configuration
+  for a release branch only — the release itself is rhdh-release-status,
+  rhdh-release-schedule, and rhdh-release-announce.
 compatibility: "A local openshift/release checkout with make and git; Slack app admin and Vault access for the per-branch alert webhook."
 ---
 
@@ -19,8 +19,9 @@ Turn the CI configuration for one `release-{version}` branch of
 `redhat-developer/rhdh` on or off in `openshift/release`. Both directions need a
 local checkout because both end in `make update`.
 
-This skill is about Prow configuration, not about the product release. Version
-scope, dates, blockers, and release artifacts belong to `/rhdh-release`.
+This skill is about Prow configuration, not about the product release. What is
+open against a release is `/rhdh-release-status`, its milestone dates are
+`/rhdh-release-schedule`, and its freeze announcement is `/rhdh-release-announce`.
 Individual test entries and cluster pools on a branch that already has jobs
 belong to `/rhdh-prow-jobs`.
 
@@ -38,9 +39,8 @@ whichever workflow you loaded.
 ## Writing rules
 
 Copying the config, editing `_prowconfig.yaml`, deleting files, running
-`make update`, committing, pushing, and opening a pull request are writes. List
-the exact files first, get explicit approval, then report the outcome of each
-one.
+`make update`, committing, pushing, and opening a pull request are writes. Follow
+`/rhdh-mutation-gate`, naming each file path as the target of its operation.
 
 - Never hardcode the branch-protection block or the release-branch adjustments.
   Read the latest existing release branch and copy its current shape; required

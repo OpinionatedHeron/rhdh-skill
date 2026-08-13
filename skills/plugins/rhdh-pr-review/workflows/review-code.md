@@ -1,8 +1,8 @@
 # Workflow: Review Code
 
-Platform-agnostic code analysis. Consumes `ReviewContext/v1` (from `fetch-github.md` or a future `fetch-gitlab.md`) and produces `ReviewFindings/v1` for a posting workflow.
+Platform-agnostic code analysis. Reads the PR context from `fetch-github.md` (or a future `fetch-gitlab.md`) and produces the review draft a posting workflow sends.
 
-This workflow works primarily from `ReviewContext/v1`. The one exception is reading full file contents at HEAD to verify findings, which requires forge-specific commands (see Step 3).
+Work from that context. The one exception is reading full file contents at HEAD to verify findings, which needs forge-specific commands (see Step 3).
 
 ## Mindset
 
@@ -10,9 +10,9 @@ You are a senior team member reviewing a contribution. Your goal is to help the 
 
 ## Step 0: Humanizer prerequisite
 
-Load `../references/humanizer.md`. If the named `/humanizer` skill is absent,
-return its `SetupRequired/v1` and stop. This applies to every draft path,
-including analysis-only.
+Load `../references/humanizer.md`. If the named `/humanizer` skill is absent, say
+that `humanizer` is missing, name `/setup-rhdh-skills install` as the human's next
+step, and stop. This applies to every draft path, including analysis-only.
 
 ## Step 1: Ask which specialist skills to invoke
 
@@ -26,13 +26,13 @@ For small PRs, reviewing directly from a single perspective is often enough. For
 
 Review the diff through each chosen perspective (and any user-named specialist skills). When dispatching subagent reviewers, each receives:
 
-- The diff from `data.diff`
-- Linked requirements (`data.linkedIssues`)
+- The diff from `diff`
+- Linked requirements (`linkedIssues`)
 - Their focus area and prompt guidance
 
 ### Reading source at HEAD
 
-When the diff alone is insufficient to judge a finding, read the full file at HEAD. Use `data.repository` and `data.changeRequest.headSha` from `ReviewContext/v1`:
+When the diff alone is insufficient to judge a finding, read the full file at HEAD. Use `repository` and `changeRequest.headSha` from the fetched context:
 
 - **GitHub**: `gh api repos/{repo}/contents/{path}?ref={head_sha} -H "Accept: application/vnd.github.raw+json"`
 - **GitLab**: `glab api projects/{id}/repository/files/{path}/raw?ref={head_sha}`
@@ -46,8 +46,8 @@ Reviewers will produce false positives. Verify each finding against actual code 
 **Drop any finding that:**
 
 - References code that doesn't exist at HEAD
-- References files that are not in the PR's changed files list (check `data.files[]` — don't assume a file exists in the PR just because it exists on the branch)
-- Was already raised and resolved in `data.existingComments` or `data.existingReviews`
+- References files that are not in the PR's changed files list (check `files[]` — don't assume a file exists in the PR just because it exists on the branch)
+- Was already raised and resolved in `existingComments` or `existingReviews`
 - Misreads what the code actually does
 - Matches existing codebase conventions (the PR follows the project's style, not the reviewer's preference)
 
@@ -69,7 +69,7 @@ Prefer **inline comments** for findings. Put substance on the line; do not dupli
 
 Reserved for **important issues to resolve before merge** — not a summary or roll-up of the inlines. Do not restate what is already inline. A brief thanks is fine when needed. No performative praise.
 
-If `existing_reviews` shows you've already left a top-level comment on this PR, a new one is often unnecessary — consider posting only the inline findings. A follow-up top-level is still warranted if there are new merge-blocking issues or the prior review was on a different revision.
+If `existingReviews` shows you've already left a top-level comment on this PR, a new one is often unnecessary — consider posting only the inline findings. A follow-up top-level is still warranted if there are new merge-blocking issues or the prior review was on a different revision.
 
 **If nothing significant survives verification:** draft a short approving top-level (thanks is enough). Don't manufacture issues.
 
@@ -99,27 +99,23 @@ Present the **humanized** draft to the user. For posting routes, ask which event
 
 For analysis-only (route 2), present the humanized draft and stop — no event type, no post.
 
-## ReviewFindings/v1
+## What this workflow hands on
 
-Assemble the review into this structure for the posting workflow:
+Carry the finished review forward as:
 
 ```
-ReviewFindings/v1
-├── contract: "ReviewFindings/v1"
-├── id, createdAt
-└── data
-    ├── changeRequest: {repository: "owner/repo", number: 123, headSha: "abc123..."}
-    ├── summary: "top-level review text"
-    ├── verdict: "COMMENT" | "APPROVE" | "REQUEST_CHANGES"
-    ├── humanized: true
-    └── findings[]
-        ├── path: "src/file.ts"
-        ├── line: 42
-        ├── startLine: null (or number for multi-line)
-        ├── type: "question" | "observation" | "fix"
-        └── body: "comment text, optionally with ```suggestion block when allowed"
+changeRequest: {repository: "owner/repo", number: 123, headSha: "abc123..."}
+summary: "top-level review text"
+verdict: "COMMENT" | "APPROVE" | "REQUEST_CHANGES"
+humanized: true
+findings[]
+├── path: "src/file.ts"
+├── line: 42
+├── startLine: null (or number for multi-line)
+├── type: "question" | "observation" | "fix"
+└── body: "comment text, optionally with ```suggestion block when allowed"
 ```
 
 `type` is the finding kind for triage. A GitHub `suggestion` fence inside `body` is separate and only allowed for small obvious hunks (see Step 4).
 
-**Do not post the review.** If the router selected a posting workflow, hand `ReviewFindings/v1` to it. If analysis-only, stop after presenting the humanized draft (Step 5).
+**Do not post the review.** If the router selected a posting workflow, hand that draft to it. If analysis-only, stop after presenting the humanized draft (Step 5).

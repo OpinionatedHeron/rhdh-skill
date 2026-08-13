@@ -33,7 +33,7 @@ reimplement the workflow inline. Always run it against the folder the user
 specified.
 
 ```bash
-SKILL_DIR=/absolute/path/to/installed/rhdh-release
+SKILL_DIR=/absolute/path/to/installed/rhdh-konflux-tasks
 SCRIPT="${SKILL_DIR}/scripts/update-rpa-tags.sh"
 chmod +x "${SCRIPT}"
 REPO=/path/to/konflux-release-data    # user-provided checkout
@@ -109,8 +109,8 @@ does **not**:
 - Update Konflux tenant snapshots or components in `tenants-config/`
 - Trigger releases in Konflux
 
-For Tekton digest bumps in midstream repositories, invoke the named skill
-`rhdh-ci` and consume `KonfluxUpdateReport/v1`; do not locate its files.
+For Tekton digest bumps in midstream repositories, follow
+[konflux-task-update.md](konflux-task-update.md) instead.
 
 ## Anti-patterns
 

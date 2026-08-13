@@ -7,7 +7,12 @@ description: >-
   workspaces/, plugin_builds/, .tekton PLR tags like 2.0.0--0.0.3) without a full
   sync-midstream --force-clone. Use when promoting plugin versions, waiting on
   npm @red-hat-developer-hub packages, bumping overlays repo-ref, or midstream
-  Hermeto/lock/PLR updates for one workspace.
+  Hermeto/lock/PLR updates for one workspace. For an overlays workspace edit
+  outside this promotion chain, use /rhdh-overlay.
+compatibility: >-
+  Git, jq, npm, the skills CLI for repos.* config, GitHub CLI, and glab
+  authenticated against gitlab.cee.redhat.com; checkouts of rhdh-plugins,
+  rhdh-plugin-export-overlays, and rhdh-plugin-catalog.
 ---
 
 # RHDH plugin → overlays → catalog propagate
@@ -82,7 +87,7 @@ When export / annotations / `update-workspace.js` transforms are required, use t
 
 ## External writes
 
-Pushing a branch, commenting, opening the overlays PR, and opening the catalog MR are external writes. Before running one, state the target repository and branch, the exact command, and a preview of the title and body. Run it only after the user approves that exact statement; then report what landed and its URL. A request to promote a plugin is intent, not approval of a specific push.
+Pushing a branch, commenting, opening the overlays PR, and opening the catalog MR are external writes: invoke the named skill `rhdh-mutation-gate` and follow the gate it owns rather than restating it here. A request to promote a plugin is intent, not approval of a specific push.
 
 ---
 
@@ -106,6 +111,6 @@ Pushing a branch, commenting, opening the overlays PR, and opening the catalog M
 
 ## Completion
 
-The chain is done when each step is verifiable on its own: the rhdh-plugins change is merged with its changeset and every package in that release is on npmjs.com with `gitHead` equal to the Version Packages SHA; the overlays PR is merged with `repo-ref` at that SHA and metadata versions and OCI tags aligned; and the catalog MR is open on CEE GitLab with `overlay-repo/`, `workspaces/`, `plugin_builds/`, and the workspace's `.tekton` tags consistent with the published plugin versions.
+The chain is done when every box in the checklist above is ticked and each step verifies on its own, without relying on the step before it having been reported correctly.
 
-Report the published package versions and the SHA they resolve to, the overlays PR and catalog MR URLs, the Jira key they are linked to, and whether the catalog change was surgical or fell back to a scoped `--force-clone`. Name anything left open: a merge still pending, an npm publish still in flight, a stream-wide PipelineRun regeneration handed to `/rhdh-konflux-tasks`, or an external write that was described but not approved.
+Report the published package versions and the SHA they resolve to, the overlays PR and catalog MR URLs, the Jira key they are linked to, and whether the catalog change was surgical or fell back to a scoped `--force-clone`. Name anything left open: a merge still pending, an npm publish still in flight, a stream-wide PipelineRun regeneration handed to `/rhdh-konflux-tasks`, or an external write that was stated but not approved.

@@ -47,6 +47,6 @@ check, but installation and OAuth belong exclusively to `/setup-rhdh-skills`:
 gog sheets metadata 1vQXfvID72qwqvLb17eyGOvnZXrZG7NBzTGv6RP9wvyM --json
 ```
 
-If `gog`, authentication, or target access is unavailable, emit `SetupRequired/v1` with route
-`google-workspace` and `nextCommand` set to `/setup-rhdh-skills google-workspace`. Do not install the
+If `gog`, authentication, or target access is unavailable, name which of the three is
+missing and point the user at `/setup-rhdh-skills google-workspace`. Do not install the
 tool, start login, request credential files, or duplicate setup instructions in this skill.

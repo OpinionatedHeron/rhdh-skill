@@ -48,57 +48,41 @@ use this skill's standalone CLI; another skill does not need to be installed.
   edit so copies under `rhdh-local/` stay synchronized.
 - Use this CLI's `up` and `down` commands when Lightspeed or Orchestrator is
   enabled; they own the compose lifecycle and shared networks.
-- Obtain package references from `spec.dynamicArtifact` or an incoming artifact.
-  Never construct OCI references from naming conventions.
+- Obtain package references from `spec.dynamicArtifact` or from the reference the
+  caller supplied. Never construct OCI references from naming conventions.
 - Preserve the `includes:` block in dynamic plugin overrides. Put backend
   packages before their frontend packages.
 - A plugin test succeeds only with recorded installation, boot, health, and UI
   results relevant to the request. Distinguish an expected credential error
   from a load failure.
 
-## Artifact contracts
+## What a caller supplies
 
-This skill consumes `ChangeHandoff/v1`:
+A caller invokes this skill by name and states, in conversation:
 
-```yaml
-contract: ChangeHandoff/v1
-id: local-test-id
-createdAt: ISO-8601
-data:
-  summary: local verification request
-  files: []
-  verification:
-    contract: VerificationEvidence/v1
-    id: incoming-verification-id
-    createdAt: ISO-8601
-    data: {subject: plugin, checks: [], result: pending}
-  packages: [{dynamicArtifact: exact-reference, pluginConfig: null}]
-  requiredEnvironmentVariables: []
-  testEntities: []
-  cleanupAfter: true
-```
+- each package reference to enable, with its plugin config or `none`
+- the environment variables the plugin needs, by name only
+- the catalog test entities the plugin renders against
+- which checks to run: installation, startup, health, UI
+- whether to clean up afterwards
 
-It returns `VerificationEvidence/v1`:
+Use those references verbatim. Ask for a missing one rather than reconstructing
+it from a naming convention.
 
-```yaml
-contract: VerificationEvidence/v1
-id: local-test-evidence-id
-createdAt: ISO-8601
-data:
-  subject: local-test-id
-  checks: [{check: installation | startup | health | ui, result: pass | fail | skipped, evidence: null}]
-  result: pass | fail | partial
-  mode: customized | pristine
-  packages: []
-  logs: []
-  cleanup: completed | retained | not-requested
-```
+## What this skill reports
 
-Preserve exact artifact values and record skipped checks with a reason. Return
-`VerificationEvidence/v1` to the caller in conversation; do not write into another
-skill's directory.
+Report to the caller in conversation. Do not write into another skill's
+directory.
+
+- the subject tested, and the mode it ran in: customized or pristine
+- one line per requested check — installation, startup, health, UI — each passed,
+  failed, or skipped with the reason it was skipped
+- the packages actually enabled, with their exact references
+- the log excerpts that back each result
+- cleanup state: completed, retained, or not requested
 
 ## Completion
 
-Report source customization files changed, CLI commands run, observed health
-and UI evidence, cleanup state, and final `VerificationEvidence/v1`.
+Complete when the report names every source customization file changed, every
+CLI command run, the health and UI evidence observed, the cleanup state, and one
+outcome for every check the caller requested.

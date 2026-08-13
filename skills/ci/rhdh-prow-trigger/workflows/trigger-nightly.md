@@ -7,14 +7,7 @@ Supports two repositories:
 - **rhdh** — the main RHDH application (`periodic-ci-redhat-developer-rhdh-*-nightly`)
 - **rhdh-plugin-export-overlays** — plugin export overlays (`periodic-ci-redhat-developer-rhdh-plugin-export-overlays-*-nightly`)
 
-## Script Location
-
-All commands below use `scripts/trigger_nightly_job.py` relative to this skill.
-
-## Prerequisites
-
-- Python 3.9+
-- `oc` CLI installed (for authentication to OpenShift CI)
+Run every command below from this skill's directory.
 
 ## Flow
 
@@ -179,9 +172,7 @@ uv run scripts/trigger_nightly_job.py \
 ## Reference
 
 - Script flags: `-j/--job`, `-l/--list`, `-T/--list-tags`, `--tag-filter`, `-I/--image-registry`, `-q/--image-repo`, `-t/--tag`, `--catalog-index-image`, `--chart-version`, `--playwright-version`, `-o/--org`, `-r/--repo`, `-b/--branch`, `-S/--send-alerts`, `-n/--dry-run`, `--json`
-- Dedicated kubeconfig at `~/.config/openshift-ci/kubeconfig` — won't interfere with your current cluster context
-- Missing or expired authentication stops the run and points at `/setup-rhdh-skills openshift-ci`; the script never performs login
-- The public trigger passes only the kubeconfig path and request payload to the private Gangway adapter; credentials and request authentication do not cross that boundary
+- Authentication and the adapter boundary: see `../SKILL.md`
 - RHDH jobs list: <https://prow.ci.openshift.org/configured-jobs/redhat-developer/rhdh>
 - Overlay jobs list: <https://prow.ci.openshift.org/configured-jobs/redhat-developer/rhdh-plugin-export-overlays>
 - Image tags: <https://quay.io/repository/rhdh/rhdh-hub-rhel9?tab=tags>

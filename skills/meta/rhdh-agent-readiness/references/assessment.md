@@ -55,7 +55,7 @@ Report: <absolute report path>
 ```
 
 If nothing fails, finish. Otherwise ask whether to apply self-contained fixes
-automatically or review every finding. Treat “yes”, “fix everything”, or an
+automatically or review every finding. Treat "yes", "fix everything", or an
 empty choice as automatic mode.
 
 Return to the skill router when the user wants fixes; the remediation branch

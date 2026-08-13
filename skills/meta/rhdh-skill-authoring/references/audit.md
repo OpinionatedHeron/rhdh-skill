@@ -69,9 +69,10 @@ misfires or bloats.
       catalog
 - [ ] Skills compose by stable name — no sibling paths, no imports, no host
       layout probing
-- [ ] No artifact contracts: no `SomeThing/v1` envelope, no `contract`/`id`/
-      `createdAt`/`data` handoff, no material hash. External writes invoke
-      `/rhdh-mutation-gate`; cross-session context is `/handoff` (ADR-0007)
+- [ ] Handoffs are prose: a producer reports its result in the conversation and a
+      consumer reads what the skill it invoked by name reported. An external write
+      invokes `/rhdh-mutation-gate`; context that must survive into a later session
+      is the user running `/handoff` (ADR-0007)
 - [ ] A missing capability stops the branch and names the exact
       `/setup-rhdh-skills <route>`, and the skill neither installs nor
       authenticates anything itself

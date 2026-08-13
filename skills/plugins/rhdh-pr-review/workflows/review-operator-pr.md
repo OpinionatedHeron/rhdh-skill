@@ -2,7 +2,7 @@
 
 Deploy a PR's CI-built images onto a running RHDH cluster, actively verify the code changes, and report findings.
 
-This workflow expects `ReviewContext/v1` from `fetch-github.md` (or a future forge-specific fetch workflow). If it is not yet available, run the fetch workflow first.
+This workflow expects the PR context from `fetch-github.md` (or a future forge-specific fetch workflow). If it is not yet available, run the fetch workflow first.
 
 <required_reading>
 
@@ -26,13 +26,13 @@ Read these reference files before starting:
 
 <process>
 
-## Phase 1: Use ReviewContext/v1
+## Phase 1: Use the fetched PR context
 
-`ReviewContext/v1` provides `data.repository`, `data.changeRequest`, `data.files`, and `data.diff`. Extract:
+The fetched context provides `repository`, `changeRequest`, `files`, and `diff`. Extract:
 
 ```bash
 REPO="redhat-developer/rhdh-operator"
-PR_NUMBER=<from data.changeRequest.number>
+PR_NUMBER=<from changeRequest.number>
 ```
 
 Validate:
@@ -40,7 +40,7 @@ Validate:
 - PR belongs to `redhat-developer/rhdh-operator`
 - PR state is `OPEN` (warn if merged or closed — images may still work but PR is not active)
 
-The diff and changed file list are available in `data.diff` and `data.files`.
+The diff and changed file list are available in `diff` and `files`.
 
 ---
 
@@ -92,15 +92,13 @@ README and Makefile for supported deployment commands.
 
 - **No cluster at all** (`oc whoami` fails) → propose the rhdh-test-instance PR
   workflow: comment `/test deploy operator <version> 4h` on a PR. Match the
-  version to the target branch. Before posting, create an exact
-  `MutationPlan/v1` for the GitHub comment, show its material hash, wait for
-  approval of that hash, then return `MutationReceipt/v1` with the resulting
-  workflow URL or status. The request to test does not itself approve the
-  comment.
+  version to the target branch. Before posting, state the comment as one
+  operation with its exact body and target PR, get approval, then report the
+  resulting workflow URL or status. The request to test does not itself approve
+  the comment.
 - **Cluster accessible but no RHDH** → render the exact rhdh-test-instance
-  install/deploy and cleanup operations from its current README and Makefile,
-  place them in `MutationPlan/v1`, and execute only after approval of its
-  material hash.
+  install/deploy and cleanup commands from its current README and Makefile,
+  state them as operations, and run them only after approval.
 
 Once the operator and Backstage CR are healthy, proceed to Phase 4.
 
@@ -180,12 +178,12 @@ echo "Saved rollback manifest from branch: $TARGET_BRANCH"
 ### 4.4a Deploy full bundle — OLM-managed install
 
 Before the first `oc delete` or `oc apply`, finish rendering every manifest and
-follow the mutation contract in `SKILL.md`. The exact plan must include ordered
-deletions and applies, namespace and resource targets, captured preconditions,
-rollout checks, and the rollback/cleanup operations below. Show and obtain
-approval for its material hash. Execute only the approved operations and record
-all outcomes in `MutationReceipt/v1`; if discovered state changes an operation,
-stop and re-plan.
+follow the write gate in `SKILL.md`. State the deletions and applies in the order
+they will run, each with its namespace and resource target, the preconditions
+captured, its rollout check, and the rollback or cleanup below as its failure
+behaviour. Get approval, run only those operations, and report every outcome
+including the skipped ones. If discovered state changes an operation, stop and
+state the new set.
 
 **IMPORTANT:** Do NOT patch the CSV image or the Deployment directly. PR changes to CRDs, RBAC, default config, or bundle metadata would be missed. Replace the CatalogSource with the PR's catalog image so OLM reinstalls the complete bundle.
 
@@ -293,9 +291,9 @@ OLM will apply the full bundle contents: updated CRDs, RBAC, default config, and
 
 ### 4.4b Deploy full manifests — direct deployment (non-OLM)
 
-Apply the same exact `MutationPlan/v1` gate before changing a direct deployment.
-The rendered install and rollback manifests are the previews bound by the hash;
-do not approve placeholders or regenerate them after approval.
+Apply the same write gate before changing a direct deployment. The rendered
+install and rollback manifests are the previews the user approves; do not show
+placeholders and do not regenerate the manifests after approval.
 
 **IMPORTANT:** Do NOT use `oc set image` — it only swaps the binary and misses CRD, RBAC, and default config changes from the PR. Apply the full `install.yaml` from the PR branch instead.
 
@@ -511,15 +509,15 @@ For each test, specify:
 - **Pass criteria**: what output means the fix works
 - **Fail criteria**: what output means the fix is broken
 
-Encode every cluster-changing action in `MutationPlan/v1` using the contract in
-`SKILL.md`; read-only observations may remain checks. Include exact resources,
-payload previews, preconditions, pass/fail checks, and recovery. **STOP. Do not
-run a changing verification command until the user approves the plan's exact
-material hash.**
+State every cluster-changing action as an operation under the write gate in
+`SKILL.md`; read-only observations stay checks. Give each one its exact resource,
+payload preview, preconditions, pass and fail criteria, and recovery. **STOP. Do
+not run a changing verification command until the user approves that stated
+set.**
 
-### 6.3 Execute the plan
+### 6.3 Execute
 
-Only after the user approves the exact material hash:
+Only after the user approves the stated operations:
 
 Run each verification step on the cluster. For every step, capture the actual command output as evidence. Do not summarize — show the raw output so the user can see exactly what happened.
 
@@ -606,18 +604,17 @@ oc apply -f /tmp/rollback-install.yaml
 | No CI images found | Wait | CI workflow may still be running | Workflow completes and posts comment |
 | Images expired | Stop | PR images past 14-day TTL | Author pushes new commit to retrigger CI |
 | No cluster access | Stop | User needs to `oc login` | User logs in and re-runs skill |
-| No RHDH instance | Plan, then deploy | Put the exact rhdh-test-instance deployment and cleanup operations in `MutationPlan/v1`; execute only after hash approval | Approved receipt shows the operator and Backstage CR are running |
+| No RHDH instance | State, then deploy | State the exact rhdh-test-instance deployment and cleanup operations; run them only after approval | Reported outcomes show the operator and Backstage CR running |
 
 </action_triggers>
 
-## VerificationEvidence/v1
+## What this workflow reports
 
-Return `VerificationEvidence/v1` with `data.subject`, `data.checks`, and
-`data.result`. It may also include deployed bundle/manifests, original and final
-cluster state, hash-approved verification plan, findings, rollback commands,
-and cleanup status. Return every deployment, verification, and cleanup
-`MutationReceipt/v1` alongside the evidence. Do not cache cluster state inside
-the skill directory.
+Report the subject tested, one result per check, and the overall verdict. Add the
+deployed bundle or manifests, the original and final cluster state, the findings,
+the rollback commands, and the cleanup status. Report the outcome of every
+deployment, verification, and cleanup operation the user approved. Do not cache
+cluster state inside the skill directory.
 
 <success_criteria>
 
@@ -629,12 +626,12 @@ Review is complete when:
 - [ ] Operator pod is healthy (no crash loops)
 - [ ] Backstage CR reconciles successfully
 - [ ] Review checklist generated from diff analysis
-- [ ] Exact active-verification plan hash approved by user
+- [ ] Active-verification operations stated and approved by user
 - [ ] Verification executed with evidence captured
 - [ ] Findings summary with pass/fail
 - [ ] Best practice and security assessment completed
 - [ ] Rollback instructions documented and shared with user
-- [ ] `VerificationEvidence/v1` returned with cleanup status
-- [ ] Every external write has a hash-matched `MutationReceipt/v1`
+- [ ] Check results and cleanup status reported
+- [ ] Every external write has a reported outcome naming its target
 
 </success_criteria>

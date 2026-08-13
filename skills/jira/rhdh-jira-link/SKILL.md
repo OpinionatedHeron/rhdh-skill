@@ -1,22 +1,25 @@
 ---
 name: rhdh-jira-link
 description: >-
-  Create GitHub PRs / GitLab MRs and link them to Jira (Web link, comment,
-  optional missing-field defaults, open diffs) via create-pr-mr.js, or link an
-  existing PR/MR with link-pr-mr.js / mark-merged. Title format `repo #N: <title>`.
-  Use when linking existing PRs/MRs to Jira, marking merged Web links, replacing
-  hand-rolled remotelink/comment steps, or creating+linking outside the
-  rhdh-plugins / community-plugins pull-request workflow. For the full monorepo
-  PR flow (build, changeset, recordings), use rhdh-pr-create instead.
+  Ties a GitHub pull request or GitLab merge request to an RHDH Jira issue in
+  RHIDP, RHDHPLAN, RHDHBUGS, or RHDHSUPP: attach the Jira Web link titled
+  `repo #N: <title>`, post or update the structured comment, fill empty issue
+  fields, move an RHDHPLAN Epic, Story, or Task to RHIDP, and mark a Web link
+  merged. Raises the PR or MR first when one does not exist yet. Use for "link
+  this PR to RHIDP-1234", "attach the MR to the Jira issue", "mark the Web links
+  merged", replacing a hand-rolled remotelink or comment step, or a PR outside
+  the rhdh-plugins and community-plugins monorepo flow. The full monorepo flow —
+  build, changeset, recordings — is rhdh-pr-create.
+compatibility: "Node on PATH; gh for GitHub and glab for GitLab; a Jira API token via JIRA_API_TOKEN or the .jira-token file acli uses."
 ---
 
-# Jira PR / MR create + Web links
+# Jira PR / MR links
 
 Zero-token Node scripts for **GitHub and GitLab**: create the PR/MR, attach a
-Jira remote Web link, post/update a structured comment, and optionally fill
+Jira remote Web link, post or update a structured comment, and optionally fill
 empty issue fields.
 
-Scripts live under this skill’s `scripts/` directory. Resolve that path from the
+Scripts live under this skill's `scripts/` directory. Resolve that path from the
 installed skill root (agents already have it when reading this file):
 
 ```bash
@@ -141,9 +144,8 @@ Merged: `[x] merged: <repo-short-name> #<id>: <full PR/MR title>`
 ## Defaults `link` applies (only if empty)
 
 **No built-in team/assignee values.** First run with defaults enabled requires a
-config file (or env/CLI). Missing keys error **when applying defaults** (Web link
-
-- comment still succeed with `--no-defaults`).
+config file (or env/CLI). Missing keys error **when applying defaults**; the Web
+link and comment still succeed with `--no-defaults`.
 
 ```bash
 mkdir -p ~/.config/rhdh-jira-link
@@ -202,14 +204,21 @@ free to transition the issue to **Review** (see
 5. For mark-merged: `link-pr-mr.js mark-merged --issue KEY`.
 6. In user-facing summaries, link PR/MRs as `[<title>](<url>)`.
 
-Creating a PR/MR, writing a Jira Web link, posting a comment, moving an issue,
-and filling default fields are all external writes. Before running a command
-that performs one, state the target and the exact command, get the user's
-approval, then report the outcome of every operation you ran.
+## Every run here is an external write
+
+Creating a PR/MR, writing a Jira Web link, posting a comment, moving an issue to
+another project, and filling default fields all change something outside the
+session. Invoke `/rhdh-mutation-gate` and follow it before the first command:
+one script invocation can perform several of these at once, so state them as one
+set — push, create, link, comment, defaults — and get a single approval covering
+all of them.
 
 ## Completion
 
-Report the PR/MR URL and diffs link, the Jira key it was linked to (including
-any RHDHPLAN → RHIDP move), the Web link title, whether the comment was posted
-or updated, which default fields were newly set, and any `warn:` lines the
-scripts printed.
+Complete when the answer names the PR/MR URL and diffs link, the Jira key it was
+linked to — including the post-move key when an RHDHPLAN Epic, Story, or Task
+moved to RHIDP — the Web link title, whether the comment was posted or updated,
+which default fields were newly set, and every `warn:` line the scripts printed.
+Report the fields the script left alone as kept, never as set. A Web link that
+succeeded followed by a defaults update that errored is a partial link, so say
+which half landed.

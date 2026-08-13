@@ -6,14 +6,13 @@ Reviews a test plan Jira ticket against platform and integration support lifecyc
 
 | Requirement | Check |
 |-------------|-------|
-| **Jira** | Invoke `rhdh-jira-api` and require the needed capability in `JiraCapabilities/v1` |
+| **Jira** | Invoke `/rhdh-jira-api`; it reports whether `acli` is authenticated |
 | **Google Sheets** | `python scripts/check_gsheets.py --json` → `"capability_ready": true` |
 
-If Jira capability is missing, surface `SetupRequired/v1` from `rhdh-jira-api` and
-direct the human to `/setup-rhdh-skills jira`.
+If Jira is unreachable, say so and direct the human to `/setup-rhdh-skills jira`.
 
 If the Google Sheets check fails, load `references/google-sheets-setup.md` and
-return its `SetupRequired/v1` route to `/setup-rhdh-skills google-workspace`.
+direct the human to `/setup-rhdh-skills google-workspace`.
 
 </prerequisites>
 
@@ -21,8 +20,8 @@ return its `SetupRequired/v1` route to `/setup-rhdh-skills google-workspace`.
 
 ## Step 1: Fetch the test plan Jira ticket
 
-Invoke the named skill `rhdh-jira-api` for `TICKET-ID` and consume an enriched
-`JiraQueryResult/v1`. Do not locate Jira scripts or credentials.
+Invoke `/rhdh-jira-api` by name for `TICKET-ID` and use the enriched issue it
+returns. Do not locate Jira scripts or credentials.
 
 Extract the RHDH version from `fixVersions[0].name`. If empty, check `summary` for a version string (e.g., "RHDH 1.6 Test Plan").
 
@@ -34,8 +33,8 @@ If the version cannot be determined, ask: "I couldn't determine the RHDH version
 
 ## Step 2: Fetch RHDH milestone dates
 
-Invoke the named skill `rhdh-release-schedule` and prefer what it returns. The
-local schedule adapter remains a fallback when that named skill is unavailable:
+Invoke `/rhdh-release-schedule` by name and prefer what it returns. The local
+schedule adapter is the fallback when that skill is unavailable:
 
 ```bash
 uv run scripts/fetch_schedule.py --version "1.6"
@@ -84,10 +83,10 @@ Record the current version set for each entry. Normalize version strings to `maj
 
 Load `references/sources.md` for all lifecycle URLs and extraction guidance.
 
-Invoke the named skill `rhdh-platform-lifecycle` for each required product and
-consume `LifecycleAssessment/v1`. If a product is unavailable, retry its
-authoritative source up to three times; after that, mark the dimension unverified
-with a warning instead of inventing lifecycle data.
+Invoke `/rhdh-platform-lifecycle` by name for each required product and use the
+versions and dates it reports. If a product is unavailable, retry its
+authoritative source up to three times; after that, mark the row unverified with
+a warning instead of inventing lifecycle data.
 
 Apply using `code_freeze` and `ga_date`:
 
@@ -189,10 +188,11 @@ Choice [d/c/n]:
 Modify only the version strings in platform/integration table cells and the date
 cells in the key dates table. Preserve all other ADF structure exactly.
 
-Invoke `rhdh-jira-api` with a `MutationPlan/v1` that includes the target ticket, the
-exact changed fields or ADF document, risks, rollback, and a read-back verification.
-Show the plan and wait for explicit approval. Continue only after a successful
-`MutationReceipt/v1`; otherwise report the partial or failed receipt and stop.
+Follow `/rhdh-mutation-gate`. State one operation: the target ticket, the exact
+ADF document that will replace the description, the read-back that verifies it,
+and what happens if the update fails. Wait for explicit approval, then invoke
+`/rhdh-jira-update` to apply it and report the outcome. On failure, report it and
+stop — do not continue to Step 8.
 
 ---
 
@@ -211,10 +211,10 @@ These suggestions are based on support lifecycle pages checked on [today's date]
 No changes have been applied to this ticket.
 ```
 
-Invoke `rhdh-jira-api` with a `MutationPlan/v1` containing the exact comment. The user
-may approve, edit, or cancel the plan. Post only after approval and surface the
-resulting `MutationReceipt/v1`. Stop here; do not create child tasks for a
-comment-only outcome.
+Follow `/rhdh-mutation-gate`. State one operation: the target ticket and the exact
+comment body shown above. The user may approve, edit, or cancel it. Post only
+after approval, through `/rhdh-jira-update`, then report the outcome. Stop here;
+do not create child tasks for a comment-only outcome.
 
 ---
 
@@ -246,19 +246,20 @@ For each candidate:
 Choice [c/s/e]:
 ```
 
-Collect all accepted child tasks into one `rhdh-jira-api` `MutationPlan/v1`, with each
-title and parent explicit. Ask for approval once for that exact batch. Return the
-created keys from `MutationReceipt/v1`; do not create unlisted tasks.
+Collect every accepted child task into one stated set, following
+`/rhdh-mutation-gate` — one row per task with its exact title and parent key. Ask
+for approval once for that exact batch, then create them through
+`/rhdh-jira-create`. Create nothing that was not listed.
 
-After all decisions, print a final summary of what was created and what was skipped.
+Report the created keys, and report every task the user skipped as skipped.
 
 </process>
 
 <gotchas>
 
 - **ADF round-trip**: Send ADF when updating via REST — converting to plain text destroys formatting. Modify only version strings inside existing table cells.
-- **Credential safety**: Jira access must use `rhdh-jira-api` and its authenticated adapter. Never
-  materialize credentials in shell variables, files, conversation, or artifacts.
+- **Credential safety**: Jira access goes through `/rhdh-jira-api` and its authenticated adapter.
+  Credentials stay out of shell variables, files, previews, and the answer.
 - **Key dates table**: Match milestone rows by label keyword (e.g., "Code Freeze", "GA announce"). Update only the date cell. Leave rows you cannot match untouched.
 - **Version normalization**: Tables may use "v1.29", "1.29.x", or "Kubernetes 1.29" — normalize to `major.minor` before comparing.
 - **fixVersions format varies**: May be "1.6", "RHDH 1.6", "rhdh-1.6" — strip prefixes before passing to `fetch_schedule.py`.

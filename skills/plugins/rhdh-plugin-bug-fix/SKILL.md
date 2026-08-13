@@ -42,11 +42,11 @@ full-e2e or no-e2e branch, reproduces, fixes, verifies, and cleans up.
   workspace against the checkout before working in it, and ask the user when
   the strategy reports it unresolved. Do not parse the URL or run `gh issue
   view` here.
-- `/rhdh-jira` owns reading a Jira key and returns the same issue detail.
+- `/rhdh-jira-api` owns reading a Jira key and returns the same issue detail.
 - `/grilling` is the design gate when several root causes remain plausible or
   materially different fixes carry different compatibility costs. Use the
   constraints it produces before implementing. If it is not installed, say so,
-  name `/setup-rhdh-skills` as the human's next step, and pause that branch.
+  name `/setup-rhdh-skills install` as the human's next step, and pause that branch.
 - `/rhdh-test-placement` advises where a **permanent** regression test belongs.
   The reproduction test written here is throwaway and is deleted before the
   change is handed off.
@@ -72,9 +72,10 @@ another skill's files.
   the smallest fix consistent with the repository's conventions.
 - If a test still fails, return to diagnosis. Never weaken an assertion to make
   it pass.
-- Adding a label or a triage comment to an issue is an external write. It needs
-  the user's approval of the exact repository, issue number, and payload. A
-  request to fix a bug approves no issue write.
+- Adding a label or a triage comment to an issue is an external write. Invoke
+  the named skill `rhdh-mutation-gate` and follow it; the operation's target is
+  the exact repository and issue number. A request to fix a bug approves no
+  issue write.
 - Do not stage, commit, push, or open a pull request here.
 
 ## Completion

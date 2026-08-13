@@ -12,9 +12,8 @@ source of truth for the promoted skill set and its two required external depende
    Use `--pack-url <url>` to bootstrap a release before its URL is recorded in the catalog. When no
    pack URL exists, the script states an equivalent repository-install fallback plan.
 
-2. Show the plan as a table, one row per operation, with its order, target, exact command, preview
-   of what it installs, and what happens if it fails. Ask for approval of that stated set. After
-   the user approves it, save the exact plan JSON to a file in the temporary directory and run it:
+2. Take that plan through `/rhdh-mutation-gate`: one table row per operation. After the user
+   approves it, save the exact plan JSON to a file in the temporary directory and run it:
 
    ```bash
    uv run scripts/setup.py apply --plan <plan.json> --confirm --json

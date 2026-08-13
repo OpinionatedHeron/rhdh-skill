@@ -196,10 +196,9 @@ echo "/workspaces/<workspace-name>/ @<your-github-username>" >> CODEOWNERS
 
 ### 3.1 Commit and Push
 
-Before `git push`, freeze the branch and refspec and follow the external
-mutation contract in `SKILL.md`. The local commit may be prepared first, but the
-push must appear in an exact approved `MutationPlan/v1` and its outcome in
-`MutationReceipt/v1`.
+Before `git push`, freeze the branch and refspec and follow the write gate in
+`SKILL.md`. Prepare the local commit first, then state the push as an operation
+with its exact branch and refspec, get approval, and report its outcome.
 
 ```bash
 git add .
@@ -209,8 +208,8 @@ git push -u origin add-<plugin-name>-workspace
 
 ### 3.2 Open Pull Request
 
-After the pushed head SHA and full body are known, create a new exact plan for
-PR creation. Obtain approval of its material hash before running `gh pr create`.
+Once the pushed head SHA and full body are known, state PR creation as a new
+operation and get approval for it before running `gh pr create`.
 
 ```bash
 gh pr create \
@@ -228,8 +227,8 @@ gh pr create \
 
 ### 3.3 Trigger Build
 
-1. Follow the guarded-publish plan in `SKILL.md`; approve its exact material
-   hash before commenting `/publish` on the PR.
+1. Follow the guarded publish in `SKILL.md`; get approval for the stated
+   operation before commenting `/publish` on the PR.
 2. **Watch PR comments** — automation reports:
    - Compatibility issues with suggested fixes
    - Published OCI images on success
@@ -269,8 +268,8 @@ Create a Plugin entity that groups your packages together.
 
 ### 4.3 Trigger Build & Tests
 
-Plan the exact push as an external mutation and return its receipt. Then use the
-separate guarded-publish plan after the new head SHA is visible.
+State the exact push as an operation, get approval, and report its outcome. Then
+run the guarded publish separately, once the new head SHA is visible.
 
 ```bash
 git add workspaces/<name>/metadata/ catalog-entities/marketplace/plugins/<name>.yaml
@@ -278,8 +277,8 @@ git commit -m "Add plugin metadata"
 git push
 ```
 
-After exact hash approval, comment `/publish` to rebuild. Watch for test
-workflow results and record the check URL in the mutation receipt.
+Once approved, comment `/publish` to rebuild. Watch for test workflow results and
+report the check URL as the operation's outcome.
 
 > ⚠️ **Smoke test only:** The CI test verifies plugins install and RHDH starts without errors. It does **not** test plugin functionality (no API calls, no browser tests). Functional verification happens in Phase 5.
 
@@ -307,34 +306,19 @@ Plugins in these lists become "required" — release gates fail if they're incom
    and verification patterns.
 2. Extract exact `spec.dynamicArtifact` and `appConfigExamples` values from the
    generated metadata or `/publish` output. Do not construct an OCI reference.
-3. Build `ChangeHandoff/v1`:
-
-   ```yaml
-   contract: ChangeHandoff/v1
-   id: overlay-pr-verification-id
-   createdAt: ISO-8601
-   data:
-     summary: verify overlay PR artifacts
-     files: []
-     verification:
-       contract: VerificationEvidence/v1
-       id: overlay-pr-pending-evidence-id
-       createdAt: ISO-8601
-       data: {subject: overlay-pr, checks: [], result: pending}
-     packages: [{dynamicArtifact: exact-reference, pluginConfig: exact-config-or-null}]
-     requiredEnvironmentVariables: []
-     testEntities: []
-     cleanupAfter: true
-   ```
-
-4. Invoke `/rhdh-local` and consume `VerificationEvidence/v1`. If the
-   skill is unavailable, return a canonical `SetupRequired/v1` envelope with
-   `id`, `createdAt`, and `data: {missing: [rhdh-local], nextCommand:
-   /setup-rhdh-skills}`.
-5. To add observed verification results to the overlay PR, create an exact
-   comment `MutationPlan/v1`, approve its material hash, and record the comment
-   URL in `MutationReceipt/v1`. Authentication failures are acceptable only
-   when installation, boot, and UI wiring are otherwise proven.
+3. Invoke `/rhdh-local` by name and give it, for each package, the exact dynamic
+   artifact reference and its plugin config or `none`; the environment variables
+   it needs by name; the catalog test entities; the checks from
+   `references/rhdh-local.md`; and that it should clean up afterwards. If
+   `rhdh-local` is not installed, say that local verification is unavailable,
+   name `/setup-rhdh-skills install` as the human's next step, and stop this
+   phase.
+4. Take back its per-check results and preserve skipped checks with their
+   reasons.
+5. To add those results to the overlay PR, state the comment as an operation with
+   its exact body and target, get approval, and report the resulting comment URL.
+   Authentication failures inside the plugin card are acceptable only when
+   installation, boot, and UI wiring are otherwise proven.
 
 ---
 
@@ -344,18 +328,17 @@ Plugins in these lists become "required" — release gates fail if they're incom
 
 ### 6.1 Request Review
 
-Requesting reviewers is an external write. Create an exact plan naming every
-reviewer and target PR, approve its material hash, then return its receipt.
+Requesting reviewers is an external write. State one operation naming every
+reviewer and the target PR, get approval, then report the outcome.
 
 - [ ] Request review from CODEOWNERS
 - [ ] For first workspace PR, request from cope team
 
 ### 6.2 Address Feedback & Merge
 
-Each comment, re-trigger, and merge is a separate external mutation unless all
-exact payloads and targets can be approved as one deterministic batch. Follow
-the contract in `SKILL.md`; never infer merge approval from the onboarding
-request.
+Each comment, re-trigger, and merge is its own operation unless every payload and
+target is exact enough to state as one set. Follow the write gate in `SKILL.md`.
+The onboarding request approves no merge.
 
 - [ ] Respond to review comments
 - [ ] Re-trigger `/publish` after significant changes
@@ -367,10 +350,9 @@ If tracking this work in JIRA, update the ticket after merge.
 
 **Reference:** See [RHIDP-11137](https://issues.redhat.com/browse/RHIDP-11137) for an example of how plugin onboarding was tracked.
 
-**Details:** Invoke `/rhdh-jira` with the desired update and consume its exact
-`MutationPlan/v1`. Surface the material hash for approval, let the Jira owner
-execute the approved plan, and consume `MutationReceipt/v1`. Do not copy Jira
-commands or credential handling into this workflow.
+**Details:** Invoke `/rhdh-jira-update` by name with the update you want. That
+skill owns the Jira write, states the operation, and reports its outcome. Do not
+copy Jira commands or credential handling into this workflow.
 
 </process>
 
@@ -385,10 +367,10 @@ commands or credential handling into this workflow.
 
 ## Follow-up record
 
-Return `OverlayChange/v1` with the workspace, source ref, exact dynamic
-artifacts and config, metadata files, PR URL, publish status, and
-`VerificationEvidence/v1`. Include unresolved license, support-tier, upstream, and
-post-release verification decisions; do not cache discoverable state locally.
+Report the workspace, source ref, exact dynamic artifacts and config, metadata
+files, PR URL, publish status, and the local verification results. Name every
+unresolved license, support-tier, upstream, and post-release verification
+decision. Do not cache discoverable state locally.
 
 <success_criteria>
 This workflow is complete when:
@@ -396,7 +378,7 @@ This workflow is complete when:
 - [ ] Workspace created with source.json + plugins-list.yaml
 - [ ] `/publish` succeeds with OCI images
 - [ ] Metadata files created (Package + Plugin entities)
-- [ ] Plugin tested through `/rhdh-local` with returned `VerificationEvidence/v1`
+- [ ] Plugin tested through `/rhdh-local`, with a result for every check requested
 - [ ] PR reviewed and merged
 - [ ] JIRA updated (if applicable)
 </success_criteria>

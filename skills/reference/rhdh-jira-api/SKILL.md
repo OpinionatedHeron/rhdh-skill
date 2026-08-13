@@ -71,10 +71,13 @@ run them; it never reaches into this directory by path.
 ## Writes
 
 This skill does not perform writes, but the payloads live here because the field
-IDs do. Whichever skill owns the verb states the target and the exact command,
-gets the user's approval, executes only what was approved, and then reports the
-outcome of every operation it ran. Credentials never appear in an argument, a
-preview, a log, or the answer.
+IDs do. It hands the caller a command or a payload, never an effect. Whichever
+skill owns the verb invokes `/rhdh-mutation-gate` and runs it from there.
+
+Credentials never appear in an argument, a preview, a log, or the answer. A
+command built here takes its credential from `acli`'s own store or the
+authenticated host adapter at run time, so nothing this skill hands back carries
+one.
 
 ## Boundary with the neighbouring skills
 

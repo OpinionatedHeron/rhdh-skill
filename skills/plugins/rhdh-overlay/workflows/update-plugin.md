@@ -64,18 +64,18 @@ gh pr create \
 
 ## Step 5: Trigger Build
 
-Follow the guarded-publish plan in `SKILL.md`. Approve its exact material hash,
+Follow the guarded publish in `SKILL.md`. Get approval for the stated operation,
 then comment `/publish` and verify success from the returned check URL.
 
 ## Step 6: Test and Merge
 
-Read `references/rhdh-local.md`, invoke `/rhdh-local` with the exact PR
-artifacts in `ChangeHandoff/v1`, and consume `VerificationEvidence/v1`. Add the
-verification result to the PR only through a hash-approved comment plan. Plan
-review requests, feedback comments, re-publish triggers, and merge as separate
-external batches when their exact targets or payloads become known. Merge only
-after local verification and the current-head publish check pass; return every
-`MutationReceipt/v1` with the final `OverlayChange/v1`.
+Read `references/rhdh-local.md`, then invoke `/rhdh-local` by name with the exact
+PR artifact references, plugin config, environment variable names, and checks.
+Take back its per-check results. Add them to the PR only through an approved
+comment operation. State review requests, feedback comments, re-publish
+triggers, and merge as their own operations once their exact targets and payloads
+are known. Merge only after local verification and the current-head publish check
+pass, then report the outcome of every operation alongside the workspace changes.
 
 </process>
 

@@ -70,10 +70,9 @@ skill builds the command and hands it back unexecuted, which is what leaves the
 decision with the user rather than with the module that knows the syntax.
 
 Before any comment, label, assignee, review, approval, or `/publish` write, the
-calling skill states the exact command, repository, issue or PR number, head
-SHA, and body or label, gets approval for that stated set, and then reports the
-outcome of every operation it ran, including the ones it skipped.
-`/rhdh-mutation-gate` owns that rule; this skill does not restate it.
+calling skill invokes `/rhdh-mutation-gate` and follows it. The forge detail that
+gate needs from here is the exact command, the repository, the issue, PR, or MR
+number, the head SHA, and the body or label that will land.
 
 A request to fetch, triage, or analyze is intent to read. It approves no write.
 

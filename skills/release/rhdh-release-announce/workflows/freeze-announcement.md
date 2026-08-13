@@ -50,12 +50,12 @@ and missing; do not fill it.
 
 ## Step 3 (fallback): milestone messages only
 
-If `slack code-freeze` fails, the message can be rebuilt: take blocker bugs and
-open issues from `/rhdh-jira-api` using the `blockers` and `open_issues` templates in
-`references/jql-release.md`, feature demos from
+If `slack code-freeze` fails, rebuild the message: take blocker bugs and open
+issues from `/rhdh-jira-api` using the `blockers` and `open_issues` templates in
+`scripts/jql-release.md`, feature demos from
 `rich-filter query static demo --version "{{VERSION}}" --count`, Test Day features
 from `rich-filter query static "Test Day" --version "{{VERSION}}" --count`, then
-fill the **Code Freeze Announcement** template in `references/slack-templates.md`.
+fill the **Code Freeze Announcement** template in `scripts/slack-templates.md`.
 
 The two update messages have no fallback. Their team scoping comes from the Rich
 Filter's Cloud ID clauses; fix the configuration and retry instead.

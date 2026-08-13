@@ -51,7 +51,7 @@ PLR.
 ## Writing rules
 
 Editing `.tekton` YAML, committing, pushing, and opening a pull request are
-writes.
+writes. Follow `/rhdh-mutation-gate`.
 
 - Always pass `--no-push` / `--nopush`. Do not push or open a PR unless the user
   explicitly asks. `generatePipelineRuns.sh` neither commits nor pushes.

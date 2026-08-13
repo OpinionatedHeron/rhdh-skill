@@ -1,94 +1,79 @@
 ---
 name: rhdh-test-plan-review
 description: >-
-  Reviews an RHDH Jira test plan against release scope, platform support, dates,
-  coverage, ownership, and evidence. Use for test-plan review, test-day readiness,
-  release validation coverage, or a Jira test-plan URL/key.
-compatibility: "Python 3; gog for Google Sheets schedule access when required."
+  Reviews the platform and integration version tables and the key-date table in
+  an RHDH test-plan Jira issue against vendor lifecycle data and the release
+  schedule, then applies the accepted edits. Covers OCP, ARO, OSD, ROSA, AKS,
+  EKS, GKE, PostgreSQL, RHBK, and Quay rows. Use for "review the test plan for
+  1.11", "which platform versions should the 1.10 test plan list", "update the
+  test plan dates", or a test-plan Jira URL or key such as RHIDP-1234.
+compatibility: "Python 3.9+ and uv; /rhdh-jira-api for the plan issue; gog for the RHDH release schedule spreadsheet."
 ---
 
 # RHDH test-plan review
 
-Review plans as a read-first workflow. The skill owns synthesis; source owners own
-Jira, lifecycle, and release facts.
+Compare the version tables and key dates a test-plan issue carries against what
+the lifecycle sources and the release schedule actually say, then apply what the
+user accepts.
 
-## Interfaces
+Read first. Nothing reaches Jira until the user has walked the diff row by row
+and approved a stated set of writes.
 
-- Consumes from `rhdh-jira-api`: `IssueContext/v1` for the plan issue,
-  `JiraCapabilities/v1`, `JiraQueryResult/v1`, and, for approved publishing only,
-  `MutationReceipt/v1`.
-- Consumes from `rhdh-platform-lifecycle`: `LifecycleAssessment/v1`.
-- Consumes milestone dates from `rhdh-release-schedule` and open release scope
-  from `rhdh-release-status`.
-- Produces: `TestPlanDelta/v1`; may propose `MutationPlan/v1` for `rhdh-jira-api`.
+## Route
 
-## Intake and route
-
-1. Resolve the plan key or URL and target RHDH version.
-2. Load `workflows/review-test-plan.md`.
-3. Load `references/sources.md`; load `references/google-sheets-setup.md` only when
-   schedule access fails.
-4. Gather the named artifacts below, then apply the workflow rubric.
+1. Resolve the plan key or URL and the target RHDH version.
+2. Load `workflows/review-test-plan.md` and follow it end to end.
+3. Load `references/sources.md` at Step 4 — it holds every lifecycle URL and the
+   extraction rules per product.
+4. Load `references/google-sheets-setup.md` only when schedule access fails.
 
 ## Named-skill handoffs
 
-- Invoke `rhdh-jira-api` for the plan, linked issues, ownership, labels, and status.
-  Consume `JiraQueryResult/v1`.
-- Invoke `rhdh-platform-lifecycle` for supported OCP/Kubernetes/database versions.
-  Consume `LifecycleAssessment/v1`.
-- Invoke `rhdh-release-schedule` for milestone dates and `rhdh-release-status`
-  for what is still open against the release.
+Invoke each by name and use what it reports. Never read, execute, or locate a
+sibling skill's files. When a named skill is absent, say so and name the review
+dimension that stays unverified.
 
-Never find, read, or execute a sibling skill's files. If a named skill is absent,
-report that dependency and the review dimension that remains unverified.
+| Need | Skill |
+|---|---|
+| The plan issue, its linked issues, ownership, labels, and status | `/rhdh-jira-api` |
+| Supported OCP, Kubernetes, PostgreSQL, RHBK, and Quay versions | `/rhdh-platform-lifecycle` |
+| Feature Freeze, Code Freeze, and GA dates | `/rhdh-release-schedule` |
+| What is still open against the release | `/rhdh-release-status` |
+| Editing the plan description or posting a comment | `/rhdh-jira-update` |
+| Creating a child task | `/rhdh-jira-create` |
 
-Local scripts `check_gsheets.py` and `fetch_schedule.py` are deterministic
-adapters for schedule access, not cross-skill interfaces. `gog` keeps Google
-credentials behind its native interface.
+`scripts/check_gsheets.py` and `scripts/fetch_schedule.py` are this skill's own
+schedule adapters, not cross-skill interfaces. `gog` keeps Google credentials
+behind its native interface.
 
-## Output contract
+## What the review reports
 
-Return the shared `TestPlanDelta/v1` contract:
+State the plan key and the release version, then, for every platform and
+integration row and every key date:
 
-```json
-{
-  "contract": "TestPlanDelta/v1",
-  "id": "test-plan-rhidp-123",
-  "createdAt": "YYYY-MM-DDTHH:MM:SSZ",
-  "data": {
-    "source": {"plan": "RHIDP-123", "release": "1.x"},
-    "changes": [],
-    "findings": [{
-      "verdict": "ready|ready-with-risks|not-ready|incomplete",
-      "coverage": [],
-      "gaps": [],
-      "risks": [],
-      "owners": [],
-      "evidence": [],
-      "unverified": []
-    }]
-  }
-}
-```
+- the current value, the suggested value, and the lifecycle or schedule source
+  behind the suggestion;
+- rows left unchanged, and why;
+- rows the review could not evaluate, naming the source or skill that was
+  unavailable.
 
-Separate absent coverage from unavailable evidence. Cite the issue, sheet range,
-or lifecycle source supporting each material finding.
+A row with no suggested version is a gap. A row whose source could not be read is
+unverified. Neither may be dropped, and neither may be reported as the other.
 
-## Optional Jira update
+## Writing to Jira
 
-Do not edit Jira as part of the read-only review. If the user asks to publish the
-review, invoke `rhdh-jira-api` with a `MutationPlan/v1` whose targets, comment body,
-field changes, risks, rollback, and verification are explicit. Wait for approval,
-then consume and surface its `MutationReceipt/v1` in the final review.
+Editing the description, posting a comment, and creating child tasks are writes.
+Follow `/rhdh-mutation-gate`: state each operation with its target ticket and the
+exact ADF document, comment body, or child-task title it will land; get approval
+for that stated set; execute; then report every operation as completed, failed,
+or skipped. A failed operation stops the workflow and is reported, never retried
+into a different shape.
 
 ## Completion
 
-Complete when every rubric dimension in `workflows/review-test-plan.md` carries a
-verdict in `data.findings`, every material finding cites the issue key, sheet
-range, or lifecycle source behind it, and each dimension the review could not
-verify appears in `unverified` naming the skill or source that was unavailable.
-Absent coverage belongs in `gaps` and missing evidence belongs in `unverified`; a
-dimension may not be omitted from both. When publishing was requested, complete
-only after `rhdh-jira-api` returns a `MutationReceipt/v1` whose outcomes cover every
-operation in the approved `MutationPlan/v1` and that receipt appears in the
-review.
+Complete when every platform row, integration row, and key date in the plan
+carries a verdict — changed, unchanged, or unverified — and every suggested value
+cites the lifecycle source or schedule tab behind it. Gaps and unverified rows
+are listed separately; a row may not be omitted from both. When the user asked to
+publish, complete only after every approved write has been reported by target and
+outcome, including the ones that were skipped.

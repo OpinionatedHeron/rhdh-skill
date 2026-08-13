@@ -2,14 +2,13 @@
 name: rhdh-release-status
 description: >-
   Reports what is still open against an RHDH release from Jira RHIDP, RHDHPLAN,
-  RHDHBUGS, and RHDHSUPP — issue counts by type, blocker bugs, CVEs, Engineering
+  RHDHBUGS, and RHDHSUPP: issue counts by type, blocker bugs, CVEs, Engineering
   EPICs, per-team breakdowns, release-note lifecycle, Post Code Freeze scope, and
-  any query in the RHIDP Operational Rich Filter export. Also answers readiness at
+  any query in the RHIDP Operational Rich Filter export. Also reports readiness at
   the Feature and Program Increment level: PI funnel, feature status matrix,
   stretch features, epic roll-up, cross-team dependency map, per-Feature coherence,
   and risk assessment. Use for "release status for 1.10", "what's blocking 1.10.3",
-  "CVEs for 1.10", "how many EPICs are still open for 1.11", "release notes
-  status", "are we ready to ship 1.10", or "PI funnel for 2.1".
+  "are we ready to ship 1.10", or "PI funnel for 2.1".
 compatibility: "Python 3.9+ and uv; acli with a Jira session; gog for the per-team breakdown; an RHIDP Operational Rich Filter export for freeze, release-note, and Post Code Freeze scopes."
 ---
 
@@ -20,7 +19,7 @@ timestamp. Read-only: this skill never edits Jira and never posts anything.
 
 ## Route
 
-Load `workflows/report-release-status.md`. It maps each question to the
+Load `workflows/release-status.md`. It maps each question to the
 `scripts/release.py` subcommand that answers it, and carries the two scope rules
 the CLI output does not explain on its own.
 
@@ -49,8 +48,9 @@ restating the setup.
 
 ## Completion
 
-Complete when every number in the answer names the subcommand that produced it,
-states when it was read, and carries the Jira search link behind it. A count the
+Complete when every number in the answer names the subcommand or JQL that
+produced it, states when it was read, and carries the Jira search link behind it.
+A count the
 CLI reported as truncated is reported as a floor, not a total. A field Jira could
 not supply is listed as unverified — never carried over from an earlier release
 or inferred from a neighbouring count. When the Rich Filter was unavailable, say

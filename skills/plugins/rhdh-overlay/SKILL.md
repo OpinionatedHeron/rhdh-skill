@@ -3,10 +3,13 @@ name: rhdh-overlay
 description: >-
   Manages the rhdh-plugin-export-overlays repository and Extensions Catalog:
   onboard plugins, update upstream versions, repair export or publish failures,
-  inspect workspace health, triage and analyze overlay pull requests, and
-  trigger publish checks. Use for source.json, plugins-list.yaml,
-  backstage.json, catalog metadata, overlay CI, plugin import, overlay PRs, or
-  testing exact PR artifacts before merge.
+  inspect workspace health, triage the overlay PR backlog by label, staleness
+  and merge readiness, and trigger /publish. Use for source.json,
+  plugins-list.yaml, backstage.json, catalog metadata, overlay CI, plugin
+  import, overlay PRs, or testing exact PR artifacts before merge. For
+  code-level review of a pull request, use /rhdh-pr-review. To promote an
+  rhdh-plugins release through overlays into rhdh-plugin-catalog, use
+  /rhdh-plugin-midstream-propagate.
 compatibility: "Git, GitHub CLI, Python 3, and a checkout of rhdh-plugin-export-overlays."
 ---
 
@@ -57,82 +60,53 @@ number that cannot be discovered from the checkout.
 ## Guarded publish
 
 Before posting `/publish`, verify the PR is open, lacks `do-not-merge`, and has
-no successful publish check for the current head. Posting the comment is a
-mutation: invoke the named skill `rhdh-mutation-gate` and follow its `MutationPlan/v1`
-approval hash and `MutationReceipt/v1` protocol rather than restating it here.
+no successful publish check for the current head. Posting the comment is an
+external write: invoke the named skill `rhdh-mutation-gate` and follow the gate
+it owns rather than restating it here.
 
-The plan carries one operation with `ownerSkill: rhdh-overlay`, adapter
-`github`, operation `github.comment.create`, target
-`redhat-developer/rhdh-plugin-export-overlays#<number>@<head-sha>`, a preview
-body of `/publish`, those three preconditions, checks that capture the comment
-and publish-check URLs, and recovery that reports the comment for manual removal
-if the trigger was wrong. Only after the user approves the plan hash, run:
+State one operation. Its target is
+`redhat-developer/rhdh-plugin-export-overlays#<number>@<head-sha>`, its preview
+body is `/publish`, its preconditions are those three checks, and on failure it
+reports the comment for manual removal if the trigger was wrong. Only after the
+user approves that stated operation, run:
 
 ```bash
 gh pr comment <number> --repo redhat-developer/rhdh-plugin-export-overlays --body "/publish"
 ```
 
-The outcome also records the comment and check URLs, or the failure plus
-recovery. A request to trigger publication is intent, not approval of the exact
-plan.
+Report the comment and publish-check URLs, or the failure and what recovery it
+needs. A request to trigger publication is intent to read the PR, not approval
+of this write.
 
-## Other external mutations
+## Other external writes
 
-The same contract applies to every push, PR creation, notification, or other
-external write in a selected workflow. Build the plan only after targets and
-payloads are exact. Execute no workflow command absent from the approved
-operations, and return one `MutationReceipt/v1` per approved batch. Read-only
-triage and analysis need no plan.
+The same gate covers every push, PR creation, notification, or other external
+write a workflow reaches. State operations only once targets and payloads are
+exact, run nothing absent from the approved set, and report an outcome for every
+operation including the ones that were skipped. Read-only triage and analysis
+need no gate.
 
-## Artifact contracts
+## What a caller supplies
 
-Input is `ChangeHandoff/v1`; use these additional `data` fields:
+A caller invokes this skill by name and states the source repository, the source
+ref (commit or tag), the packages, the upstream Backstage version, and the target
+RHDH version.
 
-```yaml
-contract: ChangeHandoff/v1
-id: overlay-request-id
-createdAt: ISO-8601
-data:
-  summary: overlay request
-  files: []
-  verification:
-    contract: VerificationEvidence/v1
-    id: source-verification-id
-    createdAt: ISO-8601
-    data: {subject: source-ref, checks: [], result: pending}
-  sourceRepository: owner/repo
-  sourceRef: commit-or-tag
-  packages: []
-  upstreamBackstageVersion: "1.x.y"
-  targetRhdh: "1.x"
-```
+## What this skill reports
 
-Output is `OverlayChange/v1`:
+- the workspace, and what changed in it: source ref, packages, metadata files
+- CI and local verification evidence, with skipped checks and their reasons
+- the pull request URL, or that none was opened
+- publish status: not requested, pending, passed, or failed
+- the outcome of every approved external write
+- remaining compatibility risks
 
-```yaml
-contract: OverlayChange/v1
-id: overlay-change-id
-createdAt: ISO-8601
-data:
-  workspace: name
-  changes: {sourceRef: commit-or-tag, packages: [], metadataFiles: []}
-  verification:
-    contract: VerificationEvidence/v1
-    id: overlay-verification-id
-    createdAt: ISO-8601
-    data: {subject: overlay-change-id, checks: [], result: pass | fail | partial}
-  pullRequest: null
-  publishStatus: not-requested | pending | passed | failed
-  mutationReceipts: []
-```
-
-For local verification, invoke `/rhdh-local` with `ChangeHandoff/v1` derived
-from `OverlayChange/v1`: exact artifact values, plugin config, named
-environment variables, and checks. Consume `VerificationEvidence/v1`.
-Do not load the local skill's files.
+For local verification, invoke `/rhdh-local` by name and give it the exact
+artifact references, plugin config, named environment variables, and checks to
+run. Do not load the local skill's files.
 
 ## Completion
 
-Report workspace and metadata changes, commands or scripts run, CI and local
-verification evidence, mutation receipts, remaining compatibility risks, and
-the final `OverlayChange/v1`.
+Complete when the report covers workspace and metadata changes, commands and
+scripts run, CI and local verification evidence, the outcome of every approved
+write, publish status, and remaining compatibility risks.

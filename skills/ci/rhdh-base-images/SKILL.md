@@ -1,9 +1,11 @@
 ---
 name: rhdh-base-images
 description: >-
-  Analyzes and updates RHDH base images, Node or Go toolchains, and RPM lockfiles
-  across rhdh, rhdh-operator, and rhdh-must-gather. Use for weekly base-image
-  maintenance, UBI/RHEL bumps, RPM lockfile refreshes, or image-version skew.
+  Analyzes and updates the `FROM` base images, Node headers, Go toolchain, and
+  `rpms.lock.yaml` files in rhdh, rhdh-operator, and rhdh-must-gather on `main` or
+  a `release-1.10` branch. Use for weekly base-image maintenance, a UBI or RHEL
+  bump, an RPM lockfile refresh, "which base images are out of date", or UBI minor
+  skew inside a Containerfile.
 compatibility: "bash, jq, skopeo, curl, git; podman or docker for toolchain detection; gh for PR creation."
 ---
 
@@ -11,40 +13,36 @@ compatibility: "bash, jq, skopeo, curl, git; podman or docker for toolchain dete
 
 Use the bundled scripts instead of reconstructing their repository-specific logic.
 
-## Interfaces
-
-- Produces: `BaseImageReport/v1`, `MutationPlan/v1`, and `MutationReceipt/v1`.
-- Consumes: no cross-skill artifact; it executes only from its own approved
-  `MutationPlan/v1`.
-- Repository checkouts are explicit user-scoped inputs, not skill-to-skill paths.
+Repository checkouts are explicit inputs the user names. This skill never
+discovers another skill's paths.
 
 ## Route
 
-| Intent | Load or run | Output |
-|---|---|---|
-| Read-only current/latest image scan | `workflows/update-base-images.md`, then `scripts/base-images-and-rpms.sh --analyze ...` | `BaseImageReport/v1` |
-| Explain repository rules | `references/repos.md` | guidance |
-| Preview an update | `workflows/update-base-images.md`, then `scripts/base-images-and-rpms.sh --dry-run ...` | `MutationPlan/v1` evidence |
-| Update images, lockfiles, Node headers, or Go toolchain | `workflows/update-base-images.md` | `MutationReceipt/v1` |
+| Intent | Load or run |
+|---|---|
+| Read-only current/latest image scan | `workflows/update-base-images.md`, then `scripts/base-images-and-rpms.sh --analyze ...` |
+| Explain repository rules | `references/repos.md` |
+| Preview an update | `workflows/update-base-images.md`, then `scripts/base-images-and-rpms.sh --dry-run ...` |
+| Update images, lockfiles, Node headers, or Go toolchain | `workflows/update-base-images.md` |
 
-`BaseImageReport/v1` contains required `summary` and `changes`, plus
-`repositories`, `fromImages`, `currentTags`, `latestTags`, `ubiSkew`,
-`toolchainDrift`, `sources`, and `warnings`.
+A scan reports, per repository: every `FROM` image with its current and latest
+tag, UBI minor skew within a file, Node or Go toolchain drift, the registries and
+branches it read, and anything it could not read.
 
-## Mutation contract
+## Writing rules
 
 Any checkout, branch, file edit, dependency install, commit, push, or PR is a
-mutation. First run read-only discovery or `--dry-run`, then invoke the named
-skill `rhdh-mutation-gate` and follow its plan, approval hash, and receipt protocol
-rather than restating it here. Operations use `ownerSkill: rhdh-base-images`
-with adapter `shell`, operation names such as `repository.base-images.update`,
-and a target naming the repository and branch, for example `rhdh:release-1.x`.
-Outcomes also record changed resources, verification, and remaining risks.
+write. Run read-only discovery or `--dry-run` first, then follow
+`/rhdh-mutation-gate`: state each operation with its target repository and branch
+(`rhdh:release-1.10`), the exact command, the change it will land, and what
+happens to the remaining operations if it fails; get approval for that stated
+set; execute; then report every operation as completed, failed, or skipped, with
+the resources it changed and the risks that remain.
 
 Installing `rpm-lockfile-prototype`, logging into registries, using `--push`, and
-opening PRs must appear as distinct actions. Default to local/no-push behavior; do
-not push directly to protected branches. Verify branch existence and repository
-cleanliness before mutation.
+opening PRs are each their own operation. Default to local, no-push behavior; do
+not push directly to protected branches. Verify the branch exists and the working
+tree is clean before writing.
 
 ## Repository invariants
 
@@ -55,16 +53,17 @@ cleanliness before mutation.
 - On rhdh-operator `main`, align `go.mod` with the Go toolset image.
 - Exclude RHDH `e2e-tests/` and `.ci/` from image scans.
 
-This skill exposes artifacts rather than script paths to other skills.
+Another skill invokes `/rhdh-base-images` by name and uses what it reports; it
+never reaches for these script paths.
 
 ## Completion
 
-An analysis is complete when `BaseImageReport/v1` `data.changes` covers every
-repository in scope with its current and latest tag, `data.ubiSkew` and
-`data.toolchainDrift` are populated or explicitly empty, and every registry,
-lockfile, or branch the scan could not read appears in `data.warnings` instead of
-being reported as current. An update is complete when the target branch was
-verified to exist against a clean working tree before any edit, every operation in
-the approved `MutationPlan/v1` has one outcome in `MutationReceipt/v1`, and the
-push and PR state is stated explicitly — including "not pushed" when the default
-local behavior was kept.
+An analysis is complete when every repository in scope is named with its current
+and latest tag, UBI skew and toolchain drift are stated or stated as none, and
+every registry, lockfile, or branch the scan could not read is named as unread
+instead of reported as current.
+
+An update is complete when the target branch was verified to exist against a
+clean working tree before any edit, every approved operation has been reported by
+target and outcome, and the push and PR state is stated explicitly — including
+"not pushed" when the default local behavior was kept.

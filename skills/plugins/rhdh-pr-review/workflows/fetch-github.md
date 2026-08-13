@@ -1,6 +1,6 @@
 # Workflow: Fetch GitHub PR Context
 
-Fetch PR metadata, diff, linked issues, existing comments, and CI status from GitHub. Produces `ReviewContext/v1` for `review-code.md` and `review-operator-pr.md`.
+Fetch PR metadata, diff, linked issues, existing comments, and CI status from GitHub. Produces the PR context that `review-code.md` and `review-operator-pr.md` analyze.
 
 ## Script
 
@@ -27,50 +27,48 @@ Optional flags:
 
 Consume the full JSON output. Do not pipe through `head`, `tail`, or `grep`.
 
-## ReviewContext/v1
+## PR context fields
 
-The script outputs this structure as JSON:
+The script prints one JSON object and nothing else. There is no envelope: these
+fields are the whole document.
 
 ```
-ReviewContext/v1
-├── contract: "ReviewContext/v1"
-├── id, createdAt
-└── data
-    ├── repository: "owner/repo"
-    ├── changeRequest: {forge, number, headSha, baseRef, headRef, title, body, author, state, url, labels}
-    ├── files: [{path, additions, deletions}, ...]
-    ├── totalAdditions, totalDeletions
-    ├── diff: "full unified diff text"
-    ├── linkedIssues: [{number, title, body, labels, state}, ...]
-    ├── jiraKeys: ["RHIDP-1234", ...]
-    ├── existingComments: [{user, path, line, body, createdAt}, ...]
-    ├── existingReviews: [{user, state, body}, ...]
-    └── ciStatus: "pass" | "fail" | "pending" | "unknown"
+repository: "owner/repo"
+changeRequest: {forge, number, headSha, baseRef, headRef, title, body, author, state, url, labels}
+files: [{path, additions, deletions}, ...]
+totalAdditions, totalDeletions
+diff: "full unified diff text"
+linkedIssues: [{number, title, body, labels, state}, ...]
+jiraKeys: ["RHIDP-1234", ...]
+existingComments: [{user, path, line, body, createdAt}, ...]
+existingReviews: [{user, state, body}, ...]
+ciStatus: "pass" | "fail" | "pending" | "unknown"
 ```
 
 ## Linked issues
 
-`data.linkedIssues` carries the title, body, labels, and state of each GitHub
-issue the PR body references — enough for most reviews. When a review needs the
-full issue envelope, including its comment thread and resolved workspace, invoke
-`/rhdh-forge` with the issue reference and consume `IssueContext/v1`. Do not add
-issue parsing to this workflow.
+`linkedIssues` carries the title, body, labels, and state of each GitHub issue
+the PR body references — enough for most reviews. When a review needs the full
+issue detail, including its comment thread and resolved workspace, invoke
+`/rhdh-forge` by name with the issue reference. Do not add issue parsing to this
+workflow.
 
 ## Jira keys
 
 The script extracts Jira keys (for example, `RHIDP-1234`) from the PR body but
-does not fetch them. When Jira detail affects the review, invoke `/rhdh-jira`
-with the keys and consume `IssueContext/v1` or `JiraQueryResult/v1`. Otherwise
-retain the keys and continue. Do not select a Jira transport or inspect Jira
-credentials from this workflow.
+does not fetch them. When Jira detail affects the review, invoke `/rhdh-jira-api`
+by name with the keys and use what it returns. Otherwise retain the keys and
+continue. Do not select a Jira transport or inspect Jira credentials from this
+workflow.
 
 ## CI status
 
-`data.ciStatus` comes from the check rollup, which serves a cached view. Before
+`ciStatus` comes from the check rollup, which serves a cached view. Before
 reporting a check as failing or missing in the review, confirm it against the
 runs on the head branch. `/rhdh-forge` owns those `gh` read patterns and the
 failed-log commands.
 
 ## After fetching
 
-Proceed to the workflow the router selected (typically `review-code.md`). Pass the full `ReviewContext/v1` — downstream workflows depend on its structure.
+Proceed to the workflow the router selected (typically `review-code.md`). Carry
+the complete context forward — downstream workflows read these fields by name.

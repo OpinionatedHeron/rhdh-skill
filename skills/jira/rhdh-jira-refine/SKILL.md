@@ -33,10 +33,10 @@ capability offline for no benefit.
 
 ## Reads by default, writes only on request
 
-The report is read-only. If the user asks for fixes, each change is an external
-write: state the issue key, the exact command, and the resulting value, get
-approval, then report the outcome of every change you made and every one that
-failed.
+The report is read-only. When the user asks for fixes, each change becomes an
+external write: invoke `/rhdh-mutation-gate` and follow it. A refine pass
+typically proposes many small fixes at once, so state them as one set — issue key
+and exact command per row — rather than approving them one at a time.
 
 ## Boundary with the neighbouring skills
 

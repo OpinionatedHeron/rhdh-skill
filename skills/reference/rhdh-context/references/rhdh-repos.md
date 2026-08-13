@@ -295,7 +295,7 @@ Reference of all RHDH-related repositories, what each one is used for, and how t
 - **Description:** Composable agent-skill collection for RHDH development and operations. Published via the [Agent Skills](https://agentskills.io) open standard.
 - **Tech stack:** Python (stdlib-only CLIs), Bash, Claude Code skills
 - **Key concepts:**
-  - **Composition:** Two human entry skills route setup and discovery; model skills compose by name through versioned artifacts.
+  - **Composition:** Two human entry skills route setup and discovery; model skills compose by invoking each other by name and reading what the invoked skill reports.
   - **Skills:** Plugin and Overlay development, local testing, Prow and Konflux CI, PR review, Jira, releases, lifecycle support, and base-image maintenance.
 - **Key paths:** `skills/` (all skill definitions), `CONTEXT.md` (domain language), `docs/adr/` (architectural decisions)
 

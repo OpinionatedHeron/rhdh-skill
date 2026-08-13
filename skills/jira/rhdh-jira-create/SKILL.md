@@ -46,12 +46,13 @@ matrix, field inference, sizing, and templates. Invoke it by name.
 
 ## Every create is an external write
 
-Before running any `acli` command that creates, links, comments, or edits, state
-the target project and issue type, show the exact command, and get the user's
-approval. Execute only what was approved. Afterwards, read back and report every
-key that was created, every link that was made, and every field that failed to
-set — a create that succeeded followed by a field update that silently failed is
-a half-created issue, not a success.
+Invoke `/rhdh-mutation-gate` and follow it before any `acli` command that
+creates, links, comments, or edits. One create is rarely one operation — the
+create, the field update `create` could not carry, the parent link, and the
+comment go into the same stated set so a single approval covers them.
+
+Afterwards, read the issue back. A create that succeeded followed by a field
+update that silently failed is a half-created issue, not a success.
 
 ## Boundary with the neighbouring skills
 

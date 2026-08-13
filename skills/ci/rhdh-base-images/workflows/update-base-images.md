@@ -1,6 +1,6 @@
 # Base-image and RPM update workflow
 
-Before any non-analysis run, use the top-level skill's `MutationPlan/v1` → explicit approval → `MutationReceipt/v1` contract. The commands below describe the approved action; they are not implicit authorization.
+Before any non-analysis run, follow the write gate in [SKILL.md](../SKILL.md): state each operation, get approval, execute, report every outcome. The commands below describe what an approved run does; printing one authorizes nothing.
 
 ## Goal
 

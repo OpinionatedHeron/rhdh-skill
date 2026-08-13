@@ -8,7 +8,8 @@ The internal repository contains Jira Rich Filter exports used for release coord
    git clone git@gitlab.cee.redhat.com:rhidp/rhdh-skill-private-data.git
    ```
 
-2. Register the resolved checkout through the preserved CLI contract:
+2. Register the resolved checkout through the `rhdh` CLI, which keeps the same key names and
+   config locations it always had:
 
    ```bash
    rhdh config set private-data <absolute-checkout-path>

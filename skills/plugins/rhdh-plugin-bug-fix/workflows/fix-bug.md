@@ -27,7 +27,7 @@ Parse without making a network call:
   derive the repository from `git remote -v`.
 - Plain report: set source to `none` and retain the user's text.
 
-For Jira, prefer invoking `/rhdh-jira` by name with the key and consuming the
+For Jira, prefer invoking `/rhdh-jira-api` by name with the key and consuming the
 issue detail it returns. If unavailable, use authenticated `acli` without
 reading token files into context. For GitHub, invoke `/rhdh-forge` by name with
 the raw reference; do not parse the URL or run `gh issue view` here. It returns
@@ -35,7 +35,7 @@ the key, summary, source, URL, repository, number, state, labels, description,
 and a candidate workspace with the strategy that resolved it — treat the
 workspace as a candidate, confirm the directory exists in the checkout, and ask
 the user when the strategy reports it unresolved. If `/rhdh-forge` is not
-installed, say so, name `/setup-rhdh-skills` as the human's next step, and ask
+installed, say so, name `/setup-rhdh-skills install` as the human's next step, and ask
 the user for the issue detail rather than guessing at it.
 
 Record: source, key or number, URL, title, description, labels/component,
@@ -48,7 +48,7 @@ Run the capability checks needed by the selected branch:
 | Git checkout | Always | `git remote -v` identifies rhdh-plugins or community-plugins |
 | Node and Yarn | Always | `node --version`; `yarn --version` |
 | GitHub CLI | GitHub issue or auto-publication | `gh auth status` |
-| Jira access | Jira issue | named `/rhdh-jira` or authenticated `acli` |
+| Jira access | Jira issue | named `/rhdh-jira-api` or authenticated `acli` |
 | ffmpeg | UI evidence conversion | `ffmpeg -version`; warn and retain WebM if absent |
 
 Stop this branch with a precise setup requirement when a required capability is
@@ -120,7 +120,7 @@ Pause for user choice when multiple root causes remain plausible, the fix
 changes a public API, or materially different fixes have different compatibility
 costs. For an under-specified architectural choice, invoke `/grilling` and use
 its resulting constraints before implementation. If it is not installed, say so,
-name `/setup-rhdh-skills` as the human's next step, and pause that branch.
+name `/setup-rhdh-skills install` as the human's next step, and pause that branch.
 
 Run type checks and the target repository's narrow tests after each meaningful
 change.
@@ -176,7 +176,7 @@ Omit nothing silently and invent no evidence. Say "none" where there is none.
   this local verification pause. There is no auto-approve mode: that skill still
   requires the user's approval of each external write. It owns staging — the
   unstaged changed files included — through issue updates.
-- If `/rhdh-pr-create` is not installed, say so, name `/setup-rhdh-skills` as
+- If `/rhdh-pr-create` is not installed, say so, name `/setup-rhdh-skills install` as
   the human's next step, and retain the evidence paths.
 
 Once publication reports the recordings uploaded, remove the exact

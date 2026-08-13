@@ -108,7 +108,7 @@ answered, because a caller that knows the strategy can judge the confidence:
 5. **Unresolved** — report `null` and ask the user which workspace to target.
 
 A Jira issue carries no workspace label. Map its Component to a workspace
-directory instead; `/rhdh-plugin-development` owns that table.
+directory instead; `/rhdh-plugin-bug-fix` owns that table.
 
 ## Interaction payloads
 

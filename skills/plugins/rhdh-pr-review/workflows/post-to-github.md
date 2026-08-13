@@ -1,16 +1,15 @@
 # Workflow: Post Review to GitHub
 
-Consumes `ReviewFindings/v1` (from `review-code.md`) and posts it as an inline review via the GitHub API. This workflow is GitHub-specific.
+Takes the review draft from `review-code.md` and posts it as an inline review via the GitHub API. This workflow is GitHub-specific.
 
 ## Prerequisites
 
 - `gh` CLI authenticated with write access to the target repo
-- `ReviewFindings/v1` with `data.changeRequest`, `data.summary`, `data.verdict`, and `data.findings[]`
+- A review draft carrying `changeRequest`, `summary`, `verdict`, and `findings[]`
 
 ## Step 1: Finalize the draft
 
-If the findings have not been shown yet (for example, when posting a persisted
-artifact), present the full humanized draft first:
+If the findings have not been shown yet, present the full humanized draft first:
 
 ```
 ## Review for PR #<number>
@@ -88,16 +87,16 @@ cat > "$REVIEW_FILE" << 'REVIEW_EOF'
 REVIEW_EOF
 ```
 
-## Step 4: Plan and post the review
+## Step 4: State and post the review
 
-Wrap the exact payload and target in `MutationPlan/v1` as defined in
-`SKILL.md`. Include the expected head SHA as a precondition, the complete JSON
-payload as the preview, a check for the returned review URL, and deletion or
-manual follow-up as recovery where applicable. Compute and show the material
-hash only after the payload file is final.
+Follow the write gate in `SKILL.md`. State one operation: the target repo and PR
+number, the exact `gh api` command below, the complete JSON payload as the
+preview, the expected head SHA as a precondition, and — on failure — deleting the
+partial review or following up manually. State it only once the payload file is
+final.
 
-Execute the command below only after the user approves that exact hash. A prior
-request to review or post, or approval of the prose draft, cannot bypass this
+Run the command below only after the user approves that stated operation. A prior
+request to review or post, or approval of the prose draft, does not open this
 gate.
 
 ```bash
@@ -111,9 +110,8 @@ gh api repos/<repo>/pulls/<number>/reviews \
 rm -f "$REVIEW_FILE"
 ```
 
-Return `MutationReceipt/v1` tied to the approved plan and hash. Record the
-review URL, number of comments posted, event type, API status, and verification
-against the current head SHA.
+Report the outcome: review URL, number of comments posted, event type, API
+status, and whether it verified against the current head SHA.
 
 ## Common mistakes
 
@@ -121,5 +119,5 @@ against the current head SHA.
 |---------|-----|
 | Using diff line numbers for the API | Grep the actual file at HEAD for correct line numbers |
 | Shell-escaping suggestion blocks in `gh api` | Write JSON to a temp file, use `--input` |
-| Posting after prose approval but before plan approval | Build the exact plan, show its material hash, and wait for approval |
+| Posting after prose approval but before gate approval | State the exact operation and wait for approval of it |
 | Including `start_line` when not needed | Only set `start_line` for multi-line comments; omit for single-line |

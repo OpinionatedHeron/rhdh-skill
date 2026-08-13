@@ -24,9 +24,7 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = SKILL_DIR.parent.parent.parent
-CATALOG_PATH = (
-    REPO_ROOT / "skills" / "engineering" / "setup-rhdh-skills" / "assets" / "catalog.json"
-)
+CATALOG_PATH = REPO_ROOT / "skills" / "meta" / "setup-rhdh-skills" / "assets" / "catalog.json"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 
 BEGIN_MARKER = "<!-- BEGIN GENERATED ROUTES: python scripts/render_routes.py --write -->"

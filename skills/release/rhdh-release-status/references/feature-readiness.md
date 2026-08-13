@@ -5,7 +5,7 @@ Generate a release readiness report: feature status matrix, Program Increment fu
 Supports quick mode (ceremony prep, ~5 API calls) and deep mode (full coherence analysis with per-feature assessment, ~20+ calls).
 
 Use paginated `acli` for bulk reads and the authenticated host adapter only for fields that `acli`
-cannot return. Read-only. This route makes no external change.
+cannot return. Read-only: this route reports, and hands any fix to the skill that owns the write.
 
 ## Input
 
@@ -123,7 +123,8 @@ Count Epics by status. Compute percent complete. Flag mismatches:
 - Feature is "In Progress" but no child Epics are in progress → "Stale Feature status"
 - Feature is "Backlog" but child Epics are "In Progress" → "Feature status behind Epics"
 
-Load `references/workflows.md` for the exit criteria validation on each Feature and Epic.
+Invoke `/rhdh-jira-api` for the exit criteria of each Feature and Epic status; it owns the
+workflow states and what each transition requires.
 
 ### Step 8 — Dependency Map
 
@@ -165,7 +166,7 @@ Flag missing: "RN fields not set — required before closing."
 
 For each Feature, assess:
 
-1. Are exit criteria met for current status? (reference `workflows.md`)
+1. Are exit criteria met for current status? (ask `/rhdh-jira-api`)
 2. Are all child Epics sized?
 3. Are child Epics assigned to teams?
 4. Are there child Epics without Stories/Tasks (if Epic is in To Do+)?
@@ -185,7 +186,7 @@ Synthesize a 1-paragraph risk assessment:
 
 ## Output
 
-### Data Contract
+### Report shape
 
 ```json
 {
@@ -265,19 +266,19 @@ Features: {count} | Readiness: {score}% | Mode: {mode}
 
 ## Remediation
 
-After presenting the report:
+This route does not write to Jira. After presenting the report, offer the fixes it
+implies and hand each accepted one to `/rhdh-jira-update`, which states the target and
+exact command, gets approval, and reports the outcome.
 
-> "Fix issues? [y/N/edit]"
+**⚠ Automation warning:** Setting fix version on a Feature cascades to all child Epics automatically (Jira automation rule). Setting Epic status also cascades to parent Feature. Ask `/rhdh-jira-api` for the automation rules. Warn the user before any fix version change.
 
-**⚠ Automation warning:** Setting fix version on a Feature cascades to all child Epics automatically (Jira automation rule). Setting Epic status also cascades to parent Feature. See `references/workflows.md` Automation Rules. Warn the user before applying fix version changes.
-
-Available actions (all require user confirmation):
+Fixes worth offering:
 
 - **Set fix version** on Features in "Ready for Commitment" (cascades to child Epics)
-- **Create missing Epics** (Eng, QE, Doc) for Features in Backlog+
+- **Create missing Epics** (Eng, QE, Doc) for Features in Backlog+ — via `/rhdh-jira-create`
 - **Transition Feature status** when exit criteria are met
-- **Assign owner** to unassigned Features (invokes `assign` sub-command)
-- **Add missing RN fields** — prompt user for Release Note Type and Text
+- **Assign owner** to unassigned Features
+- **Add missing RN fields** — ask the user for Release Note Type and Text first
 
 ## Error Handling
 
@@ -292,8 +293,15 @@ Available actions (all require user confirmation):
 
 ## Caveats
 
-1. **Deep mode coverage.** This sub-command covers ceremony prep (PI funnel, feature matrix, readiness score) and most deep analysis. For more detailed per-feature checklists, Mermaid diagram generation, and run history trending, consider extending this sub-command.
-2. **Team field requires REST fallback.** One REST call per Feature for team data. For 12 Features, this is 12 extra calls in quick mode.
-3. **Coherence analysis is deep-mode only.** Quick mode skips per-feature exit criteria validation and epic child checks.
-4. **PI funnel states are computed, not stored.** Jira doesn't have a "PI State" field — the funnel is derived from field values (labels, size, assignee, fix version).
-5. **Cross-team dependency detection requires issue links.** Features/Epics without `Blocks`/`Depend` links won't show in the dependency map even if real dependencies exist.
+1. **Team field requires REST fallback.** One REST call per Feature for team data. For 12 Features, this is 12 extra calls in quick mode.
+2. **Coherence analysis is deep-mode only.** Quick mode skips per-feature exit criteria validation and epic child checks.
+3. **PI funnel states are computed, not stored.** Jira doesn't have a "PI State" field — the funnel is derived from field values (labels, size, assignee, fix version).
+4. **Cross-team dependency detection requires issue links.** Features/Epics without `Blocks`/`Depend` links won't show in the dependency map even if real dependencies exist.
+
+## Success criteria
+
+- [ ] Every Feature matching the version or candidate label appears in exactly one funnel stage
+- [ ] Every Feature carries its status, owner, team, and size, or names the field as unretrieved
+- [ ] The readiness score states the numerator and denominator it was computed from
+- [ ] Deep mode names each Feature whose child Epics could not be read, rather than reporting zero
+- [ ] Nothing was written to Jira by this route

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Produce the stable RhdhContext/v1 artifact for skill composition."""
+"""Resolve RHDH repositories, tools, and configuration into one JSON document."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import json
 import os
 import shutil
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -17,10 +16,6 @@ VERSIONS_FILE = SKILL_ROOT / "references" / "versions.md"
 sys.path.insert(0, str(SKILL_ROOT))
 
 from rhdh import config  # noqa: E402
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _version_matrix() -> list[dict[str, str]]:
@@ -109,20 +104,15 @@ def build_context(
         os.chdir(previous_cwd)
 
     return {
-        "contract": "RhdhContext/v1",
-        "id": "rhdh-context",
-        "createdAt": _now(),
-        "data": {
-            "repositories": repositories,
-            "tools": _tool_status(probe_tools),
-            "configuration": configuration,
-        },
+        "repositories": repositories,
+        "tools": _tool_status(probe_tools),
+        "configuration": configuration,
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Resolve repositories, tools, and configuration into RhdhContext/v1."
+        description="Resolve repositories, tools, and configuration into one JSON document."
     )
     parser.add_argument(
         "--project-root", type=Path, default=Path.cwd(), help="Project root to inspect"
@@ -138,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        artifact = build_context(
+        context = build_context(
             args.project_root.resolve(), not args.no_tool_probes, args.target_rhdh
         )
     except (OSError, ValueError) as exc:
@@ -148,12 +138,12 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.json or not sys.stdout.isatty():
-        json.dump(artifact, sys.stdout, indent=2 if args.json else None)
+        json.dump(context, sys.stdout, indent=2 if args.json else None)
         sys.stdout.write("\n")
     else:
-        repositories = artifact["data"]["repositories"]
+        repositories = context["repositories"]
         configured = sum(entry["path"] is not None for entry in repositories)
-        versions = artifact["data"]["configuration"]
+        versions = context["configuration"]
         print(
             f"RHDH context: {configured} repositories configured; "
             f"target RHDH {versions['targetRhdh']} on Backstage {versions['targetBackstage']} "

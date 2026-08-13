@@ -3,7 +3,7 @@
 # requires-python = ">=3.9"
 # dependencies = []
 # ///
-"""Fetch PR context from GitHub and output ReviewContext/v1 as JSON.
+"""Fetch PR context from GitHub and print it as one JSON object.
 
 Runs gh CLI commands to collect PR metadata, diff, linked issues,
 existing review comments, and CI status. Output is consumed by
@@ -21,7 +21,6 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
 
 # Progress on stderr, machine-readable failure on stdout: this script writes one
 # JSON document to stdout and nothing else. Bundled here so the script runs
@@ -310,7 +309,7 @@ def main():
     log("  Checking CI status...")
     ci_status = fetch_ci_status(repo, pr_number)
 
-    # Assemble ReviewContext/v1
+    # Assemble the PR context document
     files = []
     for f in pr_data.get("files", []):
         files.append(
@@ -324,43 +323,37 @@ def main():
     labels = [label.get("name", "") for label in pr_data.get("labels", [])]
 
     head_sha = pr_data.get("headRefOid", "")
-    safe_repo = re.sub(r"[^A-Za-z0-9._-]+", "-", repo).strip("-")
-    artifact = {
-        "contract": "ReviewContext/v1",
-        "id": f"github-{safe_repo}-pr-{pr_number}-{head_sha[:12] or 'unknown'}",
-        "createdAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "data": {
-            "repository": repo,
-            "changeRequest": {
-                "forge": "github",
-                "number": pr_number,
-                "headSha": head_sha,
-                "baseRef": pr_data.get("baseRefName", ""),
-                "headRef": pr_data.get("headRefName", ""),
-                "title": pr_data.get("title", ""),
-                "body": pr_data.get("body", ""),
-                "author": pr_data.get("author", {}).get("login", ""),
-                "state": pr_data.get("state", ""),
-                "url": pr_data.get("url", ""),
-                "labels": labels,
-            },
-            "files": files,
-            "totalAdditions": pr_data.get("additions", 0),
-            "totalDeletions": pr_data.get("deletions", 0),
-            "diff": diff,
-            "linkedIssues": linked_issues,
-            "jiraKeys": jira_keys,
-            "existingComments": existing_comments,
-            "existingReviews": existing_reviews,
-            "ciStatus": ci_status,
+    context = {
+        "repository": repo,
+        "changeRequest": {
+            "forge": "github",
+            "number": pr_number,
+            "headSha": head_sha,
+            "baseRef": pr_data.get("baseRefName", ""),
+            "headRef": pr_data.get("headRefName", ""),
+            "title": pr_data.get("title", ""),
+            "body": pr_data.get("body", ""),
+            "author": pr_data.get("author", {}).get("login", ""),
+            "state": pr_data.get("state", ""),
+            "url": pr_data.get("url", ""),
+            "labels": labels,
         },
+        "files": files,
+        "totalAdditions": pr_data.get("additions", 0),
+        "totalDeletions": pr_data.get("deletions", 0),
+        "diff": diff,
+        "linkedIssues": linked_issues,
+        "jiraKeys": jira_keys,
+        "existingComments": existing_comments,
+        "existingReviews": existing_reviews,
+        "ciStatus": ci_status,
     }
 
     # Output
     if sys.stdout.isatty():
-        json.dump(artifact, sys.stdout, indent=2)
+        json.dump(context, sys.stdout, indent=2)
     else:
-        json.dump(artifact, sys.stdout)
+        json.dump(context, sys.stdout)
     print()
 
     log(

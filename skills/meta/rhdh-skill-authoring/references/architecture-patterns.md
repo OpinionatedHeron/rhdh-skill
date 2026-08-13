@@ -428,12 +428,12 @@ Build cannot start until:
 
 Two rules make the seam hold. The plan must be **user-confirmed** rather than
 self-authored — a separate user response approving it, not the agent's own
-summary. And the handoff is not a typed artifact: there is no envelope, no
-version string, and no temp-file store (ADR-0007). A user who needs context to
-survive into a later session runs `/handoff`.
+summary. And the handoff stays in the conversation, as prose both sides can read
+(ADR-0007); a user who needs context to survive into a later session runs
+`/handoff`.
 
-Never make a reference file or script path the handoff interface. Skills compose
-by name.
+Skills compose by name, so the handoff interface is what the producer said. A
+reference file or script path is not a handoff interface.
 
 ## Self-critique loops
 

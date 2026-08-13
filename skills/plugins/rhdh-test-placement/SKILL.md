@@ -29,7 +29,7 @@ the person asking usually has a preferred answer already.
 
 Invoke `/grilling` **before** recommending a placement, and use the constraints
 it produces. If `/grilling` is not installed, stop: say the skill is required,
-name `/setup-rhdh-skills` as the human's next step, and do not guess a
+name `/setup-rhdh-skills install` as the human's next step, and do not guess a
 placement in the meantime.
 
 ## Scope

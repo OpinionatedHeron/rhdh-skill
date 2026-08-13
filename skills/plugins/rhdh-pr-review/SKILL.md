@@ -1,19 +1,23 @@
 ---
 name: rhdh-pr-review
 description: >-
-  Reviews Red Hat Developer Hub pull requests through a composable
-  fetch-analyze-post pipeline, with optional live-cluster verification for
-  rhdh-operator changes. Use for a GitHub PR URL or number, code review,
-  analysis-only review, inline comments, posting a review, testing operator PR
-  images or bundles on a cluster, or a combined code and cluster review.
+  Reviews the code in a Red Hat Developer Hub pull request: fetch its diff,
+  linked issues and CI status, analyze the changes, draft inline comments, post
+  the review to GitHub, and for an rhdh-operator PR optionally deploy its
+  CI-built bundle onto a live OpenShift cluster and verify the change there. Use
+  for a GitHub PR URL or number, "review this PR", analysis-only review, inline
+  comments, posting a review, testing operator PR images or bundles on a
+  cluster, or a combined code and cluster review. For label and merge-readiness
+  triage of the overlay PR backlog, use /rhdh-overlay.
 compatibility: "GitHub CLI and Python 3; oc plus an accessible cluster for operator testing."
 ---
 
 # RHDH Pull Request Review
 
-Keep forge I/O at the edges: fetch produces context, analysis consumes only
-that context and checked-out code, and posting consumes a verified findings
-artifact. Cluster testing consumes the same context independently.
+Keep forge I/O at the edges: fetch produces the PR context, analysis works from
+that context and checked-out code alone, and posting sends only findings already
+verified against the head SHA. Cluster testing reads the same context
+independently.
 
 ## Route by outcome
 
@@ -35,81 +39,53 @@ can diverge, but respect an explicit route.
 - Prefer actionable inline comments. Reserve top-level prose for context and
   merge blockers; do not repeat every inline finding.
 - Ask which installed specialist skills, if any, the user wants applied after
-  fetch and before deep analysis. Invoke chosen skills by name and pass the
-  `ReviewContext/v1`; never load their files.
+  fetch and before deep analysis. Invoke chosen skills by name and give them the
+  fetched PR context; never load their files.
 - `/humanizer` is required before any review draft is shown, including
-  analysis-only. If unavailable, return:
-  `SetupRequired/v1` with `data.missing: [humanizer]` and
-  `data.nextCommand: /setup-rhdh-skills`, then stop the draft path. Do not
-  implement a local locator or substitute prose rewriting.
+  analysis-only. If unavailable, say that `humanizer` is missing, name
+  `/setup-rhdh-skills install`, and stop the draft path. Do not implement a local
+  locator or substitute prose rewriting.
 - Present the complete humanized draft and review event for confirmation before
-  planning any post. An explicit request to post is intent, not approval of the
-  exact external mutation.
+  stating any post operation. An explicit request to post is intent, not approval
+  of the exact write.
 - For cluster testing, deploy the full PR bundle or manifests, not only the
   operator binary image. Preserve and report the original cluster state and
   cleanup result.
 
-## Mutation contract
+## Write gate
 
-Fetch and analysis are read-only. Posting a GitHub review, posting a test
-request comment, or changing cluster resources is a mutation: invoke the named
-skill `rhdh-mutation-gate` and follow its `MutationPlan/v1` approval hash and
-`MutationReceipt/v1` protocol rather than restating it here.
+Fetch and analysis are read-only. Posting a GitHub review, posting a test-request
+comment, or changing cluster resources is an external write: invoke the named
+skill `rhdh-mutation-gate` and follow the gate it owns rather than restating it
+here.
 
-Operations use `ownerSkill: rhdh-pr-review` with adapter `github` or
-`openshift`, and operation `github.review.create`, `github.comment.create`,
-`openshift.apply`, or `openshift.delete`. Targets pin the head SHA for a review
-and the namespace for a cluster change. An earlier confirmation of findings does
-not approve the mutation plan. Outcomes also record changed resources or review
-URLs, verification, cleanup, and remaining recovery action.
+A review operation's target pins the head SHA; a cluster operation's target names
+the namespace. An earlier confirmation of findings approves no write. Report each
+outcome with the changed resources or review URL, the verification done, the
+cleanup state, and any recovery still owed.
 
-## Artifact contracts
+## What each stage carries forward
 
-`ReviewContext/v1` from fetch:
+Every stage passes its result to the next in conversation. The field names are
+defined once, where they are produced:
 
-```yaml
-contract: ReviewContext/v1
-id: github-owner-repo-pr-123-sha
-createdAt: 2026-08-10T12:00:00Z
-data:
-  repository: owner/repo
-  changeRequest: {forge: github, number: 123, headSha: sha, baseRef: main, headRef: branch}
-  files: []
-  diff: unified-diff
-  linkedIssues: []
-  jiraKeys: []
-  existingComments: []
-  existingReviews: []
-  ciStatus: pass | fail | pending | unknown
-```
-
-`ReviewFindings/v1` from analysis:
-
-```yaml
-contract: ReviewFindings/v1
-id: github-owner-repo-pr-123-review
-createdAt: 2026-08-10T12:00:00Z
-data:
-  changeRequest: {repository: owner/repo, number: 123, headSha: sha}
-  summary: text
-  verdict: COMMENT | APPROVE | REQUEST_CHANGES
-  findings: [{path: file, line: 1, startLine: null, type: question | observation | fix, body: text}]
-  humanized: true
-```
-
-`VerificationEvidence/v1` from operator testing uses `data.subject`,
-`data.checks`, and `data.result`; it may also record the deployed bundle or
-manifests, original and final cluster state, findings, and cleanup status.
+| Stage | Result | Defined in |
+|---|---|---|
+| Fetch | PR context: repository, changeRequest, files, diff, linkedIssues, jiraKeys, existingComments, existingReviews, ciStatus | `workflows/fetch-github.md` |
+| Analysis | Review draft: changeRequest, summary, verdict, findings, humanized | `workflows/review-code.md` |
+| Operator testing | Subject, per-check results, verdict, cluster state, cleanup | `workflows/review-operator-pr.md` |
 
 ## Scripts and references
 
-- `scripts/fetch_pr_context.py` deterministically creates `ReviewContext/v1`.
+- `scripts/fetch_pr_context.py` deterministically builds the PR context as one
+  JSON object with no envelope.
 - `references/review-perspectives.md` routes optional specialist review lenses.
 - `references/humanizer.md` defines the named `/humanizer` gate.
 - `references/operator-pr-images.md` defines operator bundle/image extraction.
 
 ## Completion
 
-Report the head SHA reviewed, humanized `ReviewFindings/v1`, post receipt when
-applicable, every `MutationReceipt/v1`, `VerificationEvidence/v1` when
-applicable, and any skipped checks or cleanup actions with reasons.
+Complete when the report names the head SHA reviewed, presents the humanized
+draft, gives the outcome of every approved write with its target, includes the
+cluster check results when operator testing ran, and states every skipped check
+or cleanup action with its reason.

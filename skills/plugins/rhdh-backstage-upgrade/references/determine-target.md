@@ -7,7 +7,7 @@ answer established in `SKILL.md`, or invoke `/rhdh-context` by name for the
 checked-in matrix.
 
 > **Dependency:** RHDH version alignment needs `/rhdh-context`. If it is not
-> installed, say so, name `/setup-rhdh-skills` as the human's next step, and ask
+> installed, say so, name `/setup-rhdh-skills install` as the human's next step, and ask
 > the user for the target RHDH and Backstage versions directly.
 
 Ask the user: **"Which RHDH version are you targeting?"**

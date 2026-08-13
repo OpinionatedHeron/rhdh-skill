@@ -38,7 +38,7 @@ For a new plugin or a change to a public API where materially different designs
 are valid and the request does not settle the choice, invoke `/grilling` as a
 design gate, use the constraints it produces, and show the design before
 implementing. If `/grilling` is not installed, say so, name
-`/setup-rhdh-skills` as the human's next step, and pause that branch.
+`/setup-rhdh-skills install` as the human's next step, and pause that branch.
 
 ## Route by outcome
 

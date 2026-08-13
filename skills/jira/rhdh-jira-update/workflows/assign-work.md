@@ -66,8 +66,8 @@ metadata is missing, say the confidence is low — do not imply certainty.
 
 ## Apply the assignment
 
-Assignment is an external write. State each issue-to-person mapping and the exact
-command, get approval for the set, then apply:
+Assignment is an external write. Invoke `/rhdh-mutation-gate` and follow it, with
+one row per issue-to-person mapping, then apply:
 
 ```bash
 acli jira workitem assign --key RHIDP-1234 --assignee "ACCOUNT_ID" --yes

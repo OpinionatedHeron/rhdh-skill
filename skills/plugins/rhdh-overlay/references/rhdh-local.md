@@ -1,7 +1,7 @@
 # Reference: Local Verification Inputs
 
-The overlay-side facts needed to fill `ChangeHandoff/v1` when asking for local
-verification of a plugin built by overlay CI.
+The overlay-side facts to hand `/rhdh-local` when asking it to verify a plugin
+built by overlay CI.
 
 > Invoke `/rhdh-local` by name for setup, file layout, operations,
 > troubleshooting, and execution; do not load its implementation files. This
@@ -33,15 +33,15 @@ gh pr view <number> --repo redhat-developer/rhdh-plugin-export-overlays --commen
 ## Plugin config
 
 Frontend plugins need `pluginConfig` for their mount points. Copy it from
-`appConfigExamples` in `workspaces/<plugin>/metadata/<package>.yaml` and pass the
-exact values through `ChangeHandoff/v1`; do not paraphrase them. Backend plugins
-usually need no `pluginConfig`.
+`appConfigExamples` in `workspaces/<plugin>/metadata/<package>.yaml` and pass
+those values verbatim; do not paraphrase them. Backend plugins usually need no
+`pluginConfig`.
 
 ## Test entity annotations
 
 A plugin card only renders on a catalog entity that carries the annotation the
-plugin looks for. Name the annotation and a test value in the handoff so the
-entity can be created.
+plugin looks for. Name the annotation and a test value when invoking
+`/rhdh-local` so it can create the entity.
 
 | Plugin family | Annotation key | Example value |
 |---------------|----------------|---------------|
@@ -57,8 +57,8 @@ or metadata file for the annotations it actually requires.
 
 Seeing the plugin in the Extensions Catalog UI requires the overlay repo's Plugin
 entity directory. Its path is `<overlay-repo>/catalog-entities/extensions/plugins/`
-— `extensions/plugins/`, not `marketplace/plugins/`. Name that path in the
-handoff; `/rhdh-local` owns the mount and the catalog-location wiring.
+— `extensions/plugins/`, not `marketplace/plugins/`. Name that path when
+invoking `/rhdh-local`; it owns the mount and the catalog-location wiring.
 
 ## Checks to request
 
@@ -68,4 +68,4 @@ handoff; `/rhdh-local` owns the mount and the catalog-location wiring.
   errors about credentials inside the card are acceptable
 - Extensions Catalog listing, when the plugin entity path was supplied
 
-Consume `VerificationEvidence/v1` and preserve skipped checks with their reason.
+Take back one result per check and preserve skipped checks with their reason.

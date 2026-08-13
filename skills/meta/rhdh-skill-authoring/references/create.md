@@ -176,7 +176,7 @@ you are building.
 
 ### Setup and capability gates (when applicable)
 
-Non-negotiable checks before any file edits. Gates prevent generic output from missing context, and every gate follows one contract: when a required precondition is missing, stop that branch, say what is missing, and name the exact `/setup-rhdh-skills <route>`. Write them as a table with a required check and a fail action per row, mutation last — the table pattern and the contract's boundary are in `architecture-patterns.md` → Setup and capability gates.
+Non-negotiable checks before any file edits. Gates prevent generic output from missing context, and every gate follows one rule: when a required precondition is missing, stop that branch, name the missing capability, and name the exact `/setup-rhdh-skills <route>` that supplies it. Write them as a table with a required check and a fail action per row, mutation last — the table pattern and where that rule stops are in `architecture-patterns.md` → Setup and capability gates.
 
 ### Register/mode system (when applicable)
 
@@ -186,11 +186,11 @@ When behaviour varies sharply by task type while the trigger stays one, classify
 
 When one skill produces work another consumes, the producer states the result in
 the conversation, structured enough to act on, and the consumer states what it
-requires before it starts. There is no envelope, no version string, and no
-temp-file store (ADR-0007); a user who needs context to survive into a later
-session runs `/handoff`. Never make a reference file or script path the handoff
-interface — skills compose by name. See `architecture-patterns.md` → Handoffs
-between skills for the producer and consumer shapes.
+requires before it starts (ADR-0007). A user who needs context to survive into a
+later session runs `/handoff`. Skills compose by name, so the handoff interface is
+what the producer said, never a reference file or script path. See
+`architecture-patterns.md` → Handoffs between skills for the producer and consumer
+shapes.
 
 ### Self-critique loops
 
@@ -280,7 +280,7 @@ Before presenting the final skill, verify against this checklist:
 - [ ] Register/mode system classifies before loading references
 - [ ] Material shared with another skill is extracted, enforced, or documented, never copied
 - [ ] Skills compose by stable name — no sibling paths, no imports, no host layout probing
-- [ ] Handoffs carry no artifact contracts: no `SomeThing/v1` envelope and no material hash; external writes invoke `/rhdh-mutation-gate`
+- [ ] Handoffs are prose the producer states and the consumer reads; an external write invokes `/rhdh-mutation-gate`
 - [ ] Human/model invocation metadata matches the approved repository boundary
 
 ### References

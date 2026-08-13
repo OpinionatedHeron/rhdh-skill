@@ -1,11 +1,13 @@
 ---
 name: rhdh-agent-readiness
 description: >-
-  Assess and improve a git repository's readiness for AI coding agents with
-  agentready, including RHDH-aware single-repository and batch assessment. Use
-  when asked to assess agent readiness, run agentready, improve an agent
-  readiness score, prepare a repository for coding agents, or assess all RHDH
-  repositories.
+  Assesses and improves a git repository's readiness for AI coding agents with
+  the agentready tool, and reports the score, the certification level, the
+  failing findings, and where the report was written. Covers one repository or
+  every RHDH repository under a directory, and applies the fixes the report
+  supports. Use for "assess agent readiness", "run agentready", "improve our
+  agent readiness score", "prepare this repository for coding agents", or
+  "assess all the RHDH repositories".
 ---
 
 # RHDH Agent Readiness

@@ -1,10 +1,13 @@
 ---
 name: rhdh-skill-authoring
 description: >-
-  Create, audit, and consolidate Agent Skills that follow the Agent Skills open
-  standard. Use when creating or drafting a SKILL.md, diagnosing why a skill
-  does not trigger, improving an existing skill, or consolidating overlapping
-  skills into fewer deeper modules.
+  Creates, audits, and consolidates Agent Skills that follow the Agent Skills
+  open standard, and hands back a drafted or repaired skill with the review
+  checklist for its branch applied. Use for "create a skill", "draft a
+  SKILL.md", "package this expertise as a skill", "why does this skill never
+  trigger", "audit this SKILL.md", "improve this skill", or merging overlapping
+  skills into fewer deeper modules. Covers frontmatter, descriptions that
+  trigger, progressive disclosure, completion criteria, and bundled scripts.
 ---
 
 # Skill Authoring
@@ -72,10 +75,10 @@ before designing the skill. ADR-0005 through ADR-0008 are binding:
   later ADR changes that boundary.
 - Category folders are editorial. Compose model skills by stable name, never
   through sibling files, imports, or host layout probing.
-- Skills hand work over in prose. There are no artifact contracts: no versioned
-  envelope, no material hash, no temp-file store. An external write invokes
-  `/rhdh-mutation-gate`; cross-session context is the user running `/handoff`
-  (ADR-0007).
+- Skills hand work over in prose: the producer reports its result in the
+  conversation and the consumer reads it. An external write invokes
+  `/rhdh-mutation-gate`; context that must survive into a later session is the
+  user running `/handoff` (ADR-0007).
 - A missing capability stops that branch and names the exact
   `/setup-rhdh-skills <route>`. Detecting is a model skill's job; installing and
   authenticating belong to the human entry point.

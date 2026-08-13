@@ -140,11 +140,11 @@ Could you take a look when you have a moment?
 
 1. **Review each draft** — adjust tone/details as needed
 2. Keep the result as a draft unless the user requests delivery.
-3. For delivery, construct `MutationPlan/v1` under the contract in `SKILL.md`
-   with one ordered operation per exact recipient/channel and final message
-   body. Show its material hash and wait for approval of that hash. Only then
-   send through the available adapter and return `MutationReceipt/v1` with the
-   actual message/channel identifiers. Re-plan any edited body or recipient.
+3. For delivery, follow the write gate in `SKILL.md`. State one operation per
+   recipient or channel, in send order, each with its final message body. Get
+   approval for that stated set, send, then report the actual message and
+   channel identifiers for every operation. An edited body or recipient is a new
+   set and needs new approval.
 
 </process>
 
@@ -197,10 +197,9 @@ For each row with action "Ping @user":
 
 ## Delivery receipt
 
-This workflow drafts by default. Return PR numbers, mapped handles, draft
-messages, and unknown mappings. When delivery is requested, return the
-hash-matched mutation receipt from Phase 5; do not maintain a local
-message-history cache.
+This workflow drafts by default. Report PR numbers, mapped handles, draft
+messages, and unknown mappings. When delivery is requested, report the outcome of
+every operation from Phase 5. Do not maintain a local message-history cache.
 
 <success_criteria>
 Notification drafting is complete when:
@@ -209,5 +208,5 @@ Notification drafting is complete when:
 - [ ] Handles mapped (or flagged as unknown)
 - [ ] Messages reviewed for accuracy
 - [ ] Drafts ready for human to copy/send
-- [ ] Any delivered message has a hash-matched `MutationReceipt/v1`
+- [ ] Any delivered message has a reported outcome naming its recipient
 </success_criteria>

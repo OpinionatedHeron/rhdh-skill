@@ -54,7 +54,7 @@ Ask for counts, not full issue payloads, when only a total is wanted. Check
 
 ## Step 3 (fallback): CLI unavailable
 
-`references/jql-release.md` holds the named templates behind the local
+`scripts/jql-release.md` holds the named templates behind the local
 subcommands — `active_release`, `open_issues`, `open_issues_by_type`, `blockers`,
 `epics`, `cves`, `open_issues_by_team`, `feature_subtasks`, and
 `features_added_to_release` (scope added in the last 14 days). Invoke

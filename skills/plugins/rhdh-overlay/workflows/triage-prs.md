@@ -118,11 +118,10 @@ Triage is a read. Every action below is an external write.
 
 ### Trigger publish
 
-For one PR or a user-selected batch, follow the guarded publish procedure in
-`SKILL.md`: create `MutationPlan/v1` with one exact comment operation per
-current head SHA, show the complete ordered batch and its material hash, wait
-for approval of that hash, execute only those comments, and return
-`MutationReceipt/v1`. A triage request does not approve publication.
+For one PR or a user-selected batch, follow the guarded publish in `SKILL.md`:
+state one comment operation per PR against its current head SHA, show the
+complete ordered set, get approval, post only those comments, then report an
+outcome for each. A triage request does not approve publication.
 
 Bot-authored PRs never trigger publication themselves, so they accumulate in
 this state. `/rhdh-forge` has the query that finds them.
@@ -130,7 +129,7 @@ this state. `/rhdh-forge` has the query that finds them.
 ### Suggest assignment
 
 The script reports the CODEOWNERS entry for each workspace a PR touches. Naming
-a candidate is free; assigning them is a write and needs a plan.
+a candidate is free; assigning them is a write and goes through the gate.
 
 ### Draft a Slack ping
 

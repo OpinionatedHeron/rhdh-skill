@@ -29,13 +29,12 @@ the second workflow, not a new conversation.
 
 ## Every change is an external write
 
-State the issue key, the exact command, and the value being set. Get the user's
-approval. Execute only what was approved. Then report every operation's outcome,
-including the ones that failed, and read back the fields you claimed to set.
+Invoke `/rhdh-mutation-gate` and follow it, then read back the fields you claimed
+to set.
 
 A caller handing over a pull request usually wants three writes at once — a
-comment, a transition to `Review`, and a web link to the PR URL. Present all
-three together so one approval covers the set, rather than asking three times.
+comment, a transition to `Review`, and a web link to the PR URL. Put all three in
+one stated set so one approval covers them, rather than asking three times.
 
 ## Boundary with the neighbouring skills
 

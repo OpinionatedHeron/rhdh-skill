@@ -54,9 +54,9 @@ gh run view <run-id> --repo redhat-developer/rhdh-plugin-export-overlays --log |
 
 ## Step 5: Re-trigger
 
-Prepare the local commit, then plan the exact push under the mutation contract
-in `SKILL.md`. Approve its material hash before pushing and return its receipt.
-Once the new head SHA is visible, use a separate guarded-publish plan.
+Prepare the local commit, then follow the write gate in `SKILL.md`: state the
+exact push, get approval, push, report the outcome. Once the new head SHA is
+visible, run the guarded publish as a separate operation.
 
 ```bash
 git add .
@@ -64,8 +64,7 @@ git commit -m "Fix: <what was fixed>"
 git push
 ```
 
-After exact hash approval, comment `/publish` to retry and record the resulting
-check URL in `MutationReceipt/v1`.
+Once approved, comment `/publish` to retry and report the resulting check URL.
 
 </process>
 

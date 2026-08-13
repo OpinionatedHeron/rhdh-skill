@@ -23,7 +23,7 @@ EFFECTIVE_KEY="${EFFECTIVE_KEY:-$JIRA_KEY}"
 acli jira workitem transition --key "$EFFECTIVE_KEY" --status "Review" --yes
 ```
 
-Why `--no-defaults`: the linker’s default status target is **In Progress**;
+Why `--no-defaults`: the linker's default status target is **In Progress**;
 `/rhdh-pr-create` wants **Review** after PR submit. Defaults (story points,
 team, etc.) remain available for general agent sessions that use
 `create-pr-mr.js` alone.

@@ -1,10 +1,13 @@
 ---
 name: rhdh-yarn-bump
 description: >-
-  Bumps Yarn Berry across RHDH-related repos (rhdh-plugins, rhdh midstream,
-  rhdh-plugin-export-overlays, rhdh-cli, GitLab CEE rhidp/rhdh +
-  rhdh-plugin-catalog) using `yarn set version` + install, plus Containerfile /
-  ENV YARN= extras. Use for RHIDP-16074-style upgrades or scanning yarn pins.
+  Bumps Yarn Berry across the RHDH repos — rhdh-plugins, rhdh midstream,
+  rhdh-plugin-export-overlays, rhdh-cli, and GitLab CEE rhidp/rhdh and
+  rhdh-plugin-catalog — with `yarn set version` plus install, and rewrites the
+  pins Yarn cannot see: `packageManager`, `yarnPath`, `ENV YARN=`, and
+  Containerfile lines. Use for "bump yarn to 4.17.1", "upgrade Yarn Berry across
+  the repos", "which Yarn version is each repo pinned to", or scanning yarn pins.
+compatibility: "Node, yarn, and git on PATH; glab authenticated against gitlab.cee.redhat.com for the GitLab CEE merge requests."
 ---
 
 # RHDH multi-repo Yarn bump
@@ -70,19 +73,10 @@ node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 --root /path/to/repo --no-refresh
 3. For GitLab CEE midstream/distgit (`gitlab.cee.redhat.com/rhidp/rhdh`, `…/rhdh-plugin-catalog`): copy `yarn-<to>.cjs` from a GH bump into `.yarn/releases/` (drop old `--from` binary).
 4. `--scan`, then bump (`--dry-run` first if unfamiliar).
 5. Summarize set-version dirs, extras, lock refresh.
-6. Commit, push, or open a PR·MR only when the user asks. Name each write with
-   its repository, branch, and exact command; get approval; then report the
-   outcome of every operation. To attach the work to its Jira issue, invoke
-   `/rhdh-jira-link` by name and use what it returns.
-
-## Checklist
-
-- [ ] Exact `--to` matches the reference bump
-- [ ] `--from` covers intended versions only (default 4.12/4.14; add others only when needed)
-- [ ] GH bumped before GL CEE; distgit binary copied (no curl)
-- [ ] Containerfile / `ENV YARN=` extras checked
-- [ ] Lock refresh done (or `--no-refresh-locks` intentional)
-- [ ] New `yarn-*.cjs` binaries executable (`100755`)
+6. Commit, push, or open a PR·MR only when the user asks, following
+   `/rhdh-mutation-gate` with the repository and branch as each target. To attach
+   the work to its Jira issue, invoke `/rhdh-jira-link` by name and use what it
+   returns.
 
 ## Completion
 
