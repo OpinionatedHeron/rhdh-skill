@@ -188,7 +188,7 @@ Choice [d/c/n]:
 Modify only the version strings in platform/integration table cells and the date
 cells in the key dates table. Preserve all other ADF structure exactly.
 
-Follow `/rhdh-mutation-gate`. State one operation: the target ticket, the exact
+Follow `/mutation-gate`. State one operation: the target ticket, the exact
 ADF document that will replace the description, the read-back that verifies it,
 and what happens if the update fails. Wait for explicit approval, then invoke
 `/rhdh-jira-update` to apply it and report the outcome. On failure, report it and
@@ -211,7 +211,7 @@ These suggestions are based on support lifecycle pages checked on [today's date]
 No changes have been applied to this ticket.
 ```
 
-Follow `/rhdh-mutation-gate`. State one operation: the target ticket and the exact
+Follow `/mutation-gate`. State one operation: the target ticket and the exact
 comment body shown above. The user may approve, edit, or cancel it. Post only
 after approval, through `/rhdh-jira-update`, then report the outcome. Stop here;
 do not create child tasks for a comment-only outcome.
@@ -247,7 +247,7 @@ Choice [c/s/e]:
 ```
 
 Collect every accepted child task into one stated set, following
-`/rhdh-mutation-gate` — one row per task with its exact title and parent key. Ask
+`/mutation-gate` — one row per task with its exact title and parent key. Ask
 for approval once for that exact batch, then create them through
 `/rhdh-jira-create`. Create nothing that was not listed.
 

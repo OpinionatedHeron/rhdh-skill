@@ -115,7 +115,7 @@ directory instead; `/rhdh-plugin-bug-fix` owns that table.
 These are payloads, not authorization. This skill executes none of them. The
 calling skill states the exact command, repository, issue number, and body or
 label, gets approval for that stated set, and reports the outcome of every
-operation afterwards. `/rhdh-mutation-gate` owns that rule.
+operation afterwards. `/mutation-gate` owns that rule.
 
 ```bash
 gh issue comment <number> --repo <owner/repo> --body "<exact body>"

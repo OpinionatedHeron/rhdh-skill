@@ -26,7 +26,7 @@ const myPage = PageBlueprint.make({
 Nav items are auto-generated from pages with `title` + `icon` + `routeRef` — no separate blueprint needed. You can also set `title` and `icon` on `createFrontendPlugin` as fallbacks.
 
 > Earlier versions used `NavItemBlueprint`. It has been removed — invoke
-> `/rhdh-backstage-api-changes` by name for the full delta.
+> `/backstage-api-changes` by name for the full delta.
 
 ## Dual header pattern
 

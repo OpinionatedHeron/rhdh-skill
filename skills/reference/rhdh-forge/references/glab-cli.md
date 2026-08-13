@@ -110,7 +110,7 @@ returns the file as it is, with no base64 step.
 
 This skill constructs these and hands them back. The calling skill states the
 command, gets approval, runs it, and reports the outcome, under the rule
-`/rhdh-mutation-gate` owns.
+`/mutation-gate` owns.
 
 ```bash
 glab mr note <iid> --repo <group/project> --message "<exact body>"

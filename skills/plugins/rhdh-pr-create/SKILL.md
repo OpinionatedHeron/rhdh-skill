@@ -70,7 +70,7 @@ only for unresolved issue context or release intent.
 
 Read-only inspection, builds, and draft construction do not approve a write. A
 push, recording upload, PR creation, or GitHub issue update is an external
-write: invoke the named skill `rhdh-mutation-gate` and follow it rather than
+write: invoke the named skill `mutation-gate` and follow it rather than
 restating the gate here.
 
 State every write this skill owns with its exact target, exact command, and a

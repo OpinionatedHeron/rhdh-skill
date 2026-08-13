@@ -12,7 +12,7 @@
 
 **Fix:** Set all three on `PageBlueprint.make()` params. You can also set `title` and `icon` on `createFrontendPlugin` as fallbacks.
 
-> **Version note:** `NavItemBlueprint` was removed in recent Backstage versions. If upgrading, delete the `.make()` call and move `title`/`icon` into your `PageBlueprint` params. Invoke `/rhdh-backstage-api-changes` by name for the full delta.
+> **Version note:** `NavItemBlueprint` was removed in recent Backstage versions. If upgrading, delete the `.make()` call and move `title`/`icon` into your `PageBlueprint` params. Invoke `/backstage-api-changes` by name for the full delta.
 
 ## 3. Entity content not discovered on entity pages
 

@@ -48,7 +48,7 @@ against an agent altering the plan between approval and execution: a real threat
 but narrow, and not worth a digest implementation plus the shared package needed
 to keep two skills computing it identically.
 
-The gate ships as the `rhdh-mutation-gate` reference skill, cited by every skill
+The gate ships as the `mutation-gate` reference skill, cited by every skill
 that writes. It cannot live in `AGENTS.md`, which does not travel with the pack,
 and it cannot be copied into each writing skill, which is the prompt duplication
 [ADR-0006](0006-duplication-by-layer.md) forbids.

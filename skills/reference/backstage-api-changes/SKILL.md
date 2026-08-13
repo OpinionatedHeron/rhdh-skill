@@ -1,5 +1,5 @@
 ---
-name: rhdh-backstage-api-changes
+name: backstage-api-changes
 description: >-
   Names the breaking and notable changes between the early Backstage New
   Frontend System alpha and the current GA surface, for Red Hat Developer Hub

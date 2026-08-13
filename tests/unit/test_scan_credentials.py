@@ -14,9 +14,7 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).parents[2]
-SCRIPT = (
-    PROJECT_ROOT / "skills" / "reference" / "rhdh-mutation-gate" / "scripts" / "scan_credentials.py"
-)
+SCRIPT = PROJECT_ROOT / "skills" / "reference" / "mutation-gate" / "scripts" / "scan_credentials.py"
 
 
 def run_scan(*args: str) -> subprocess.CompletedProcess:

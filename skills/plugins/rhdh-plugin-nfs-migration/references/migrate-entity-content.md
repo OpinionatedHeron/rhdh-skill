@@ -42,7 +42,7 @@ const entityContent = EntityContentBlueprint.makeWithOverrides({
 });
 ```
 
-> **Version note:** Earlier versions used `config: { schema: { filter: z => z.string().optional() } }`. This is deprecated -- use top-level `configSchema` with direct `zod/v4` imports instead. Invoke `/rhdh-backstage-api-changes` by name for the full delta.
+> **Version note:** Earlier versions used `config: { schema: { filter: z => z.string().optional() } }`. This is deprecated -- use top-level `configSchema` with direct `zod/v4` imports instead. Invoke `/backstage-api-changes` by name for the full delta.
 
 ## EntityCardBlueprint — replaces entity overview cards
 

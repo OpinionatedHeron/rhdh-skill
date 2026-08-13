@@ -39,7 +39,7 @@ not read credentials.
 ## Write gate
 
 Installing skills and configuring capabilities writes to the user's machine and accounts. Invoke the
-named skill `rhdh-mutation-gate` and follow it.
+named skill `mutation-gate` and follow it.
 
 `scripts/setup.py install-plan` states the ordered install operations, and
 `scripts/setup.py apply --plan <file> --confirm` runs the approved plan and reports one outcome per

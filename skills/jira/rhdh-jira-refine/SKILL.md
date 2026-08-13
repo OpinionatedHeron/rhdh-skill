@@ -34,7 +34,7 @@ capability offline for no benefit.
 ## Reads by default, writes only on request
 
 The report is read-only. When the user asks for fixes, each change becomes an
-external write: invoke `/rhdh-mutation-gate` and follow it. A refine pass
+external write: invoke `/mutation-gate` and follow it. A refine pass
 typically proposes many small fixes at once, so state them as one set — issue key
 and exact command per row — rather than approving them one at a time.
 

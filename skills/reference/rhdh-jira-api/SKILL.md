@@ -72,7 +72,7 @@ run them; it never reaches into this directory by path.
 
 This skill does not perform writes, but the payloads live here because the field
 IDs do. It hands the caller a command or a payload, never an effect. Whichever
-skill owns the verb invokes `/rhdh-mutation-gate` and runs it from there.
+skill owns the verb invokes `/mutation-gate` and runs it from there.
 
 Credentials never appear in an argument, a preview, a log, or the answer. A
 command built here takes its credential from `acli`'s own store or the

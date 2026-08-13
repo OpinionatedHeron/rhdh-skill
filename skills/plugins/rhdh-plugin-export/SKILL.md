@@ -76,7 +76,7 @@ another skill's files.
 - Never invent a registry reference. Derive the package name, tag, and digest
   from the export output and the registry response.
 - A push to a registry is an external write. Invoke the named skill
-  `rhdh-mutation-gate` and follow it; the operation's target is the exact
+  `mutation-gate` and follow it; the operation's target is the exact
   registry, repository, and tag.
 - Prefer a digest over a tag when a deployment needs a stable artifact.
 - Report the produced paths and references verbatim; a deployment that pins a

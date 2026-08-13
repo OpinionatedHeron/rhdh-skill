@@ -61,7 +61,7 @@ compiling until the user explicitly approves a breaking change.
   to move to and how to get the dependency set there. When the plugin's
   `@backstage/*` dependencies are too old for the Blueprints this migration
   needs, invoke it by name first, then return here.
-- `/rhdh-backstage-api-changes` owns the NFS API deltas between the early alpha
+- `/backstage-api-changes` owns the NFS API deltas between the early alpha
   and the current GA surface — removed `NavItemBlueprint`, the `configSchema`
   replacement for `config.schema`, renamed blueprint params. Invoke it by name
   when migrating a plugin that was already migrated against an older NFS API,

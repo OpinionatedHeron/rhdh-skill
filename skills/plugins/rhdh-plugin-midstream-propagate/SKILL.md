@@ -87,7 +87,7 @@ When export / annotations / `update-workspace.js` transforms are required, use t
 
 ## External writes
 
-Pushing a branch, commenting, opening the overlays PR, and opening the catalog MR are external writes: invoke the named skill `rhdh-mutation-gate` and follow the gate it owns rather than restating it here. A request to promote a plugin is intent, not approval of a specific push.
+Pushing a branch, commenting, opening the overlays PR, and opening the catalog MR are external writes: invoke the named skill `mutation-gate` and follow the gate it owns rather than restating it here. A request to promote a plugin is intent, not approval of a specific push.
 
 ---
 

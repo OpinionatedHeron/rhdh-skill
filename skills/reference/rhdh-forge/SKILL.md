@@ -70,7 +70,7 @@ skill builds the command and hands it back unexecuted, which is what leaves the
 decision with the user rather than with the module that knows the syntax.
 
 Before any comment, label, assignee, review, approval, or `/publish` write, the
-calling skill invokes `/rhdh-mutation-gate` and follows it. The forge detail that
+calling skill invokes `/mutation-gate` and follows it. The forge detail that
 gate needs from here is the exact command, the repository, the issue, PR, or MR
 number, the head SHA, and the body or label that will land.
 

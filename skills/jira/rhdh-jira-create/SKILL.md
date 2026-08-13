@@ -46,7 +46,7 @@ matrix, field inference, sizing, and templates. Invoke it by name.
 
 ## Every create is an external write
 
-Invoke `/rhdh-mutation-gate` and follow it before any `acli` command that
+Invoke `/mutation-gate` and follow it before any `acli` command that
 creates, links, comments, or edits. One create is rarely one operation — the
 create, the field update `create` could not carry, the parent link, and the
 comment go into the same stated set so a single approval covers them.

@@ -40,7 +40,7 @@ whichever workflow you loaded.
 
 Copying the config, editing `_prowconfig.yaml`, deleting files, running
 `make update`, committing, pushing, and opening a pull request are writes. Follow
-`/rhdh-mutation-gate`, naming each file path as the target of its operation.
+`/mutation-gate`, naming each file path as the target of its operation.
 
 - Never hardcode the branch-protection block or the release-branch adjustments.
   Read the latest existing release branch and copy its current shape; required

@@ -41,7 +41,7 @@ tokens out of arguments, output, and anything reported back.
 ## Execution rules
 
 Triggering a job is an external write; `--dry-run` and `--list` are not. Follow
-`/rhdh-mutation-gate`, with the full job name as the target.
+`/mutation-gate`, with the full job name as the target.
 
 - Preview with `--dry-run` first. It prints the adapter request without
   executing.

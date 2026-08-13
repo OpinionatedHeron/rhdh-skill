@@ -66,7 +66,7 @@ metadata is missing, say the confidence is low — do not imply certainty.
 
 ## Apply the assignment
 
-Assignment is an external write. Invoke `/rhdh-mutation-gate` and follow it, with
+Assignment is an external write. Invoke `/mutation-gate` and follow it, with
 one row per issue-to-person mapping, then apply:
 
 ```bash

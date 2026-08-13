@@ -81,7 +81,7 @@ Release Note Type is a select value. Allowed values include `Feature`, `Enhancem
 ## Write boundary
 
 A REST-backed write is an external write, so the skill that owns the verb invokes
-`/rhdh-mutation-gate` and follows it. Two details are specific to REST here: the operation's
+`/mutation-gate` and follows it. Two details are specific to REST here: the operation's
 preview is the full JSON payload rather than a command line, and the outcome is read back from the
 changed fields rather than taken from the response, because a request the API accepts can still
 leave a field unset.

@@ -60,7 +60,7 @@ scripts stay standalone.
 ## Writing rules
 
 Generating a file, editing a config, running `make update`, committing, pushing,
-or opening a pull request is a write. Follow `/rhdh-mutation-gate`, naming the
+or opening a pull request is a write. Follow `/mutation-gate`, naming the
 config file or job file as the target of each operation.
 
 - Use `--dry-run` on `generate_cluster_pool.py` to preview before writing.

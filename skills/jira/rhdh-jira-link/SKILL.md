@@ -208,7 +208,7 @@ free to transition the issue to **Review** (see
 
 Creating a PR/MR, writing a Jira Web link, posting a comment, moving an issue to
 another project, and filling default fields all change something outside the
-session. Invoke `/rhdh-mutation-gate` and follow it before the first command:
+session. Invoke `/mutation-gate` and follow it before the first command:
 one script invocation can perform several of these at once, so state them as one
 set — push, create, link, comment, defaults — and get a single approval covering
 all of them.

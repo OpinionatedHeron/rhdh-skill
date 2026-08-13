@@ -74,7 +74,7 @@ node "$SKILL/scripts/bump-yarn.js" --to 4.17.1 --root /path/to/repo --no-refresh
 4. `--scan`, then bump (`--dry-run` first if unfamiliar).
 5. Summarize set-version dirs, extras, lock refresh.
 6. Commit, push, or open a PR·MR only when the user asks, following
-   `/rhdh-mutation-gate` with the repository and branch as each target. To attach
+   `/mutation-gate` with the repository and branch as each target. To attach
    the work to its Jira issue, invoke `/rhdh-jira-link` by name and use what it
    returns.
 

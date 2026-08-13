@@ -6,8 +6,8 @@
 Always read the plugin's `package.json`, `src/plugin.ts` (or `src/plugin.tsx`), route refs, API factories, and exported components before making any changes. Understand what exists before migrating.
 </principle>
 
-<principle name="nfs_at_alpha">
-NFS is not GA yet. The default approach is to add NFS at `./alpha` while keeping legacy at the root export (`.`). This avoids breaking existing consumers.
+<principle name="nfs_at_root">
+Put NFS at the root export (`.`). The `./alpha` pattern — NFS at `./alpha`, legacy at root — is the older shape and is being retired; do not choose it for a new migration. Legacy still has to keep working, so it moves to `legacy.ts` and is re-exported from `index.ts`. Existing consumers keep their import path either way.
 </principle>
 
 <principle name="upstream_apis">
@@ -23,7 +23,7 @@ Keep component imports (`useApi`, `useRouteRef`, etc.) on `@backstage/core-plugi
 </principle>
 
 <principle name="keep_legacy">
-Legacy exports must remain available since NFS is not GA. With the alpha approach, legacy stays at root unchanged. With the colocated approach, legacy source moves to `legacy.ts` but is re-exported from `index.ts` so existing consumers don't break.
+Legacy exports must remain available. Under the default colocated shape, legacy source moves to `legacy.ts` and is re-exported from `index.ts`, so existing consumers don't break. Under the retiring `./alpha` shape, legacy stays at root unchanged — you will meet this in plugins migrated earlier.
 </principle>
 
 </essential_principles>
@@ -74,9 +74,9 @@ place. That skill owns version numbers; this workflow owns extension shape.
 
 ### Step 2: Choose Approach
 
-NFS is not GA yet. Use the **Alpha** approach by default: NFS at `./alpha`, legacy stays at root (`.`).
+Use the **Colocated** approach by default: NFS as the default export in `index.ts`, legacy source moved to `legacy.ts` and re-exported from `index.ts` for backward compatibility. NFS and legacy stay available from the same import path.
 
-The **Colocated** approach is the alternative: NFS as default export in `index.ts`, legacy source in `legacy.ts` but re-exported from `index.ts` for backward compatibility. Use this when the user wants NFS and legacy APIs available from the same import path.
+The **Alpha** approach — NFS at `./alpha`, legacy untouched at root (`.`) — is the older shape and is being retired. Do not pick it for a new migration. Choose it only to stay consistent with a plugin that already ships that way, and say why.
 
 ### Step 3: Migrate Extensions
 
@@ -94,7 +94,7 @@ Apply each reference's patterns to the discovered extensions. For page plugins, 
 
 ### Step 4: Update package.json
 
-Load `references/package-json.md` and apply the export configuration matching the chosen approach (alpha or colocated).
+Load `references/package-json.md` and apply the export configuration for the chosen approach — colocated by default, alpha only for a plugin already shipping that way.
 
 ### Step 5: Update App Wiring
 
@@ -102,7 +102,7 @@ Load `references/app-setup.md` and:
 
 - Add an NFS dev app at `dev/index.tsx` (or `dev/nfs.tsx`) using `createApp` from `@backstage/frontend-defaults`
 - Keep the existing legacy dev app working
-- Verify consumer imports still resolve (alpha approach: no changes needed; colocated approach: legacy re-exports from `index.ts` maintain compatibility)
+- Verify consumer imports still resolve (colocated: legacy re-exports from `index.ts` maintain compatibility; alpha: no changes needed)
 
 ### Step 6: Verify
 
@@ -115,7 +115,7 @@ Load `references/verification.md` and run all checks. Run `yarn tsc` from the **
 | Reference | Load when... |
 |-----------|-------------|
 | `references/migrate-page.md` | Plugin has pages or API factories |
-| `/rhdh-backstage-api-changes` (invoke by name) | Updating a plugin migrated against an older NFS version |
+| `/backstage-api-changes` (invoke by name) | Updating a plugin migrated against an older NFS version |
 | `references/migrate-entity-content.md` | Plugin has entity tabs or cards |
 | `references/migrate-translations.md` | Plugin has i18n/translations |
 | `references/migrate-rhdh-extensions.md` | Plugin uses RHDH drawer, header, or homepage widgets |
@@ -135,13 +135,13 @@ Load `references/verification.md` and run all checks. Run `yarn tsc` from the **
 
 <success_criteria>
 
-- `./alpha` (or root, for colocated) default-exports a `createFrontendPlugin` result
+- The root export (or `./alpha`, for a plugin kept on the retiring shape) default-exports a `createFrontendPlugin` result
 - All legacy extensions have NFS Blueprint equivalents
 - Pages that need nav entries have `title` and `icon` set (on `PageBlueprint` or `createFrontendPlugin`)
-- `package.json` exports NFS at `./alpha` (alpha approach) or `.` (colocated approach)
+- `package.json` exports NFS at `.` (colocated) or `./alpha` (alpha)
 - Translations are in a `createFrontendModule` with `pluginId: 'app'`
 - Entity content extensions are in the plugin's `extensions` array (or a catalog module if injecting from outside)
 - `yarn tsc` and `yarn build` pass
-- Legacy exports remain available (unchanged at root for alpha; re-exported from `index.ts` for colocated)
+- Legacy exports remain available (re-exported from `index.ts` for colocated; unchanged at root for alpha)
 
 </success_criteria>

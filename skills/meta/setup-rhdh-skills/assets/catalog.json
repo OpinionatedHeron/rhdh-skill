@@ -31,7 +31,7 @@
       "requiresSkills": [
         "rhdh-jira-api",
         "rhdh-jira-authoring",
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "requiresExternalSkills": [
         "grilling"
@@ -42,7 +42,7 @@
       "category": "jira",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "requiresExternalSkills": []
     },
@@ -55,7 +55,7 @@
         "rhdh-jira-authoring"
       ],
       "optionalSkills": [
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "requiresExternalSkills": []
     },
@@ -83,7 +83,7 @@
       "invocation": "model",
       "requiresSkills": [
         "rhdh-jira-api",
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "requiresExternalSkills": []
     },
@@ -92,7 +92,7 @@
       "category": "plugins",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-backstage-api-changes"
+        "backstage-api-changes"
       ],
       "requiresExternalSkills": []
     },
@@ -108,7 +108,7 @@
       "category": "plugins",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "optionalSkills": [
         "rhdh-local",
@@ -153,7 +153,7 @@
       "category": "plugins",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-backstage-api-changes"
+        "backstage-api-changes"
       ],
       "requiresExternalSkills": []
     },
@@ -169,7 +169,7 @@
       "category": "plugins",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-mutation-gate",
+        "mutation-gate",
         "rhdh-forge"
       ],
       "optionalSkills": [
@@ -184,7 +184,7 @@
       "category": "plugins",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "optionalSkills": [
         "rhdh-forge"
@@ -207,7 +207,7 @@
       "category": "ci",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "requiresExternalSkills": []
     },
@@ -301,7 +301,14 @@
       "requiresExternalSkills": []
     },
     {
-      "name": "rhdh-backstage-api-changes",
+      "name": "backstage-api-changes",
+      "category": "reference",
+      "invocation": "model",
+      "requiresSkills": [],
+      "requiresExternalSkills": []
+    },
+    {
+      "name": "mutation-gate",
       "category": "reference",
       "invocation": "model",
       "requiresSkills": [],
@@ -319,7 +326,7 @@
       "category": "reference",
       "invocation": "model",
       "requiresSkills": [
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "requiresExternalSkills": []
     },
@@ -338,10 +345,12 @@
       "requiresExternalSkills": []
     },
     {
-      "name": "rhdh-mutation-gate",
-      "category": "reference",
+      "name": "agent-readiness",
+      "category": "meta",
       "invocation": "model",
-      "requiresSkills": [],
+      "requiresSkills": [
+        "rhdh-context"
+      ],
       "requiresExternalSkills": []
     },
     {
@@ -352,20 +361,11 @@
       "requiresExternalSkills": []
     },
     {
-      "name": "rhdh-agent-readiness",
-      "category": "meta",
-      "invocation": "model",
-      "requiresSkills": [
-        "rhdh-context"
-      ],
-      "requiresExternalSkills": []
-    },
-    {
       "name": "setup-rhdh-skills",
       "category": "meta",
       "invocation": "human",
       "requiresSkills": [
-        "rhdh-mutation-gate"
+        "mutation-gate"
       ],
       "requiresExternalSkills": []
     },

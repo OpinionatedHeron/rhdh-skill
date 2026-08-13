@@ -246,7 +246,7 @@ uncontroversial fixes and prompts for each of the rest. **N** is report-only.
 **edit** steps through every change individually.
 
 Whatever survives that selection is an external write. Invoke
-`/rhdh-mutation-gate` and follow it, with one row per issue key.
+`/mutation-gate` and follow it, with one row per issue key.
 
 **Applied without individual prompts:**
 

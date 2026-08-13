@@ -38,7 +38,7 @@ When the same material appears in two skills, do not copy it a third time. Ask
 which module owns it and pick one of three answers: **extract** it into a
 reference skill when nothing owns it, **enforce** the existing seam when a
 module owns it and a caller copied past its interface, or **document** it once
-when it is a rule rather than a capability — in `AGENTS.md` for rules governing
+when it is a rule rather than a capability: in `AGENTS.md` for rules governing
 this repository, in `skills/meta/skill-authoring/` for rules that must ship
 with the pack, because `AGENTS.md` does not travel with it.
 
@@ -51,33 +51,48 @@ root. Retired history belongs under `internal/deprecated/`. Neither ships.
 
 ## Add or change a promoted skill
 
-1. Create the skill at `skills/<category>/<name>/SKILL.md`. Keep the frontmatter
-   `name` lowercase and equal to the directory name. Name it after its subject:
-   `rhdh-` belongs on a skill about Red Hat Developer Hub, and a genuinely generic
-   skill takes a generic name.
-2. Write a description that states the capability and genuine trigger branches
-   in fewer than 1024 characters. It is the routing surface — keep the literal
-   proper nouns, and never name a sibling skill or a literal you are disclaiming.
-3. Keep the `SKILL.md` interface concise and disclose branch-only material.
-4. Add `agents/openai.yaml` with display name and short description.
-5. Use human-only metadata only for `ask-rhdh` and `setup-rhdh-skills`.
-6. Invoke other skills by name and read what they report. There are no artifact
-   contracts: no versioned envelope, no store, no material hash.
-7. For an external write, state each operation with its target, exact command,
-   preview, and failure behaviour; get approval for that stated set; execute; then
-   report the outcome of every operation, including the skipped ones. Cite
-   `/rhdh-mutation-gate` rather than restating the rule.
-8. Add the skill to `skills/meta/setup-rhdh-skills/assets/catalog.json` with its
-   category, invocation, and required skills. A skill missing from that file fails
-   `scripts/validate_skill_catalog.py`, and nothing installs it. Update
-   `README.md` in the same change whenever membership or naming changes, and
-   regenerate the `/ask-rhdh` table with
-   `cd skills/meta/ask-rhdh && python scripts/render_routes.py --write`.
-9. Cite nothing outside the skill's own directory. `AGENTS.md`, `CONTEXT.md`,
-   this file, and `docs/adr/` do not ship — a skill that references them is broken
-   for everyone who installs it. Restate the rule locally instead.
-10. Add script, adapter, and catalog contract tests as applicable.
-11. Run `uv run pytest`.
+1. Create `skills/<category>/<name>/SKILL.md`, with the frontmatter `name`
+   lowercase and equal to the directory name.
+2. Write the `description`, under 1024 characters, stating the capability and
+   its genuine trigger branches.
+3. Keep the `SKILL.md` body to every-branch steps. Put branch-only material in
+   `references/` behind a pointer that says when to read it.
+4. Add `agents/openai.yaml` with a display name and short description.
+5. Add the skill to `skills/meta/setup-rhdh-skills/assets/catalog.json` with its
+   category, invocation, and required skills.
+6. Regenerate the routing table:
+   `cd skills/meta/ask-rhdh && python scripts/render_routes.py --write`
+7. Update `README.md` if membership or naming changed.
+8. Add script, adapter, and catalog contract tests as applicable.
+9. Run `uv run pytest`.
+
+### Rules the validator and reviewers enforce
+
+**Naming.** Name a skill after its subject. `rhdh-` belongs on a skill about Red
+Hat Developer Hub; a genuinely generic skill takes a generic name.
+
+**The description is the routing surface.** It is all the router sees. Keep the
+literal proper nouns: project keys, repository names, tool names. Never name a
+sibling skill, and never include a literal you are disclaiming: the token fires on
+presence, so "a key such as ABC-123 is not a sprint" makes the skill a candidate
+for exactly that request.
+
+**Compose by name.** Invoke other skills by name and read what they report. There
+are no artifact contracts, no versioned envelope, no store, and no material hash.
+
+**External writes go through the gate.** State each operation with its target,
+exact command, preview, and failure behaviour; get approval for that stated set;
+execute; report the outcome of every operation, including the skipped ones. Cite
+`/mutation-gate` rather than restating it.
+
+**A skill may not depend on this repository.** Only its own directory is
+installed, so `AGENTS.md`, `CONTEXT.md`, this file, and `docs/adr/` do not travel
+with it. A skill citing them is broken for everyone who installs it. Restate the
+rule locally instead.
+
+Human-only metadata is for `ask-rhdh` and `setup-rhdh-skills` alone. A skill
+missing from `catalog.json` fails `scripts/validate_skill_catalog.py`, and nothing
+installs it.
 
 Do not add prose-shape assertions. Tests should survive editorial improvements
 that preserve the skill interface.
@@ -107,7 +122,7 @@ failures and skips, naming the target it changed.
 
 Update an ADR when a change alters distribution, invocation, composition,
 adapters, or CLI portability. Preserve superseded ADRs as history and link them
-to the replacing decision — unless the decision never shipped, in which case
+to the replacing decision, unless the decision never shipped, in which case
 rewrite it in place rather than recording a supersession no reader ever saw.
 
 Keep `CONTEXT.md` limited to domain language. Skill names and implementation

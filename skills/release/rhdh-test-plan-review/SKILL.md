@@ -63,7 +63,7 @@ unverified. Neither may be dropped, and neither may be reported as the other.
 ## Writing to Jira
 
 Editing the description, posting a comment, and creating child tasks are writes.
-Follow `/rhdh-mutation-gate`: state each operation with its target ticket and the
+Follow `/mutation-gate`: state each operation with its target ticket and the
 exact ADF document, comment body, or child-task title it will land; get approval
 for that stated set; execute; then report every operation as completed, failed,
 or skipped. A failed operation stops the workflow and is reported, never retried

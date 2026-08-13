@@ -12,7 +12,7 @@ source of truth for the promoted skill set and its two required external depende
    Use `--pack-url <url>` to bootstrap a release before its URL is recorded in the catalog. When no
    pack URL exists, the script states an equivalent repository-install fallback plan.
 
-2. Take that plan through `/rhdh-mutation-gate`: one table row per operation. After the user
+2. Take that plan through `/mutation-gate`: one table row per operation. After the user
    approves it, save the exact plan JSON to a file in the temporary directory and run it:
 
    ```bash

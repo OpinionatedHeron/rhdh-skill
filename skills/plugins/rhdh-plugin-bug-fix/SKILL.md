@@ -73,7 +73,7 @@ another skill's files.
 - If a test still fails, return to diagnosis. Never weaken an assertion to make
   it pass.
 - Adding a label or a triage comment to an issue is an external write. Invoke
-  the named skill `rhdh-mutation-gate` and follow it; the operation's target is
+  the named skill `mutation-gate` and follow it; the operation's target is
   the exact repository and issue number. A request to fix a bug approves no
   issue write.
 - Do not stage, commit, push, or open a pull request here.

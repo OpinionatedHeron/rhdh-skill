@@ -88,7 +88,7 @@ Do not add them to promoted manifests or catalogs.
 - Skills pass context by invoking each other by name. There is no artifact
   envelope and no artifact store. When the user needs context to survive into a
   later session, tell them to run `/handoff`.
-- Every external write goes through the write gate in `/rhdh-mutation-gate`:
+- Every external write goes through the write gate in `/mutation-gate`:
   state each operation with its target, exact command, preview, and failure
   behaviour; get approval for that stated set; execute; report the outcome of
   every operation, including the skipped ones. The plan renders as a table in

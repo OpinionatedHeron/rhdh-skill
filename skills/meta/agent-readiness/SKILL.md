@@ -1,5 +1,5 @@
 ---
-name: rhdh-agent-readiness
+name: agent-readiness
 description: >-
   Assesses and improves a git repository's readiness for AI coding agents with
   the agentready tool, and reports the score, the certification level, the

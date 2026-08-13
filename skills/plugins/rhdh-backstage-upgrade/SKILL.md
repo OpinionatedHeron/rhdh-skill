@@ -48,7 +48,7 @@ release it should move to, and everything that breaks in between.
   skills meet whenever an upgrade is a prerequisite for a migration, or a
   migration surfaces an outdated dependency set. Bump the versions here; change
   the extensions there.
-- `/rhdh-backstage-api-changes` owns the NFS API deltas between the early alpha
+- `/backstage-api-changes` owns the NFS API deltas between the early alpha
   and the current GA surface. Invoke it by name when an upgrade breaks NFS code
   — a removed `NavItemBlueprint`, a `config.schema` block that must become
   `configSchema`, or a renamed blueprint param.

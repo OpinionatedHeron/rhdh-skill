@@ -54,18 +54,22 @@ def test_the_validator_checks_every_declared_copy():
 
 
 def test_a_drifted_copy_is_reported_with_its_path(tmp_path):
-    """Prove the check fails on drift rather than passing vacuously."""
+    """Prove the check fails on drift rather than passing vacuously.
+
+    Reads and restores bytes rather than text. `write_text` re-encodes newlines
+    per platform, so a text round-trip rewrites an LF file as CRLF on Windows and
+    leaves the tree dirty — which fails the pre-commit hook even though every
+    assertion passed.
+    """
     copy = PROJECT_ROOT / "skills" / "release" / "rhdh-release-status" / "scripts" / "_jira.py"
-    original = copy.read_text(encoding="utf-8")
-    assert '"customfield_10028"' in original, "fixture ID missing; update this test"
+    original = copy.read_bytes()
+    assert b'"customfield_10028"' in original, "fixture ID missing; update this test"
 
     try:
-        copy.write_text(
-            original.replace('"customfield_10028"', '"customfield_00000"', 1), encoding="utf-8"
-        )
+        copy.write_bytes(original.replace(b'"customfield_10028"', b'"customfield_00000"', 1))
         result = run_validator("--json")
     finally:
-        copy.write_text(original, encoding="utf-8")
+        copy.write_bytes(original)
 
     assert result.returncode == 1
     report = json.loads(result.stdout)

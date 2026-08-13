@@ -66,7 +66,7 @@ Load `references/fix-breaking-changes.md`.
 4. Apply fixes
 
 If the checkout contains New Frontend System code — or an NFS migration
-directed you here — invoke `/rhdh-backstage-api-changes` by name and apply its
+directed you here — invoke `/backstage-api-changes` by name and apply its
 checklist. It owns the NFS API deltas; this workflow owns version numbers.
 
 ## Phase 6: Verify

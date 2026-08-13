@@ -42,7 +42,7 @@ https://github.com/backstage/backstage/blob/master/plugins/<plugin-name>/CHANGEL
 If a migration workflow directed you here, apply both checklists:
 
 1. The upstream Backstage changelogs (this file)
-2. The New Frontend System checklist owned by `/rhdh-backstage-api-changes` — invoke it by name
+2. The New Frontend System checklist owned by `/backstage-api-changes` — invoke it by name
 
 The upstream changelogs cover all Backstage breaking changes. That checklist covers the NFS blueprint and param changes that do not appear in the upstream changelog.
 

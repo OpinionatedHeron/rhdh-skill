@@ -138,8 +138,9 @@ old frontend system to `./legacy`:
 - `src/legacy.ts` — old system (`createPlugin`, `createRoutableExtension`) with `@deprecated` tags
 
 Some older plugins still use the `./alpha` pattern (NFS at `./alpha`, legacy at
-root). That pattern is being phased out — new migrations should put NFS at root.
-For migration steps, invoke `/rhdh-plugin-nfs-migration` by name.
+root). That pattern is being retired — put NFS at the root export instead, with
+legacy moved to `legacy.ts` and re-exported from `index.ts`. For migration steps,
+invoke `/rhdh-plugin-nfs-migration` by name; it defaults to the same shape.
 
 **Always check a plugin's `package.json` exports** before assuming where NFS
 lives — it could be at `.`, `./alpha`, or a custom path.

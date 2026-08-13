@@ -56,7 +56,7 @@ can diverge, but respect an explicit route.
 
 Fetch and analysis are read-only. Posting a GitHub review, posting a test-request
 comment, or changing cluster resources is an external write: invoke the named
-skill `rhdh-mutation-gate` and follow the gate it owns rather than restating it
+skill `mutation-gate` and follow the gate it owns rather than restating it
 here.
 
 A review operation's target pins the head SHA; a cluster operation's target names

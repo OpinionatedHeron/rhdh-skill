@@ -61,7 +61,7 @@ number that cannot be discovered from the checkout.
 
 Before posting `/publish`, verify the PR is open, lacks `do-not-merge`, and has
 no successful publish check for the current head. Posting the comment is an
-external write: invoke the named skill `rhdh-mutation-gate` and follow the gate
+external write: invoke the named skill `mutation-gate` and follow the gate
 it owns rather than restating it here.
 
 State one operation. Its target is

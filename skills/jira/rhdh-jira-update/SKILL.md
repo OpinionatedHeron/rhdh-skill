@@ -29,7 +29,7 @@ the second workflow, not a new conversation.
 
 ## Every change is an external write
 
-Invoke `/rhdh-mutation-gate` and follow it, then read back the fields you claimed
+Invoke `/mutation-gate` and follow it, then read back the fields you claimed
 to set.
 
 A caller handing over a pull request usually wants three writes at once — a

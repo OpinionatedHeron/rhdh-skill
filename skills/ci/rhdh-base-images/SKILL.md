@@ -33,7 +33,7 @@ branches it read, and anything it could not read.
 
 Any checkout, branch, file edit, dependency install, commit, push, or PR is a
 write. Run read-only discovery or `--dry-run` first, then follow
-`/rhdh-mutation-gate`: state each operation with its target repository and branch
+`/mutation-gate`: state each operation with its target repository and branch
 (`rhdh:release-1.10`), the exact command, the change it will land, and what
 happens to the remaining operations if it fails; get approval for that stated
 set; execute; then report every operation as completed, failed, or skipped, with

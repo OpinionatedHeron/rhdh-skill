@@ -1,5 +1,5 @@
 ---
-name: rhdh-mutation-gate
+name: mutation-gate
 description: >-
   Supplies the approval rule another RHDH skill applies when it is already about
   to change something outside the session: how to state each operation, what
