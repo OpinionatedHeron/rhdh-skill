@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Score technical prose for slop. Stdlib only.
-
-Heuristics adapted from Ege Çelebi's STE kit (MIT), with always-on checks for
-em dashes, chatbot residue, copula avoidance, and "it's not just" parallelism.
-Not a certified ASD-STE100 checker. Do not paste the ASD dictionary here.
-"""
+"""Score technical prose for slop. Stdlib only."""
 
 from __future__ import annotations
 
@@ -19,7 +14,6 @@ SCORE_VERSION = 3
 FLAVORED_BAR = 2.5
 STRICT_BAR = 1.5
 
-# Adapted from the STE kit score v2 lists.
 MARKETING = (
     "seamless",
     "seamlessly",

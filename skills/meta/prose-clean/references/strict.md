@@ -1,8 +1,7 @@
 # Strict rewrite rules
 
 Extra word set and a tighter bar for procedures, runbooks, safety notes, and
-error messages. Independently usable: do not load `flavored.md` first. Unofficial
-Simplified Technical English; not a certified ASD-STE100 checker.
+error messages. Independently usable: do not load `flavored.md` first.
 
 Bar: **1.5** violations per 100 words. Mode `strict`. The linter adds
 `strict_banned_word` on top of the flavored categories.

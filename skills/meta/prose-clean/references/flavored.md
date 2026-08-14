@@ -1,9 +1,7 @@
 # Flavored rewrite rules
 
-Unofficial Simplified Technical English flavor for docs, README, PR body,
-changelog, and error text. Not a certified ASD-STE100 checker. Do not paste an
-ASD dictionary here. The bundled linter is the score; this file is how to
-rewrite so that score can pass.
+Flavor for docs, README, PR body, changelog, and error text. The bundled
+linter is the score; this file is how to rewrite so that score can pass.
 
 Bar: **2.5** violations per 100 words (`total_per100w`). Mode `flavored`.
 

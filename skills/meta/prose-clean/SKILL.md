@@ -14,8 +14,7 @@ compatibility: "Python 3.9+; bundled linter is stdlib-only"
 
 # Prose Clean
 
-Rewrite technical prose tight. Prove it with the bundled linter. Heuristics from
-Ege Çelebi's STE kit (MIT). Unofficial ASD-STE100; not a certified checker.
+Rewrite technical prose tight. Prove it with the bundled linter.
 
 ## Loop
 
