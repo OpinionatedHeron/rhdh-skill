@@ -1,11 +1,12 @@
 """Unit tests for the rhdh-release scripts."""
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import quote
+
+from conftest import git_env
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _RELEASE_SCRIPTS = PROJECT_ROOT / "skills" / "release" / "rhdh-release-status" / "scripts"
@@ -1156,17 +1157,8 @@ class TestRichFilterCliIntegration:
         (config_dir / "config.json").write_text(
             json.dumps({"repos": {"private-data": str(private_data)}})
         )
-        env = {**os.environ, "HOME": str(tmp_path / "home")}
+        env = git_env(HOME=str(tmp_path / "home"))
         env.pop("PYTHONPATH", None)
-        for key in (
-            "GIT_DIR",
-            "GIT_WORK_TREE",
-            "GIT_INDEX_FILE",
-            "GIT_OBJECT_DIRECTORY",
-            "GIT_PREFIX",
-            "GIT_COMMON_DIR",
-        ):
-            env.pop(key, None)
         subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True, env=env)
 
         code = (
