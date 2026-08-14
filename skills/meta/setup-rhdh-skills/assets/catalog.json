@@ -381,6 +381,13 @@
       "requiresExternalSkills": [
         "grilling"
       ]
+    },
+    {
+      "name": "prose-clean",
+      "category": "meta",
+      "invocation": "model",
+      "requiresSkills": [],
+      "requiresExternalSkills": []
     }
   ]
 }

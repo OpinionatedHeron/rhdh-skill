@@ -16,7 +16,8 @@
         "./skills/meta/ask-rhdh",
         "./skills/meta/setup-rhdh-skills",
         "./skills/reference/mutation-gate",
-        "./skills/meta/skill-authoring"
+        "./skills/meta/skill-authoring",
+        "./skills/meta/prose-clean"
       ]
     },
     {

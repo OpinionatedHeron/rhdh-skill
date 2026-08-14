@@ -1156,15 +1156,24 @@ class TestRichFilterCliIntegration:
         (config_dir / "config.json").write_text(
             json.dumps({"repos": {"private-data": str(private_data)}})
         )
-        subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
+        env = {**os.environ, "HOME": str(tmp_path / "home")}
+        env.pop("PYTHONPATH", None)
+        for key in (
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_PREFIX",
+            "GIT_COMMON_DIR",
+        ):
+            env.pop(key, None)
+        subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True, env=env)
 
         code = (
             "import sys; "
             f"sys.path.insert(0, {str(_RELEASE_SCRIPTS)!r}); "
             "import rich_filter; print(rich_filter.discover())"
         )
-        env = {**os.environ, "HOME": str(tmp_path / "home")}
-        env.pop("PYTHONPATH", None)
         result = subprocess.run(
             [sys.executable, "-c", code],
             cwd=project,

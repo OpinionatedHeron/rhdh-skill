@@ -48,7 +48,7 @@ one. It performs no work itself.
 and the single source of truth for membership. This file does not restate it.
 
 Two skills are human-invoked and never selected automatically: `/ask-rhdh` and
-`/setup-rhdh-skills`. The other 39 are model-invoked, and can also be called by
+`/setup-rhdh-skills`. The other 40 are model-invoked, and can also be called by
 name.
 
 Skills are grouped into six folders:
@@ -60,7 +60,7 @@ Skills are grouped into six folders:
 | `ci/` | Prow job configuration and nightly triggers, Konflux and Tekton task updates, base images, and Yarn bumps. |
 | `release/` | Release status and readiness, milestone schedules, freeze announcements, teams, test-plan review, platform lifecycle, and the plugin CVE export. |
 | `reference/` | The reusable layer other skills invoke by name: repository and version context, the forge read seam, the write gate, and the Jira and Backstage reference material. |
-| `meta/` | The two human-invoked entry points, plus skill authoring and repository agent-readiness. |
+| `meta/` | The two human-invoked entry points, plus skill authoring, prose-clean, and repository agent-readiness. |
 
 ## How skills compose
 
