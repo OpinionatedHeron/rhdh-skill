@@ -1,0 +1,3 @@
+interface:
+  display_name: "Prose Editing"
+  short_description: "Rewrite technical prose to a register and score it"

@@ -12,10 +12,6 @@
       {
         "name": "handoff",
         "source": "mattpocock/skills"
-      },
-      {
-        "name": "humanizer",
-        "source": "blader/humanizer"
       }
     ]
   },
@@ -188,14 +184,13 @@
       "category": "plugins",
       "invocation": "model",
       "requiresSkills": [
-        "mutation-gate"
+        "mutation-gate",
+        "prose-editing"
       ],
       "optionalSkills": [
         "rhdh-forge"
       ],
-      "requiresExternalSkills": [
-        "humanizer"
-      ]
+      "requiresExternalSkills": []
     },
     {
       "name": "rhdh-test-placement",
@@ -268,10 +263,10 @@
       "name": "rhdh-release-announce",
       "category": "release",
       "invocation": "model",
-      "requiresSkills": [],
-      "requiresExternalSkills": [
-        "humanizer"
-      ]
+      "requiresSkills": [
+        "prose-editing"
+      ],
+      "requiresExternalSkills": []
     },
     {
       "name": "rhdh-release-schedule",
@@ -313,6 +308,13 @@
     },
     {
       "name": "mutation-gate",
+      "category": "reference",
+      "invocation": "model",
+      "requiresSkills": [],
+      "requiresExternalSkills": []
+    },
+    {
+      "name": "prose-editing",
       "category": "reference",
       "invocation": "model",
       "requiresSkills": [],
@@ -365,6 +367,15 @@
       "requiresExternalSkills": []
     },
     {
+      "name": "clean-prose",
+      "category": "meta",
+      "invocation": "human",
+      "requiresSkills": [
+        "prose-editing"
+      ],
+      "requiresExternalSkills": []
+    },
+    {
       "name": "setup-rhdh-skills",
       "category": "meta",
       "invocation": "human",
@@ -381,13 +392,6 @@
       "requiresExternalSkills": [
         "grilling"
       ]
-    },
-    {
-      "name": "prose-clean",
-      "category": "meta",
-      "invocation": "model",
-      "requiresSkills": [],
-      "requiresExternalSkills": []
     }
   ]
 }

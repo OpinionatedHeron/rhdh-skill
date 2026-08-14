@@ -7,7 +7,7 @@ description: >-
   Day figures from Jira RHIDP and RHDHPLAN. Use for "announce feature freeze",
   "draft the code freeze message for 1.10", "send the freeze update for 1.11", or
   "write the freeze post for the release channel".
-compatibility: "Python 3.9+ and uv; acli with a Jira session; gog for team data; an RHIDP Operational Rich Filter export; the external /humanizer skill."
+compatibility: "Python 3.9+ and uv; acli with a Jira session; gog for team data; an RHIDP Operational Rich Filter export."
 ---
 
 # RHDH freeze announcements
@@ -15,15 +15,16 @@ compatibility: "Python 3.9+ and uv; acli with a Jira session; gog for team data;
 Produce a Slack message a human posts under their own name. The counts come from
 the CLI; the voice must not sound machine-written.
 
-## Hard prerequisite: /humanizer
+## The prose pass
 
-`/humanizer` is required before any draft is shown to the user, on every route.
+Every draft goes through `/prose-editing` before the user sees it, on every
+route. Invoke it in the **voiced** register: a Slack post carries a person's
+voice, so the caller names the register rather than leaving the editor to infer
+it from a message full of Jira counts.
 
-If `/humanizer` is not installed, stop. Say the draft cannot be presented, name
-`/setup-rhdh-skills install` as the way to add it, and do not show the raw
-message in the meantime — not as a preview, not in a code block, not "just so you
-can see the numbers". Reporting the counts as plain data is fine; presenting
-anything shaped like the post is not.
+Never show the unedited message — not as a preview, not in a code block, not
+"just so you can see the numbers". Reporting the counts as plain data is fine;
+presenting anything shaped like the post is not.
 
 Never post to Slack. This skill hands the user a message to copy; the user
 decides whether, when, and where it goes out.
@@ -47,7 +48,7 @@ thing people get wrong.
 
 ## Completion
 
-Complete when the message is the humanized draft, wrapped in a triple-backtick
+Complete when the message is the edited draft, wrapped in a triple-backtick
 block ready to paste, with every placeholder filled and every count carrying a
 URL-encoded Jira search link. State which of the four announcements was drafted
 and whether it is the milestone or the update, so the sender knows what day it

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Clean Prose"
+  short_description: "Human entry point for the prose pass"
+policy:
+  allow_implicit_invocation: false

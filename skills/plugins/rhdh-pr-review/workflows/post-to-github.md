@@ -9,7 +9,7 @@ Takes the review draft from `review-code.md` and posts it as an inline review vi
 
 ## Step 1: Finalize the draft
 
-If the findings have not been shown yet, present the full humanized draft first:
+If the findings have not been shown yet, present the full edited draft first:
 
 ```
 ## Review for PR #<number>

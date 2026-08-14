@@ -14,10 +14,11 @@
         "./skills/meta/agent-readiness",
         "./skills/reference/rhdh-context",
         "./skills/meta/ask-rhdh",
+        "./skills/meta/clean-prose",
+        "./skills/reference/prose-editing",
         "./skills/meta/setup-rhdh-skills",
         "./skills/reference/mutation-gate",
-        "./skills/meta/skill-authoring",
-        "./skills/meta/prose-clean"
+        "./skills/meta/skill-authoring"
       ]
     },
     {
@@ -28,6 +29,7 @@
         "./skills/release/rhdh-overlay-cve-export",
         "./skills/release/rhdh-platform-lifecycle",
         "./skills/release/rhdh-release-announce",
+        "./skills/reference/prose-editing",
         "./skills/release/rhdh-release-schedule",
         "./skills/release/rhdh-release-status",
         "./skills/release/rhdh-release-teams",
@@ -67,6 +69,7 @@
         "./skills/plugins/rhdh-plugin-wiring",
         "./skills/plugins/rhdh-pr-create",
         "./skills/plugins/rhdh-pr-review",
+        "./skills/reference/prose-editing",
         "./skills/plugins/rhdh-test-placement"
       ]
     },

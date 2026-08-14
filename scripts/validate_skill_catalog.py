@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import itertools
 import json
@@ -15,14 +16,20 @@ from typing import Any
 
 CATALOG_PATH = Path("skills/meta/setup-rhdh-skills/assets/catalog.json")
 PROMOTED_CATEGORIES = ("jira", "plugins", "ci", "release", "reference", "meta")
-# A named invocation reads as /rhdh-something in prose. It must follow a space,
-# a line start, or an opening bracket or backtick, never another path segment, so
-# `~/rhdh-local-setup` and `redhat-developer/rhdh-plugin-catalog` stay paths.
+# A cited skill, as `/name`. It must follow a space, a line start, or an opening
+# bracket or backtick, never another path segment, so `~/rhdh-local-setup` and
+# `redhat-developer/rhdh-plugin-catalog` stay paths. Matching only the rhdh-
+# prefixes missed every skill
+# whose subject is not RHDH — prose-editing, clean-prose, mutation-gate,
+# skill-authoring — so renaming one left its callers dangling silently. Every
+# promoted name is kebab-case, so requiring a hyphen keeps the match broad enough
+# to catch a dangling citation while excluding /tmp, /usr and friends. A trailing
+# slash or dot means the token is a path, not a skill.
 NAMED_INVOCATION = re.compile(
-    r"(?:^|(?<=[\s(\[`]))/((?:rhdh|ask-rhdh|setup-rhdh)[\w-]*)(?![\w-])",
+    r"(?:^|(?<=[\s(\[`]))/([a-z0-9]+(?:-[a-z0-9]+)+)(?![\w-])(?![/.])",
     re.MULTILINE,
 )
-EXTERNAL_SKILLS = {"grilling", "humanizer", "handoff"}
+EXTERNAL_SKILLS = {"grilling", "handoff"}
 # A bundled script reading a file that ships *with it*, such as
 # `_DATA_DIR / "jql-release.md"`. Anchored to the handful of names that mean
 # "this script's own directory", because a bare `dir / "config.json"` is usually
@@ -74,6 +81,44 @@ def _body(text: str) -> str:
     """Return the document with its frontmatter removed."""
     normalized = text.replace("\r\n", "\n")
     return re.sub(r"^---\n.*?\n---(?:\n|$)", "", normalized, count=1, flags=re.DOTALL)
+
+
+# A wrapper delegates and stops, so its body is one short sentence. Anything
+# past that is substance, and substance owes a '## Completion' section.
+WRAPPER_MAX_LINES = 1
+WRAPPER_MAX_WORDS = 15
+
+
+def _delegation_target(body: str) -> str | None:
+    """Return the one skill a delegating wrapper runs, or None if it is not one.
+
+    A delegating wrapper is an entry point a person types that holds no substance
+    of its own: it delegates and stops. Recognising it by shape rather than by a
+    roster is what lets a new one arrive without amending a rule, so the shape has
+    to be narrow enough that a real skill cannot fall into it and thereby escape
+    the '## Completion' requirement. Three tests do that work: no heading of any
+    level, a body of at most a few lines, and exactly one skill named in prose.
+
+    Fenced code and HTML comments are removed first. A skill named only inside
+    either one is not an instruction the agent follows, so it cannot be the
+    delegation, and a body whose visible text delegates to nothing must fail.
+    """
+    body = re.sub(r"```.*?```", " ", body, flags=re.DOTALL)
+    body = re.sub(r"<!--.*?-->", " ", body, flags=re.DOTALL)
+    if re.search(r"(?m)^#{1,6}\s+\S", body):
+        return None
+    lines = [line for line in body.splitlines() if line.strip()]
+    if len(lines) > WRAPPER_MAX_LINES:
+        return None
+    if len(re.findall(r"[A-Za-z0-9][\w'-]*", " ".join(lines))) > WRAPPER_MAX_WORDS:
+        return None
+    # A setext heading underlines its text, so it needs no '#' to be a section.
+    if any(re.fullmatch(r"\s*(?:=+|-{2,})\s*", line) for line in lines):
+        return None
+    targets = {match.group(1) for match in re.finditer(r"/([a-z0-9]+(?:-[a-z0-9]+)*)\b", body)}
+    if len(targets) != 1:
+        return None
+    return targets.pop()
 
 
 def _mentions(body: str, term: str) -> bool:
@@ -134,6 +179,22 @@ def _duplicate_files(root: Path, skill_dirs: dict[str, Path]) -> list[tuple[str,
     return sorted(pairs)
 
 
+def _resembles_a_skill(cited: str, known: set[str]) -> bool:
+    """Report whether an unknown ``/name`` is a stale skill citation or a URL path.
+
+    Skill documentation writes a route the same way it writes a skill: ``/my-plugin``
+    in backticks is a mount point, ``/prose-editing`` in backticks is an invocation.
+    Nothing in the syntax separates them, so use what a stale citation actually is —
+    the residue of a rename or a split, which leaves a name that still resembles the
+    skill that replaced it. ``/rhdh-jira`` survives as a prefix of ``rhdh-jira-create``;
+    ``/image-registry`` resembles nothing in the catalog.
+    """
+    for name in known:
+        if cited.startswith(f"{name}-") or name.startswith(f"{cited}-"):
+            return True
+    return bool(difflib.get_close_matches(cited, sorted(known), n=1, cutoff=0.8))
+
+
 def _validate_named_invocations(
     root: Path,
     skill_dirs: dict[str, Path],
@@ -151,8 +212,11 @@ def _validate_named_invocations(
     for name, skill_dir in sorted(skill_dirs.items()):
         for path in _shipped_files(skill_dir):
             text = path.read_text(encoding="utf-8", errors="replace")
+            # A `/name` inside a fenced block is sample code — a React route, a
+            # URL path, a shell argument — not an instruction to invoke a skill.
+            text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
             for cited in sorted(set(NAMED_INVOCATION.findall(text))):
-                if cited in known:
+                if cited in known or not _resembles_a_skill(cited, known):
                     continue
                 errors.append(
                     {
@@ -304,6 +368,7 @@ def validate_repository(root: Path) -> dict[str, Any]:
 
     promoted_names: list[str] = []
     human_names: list[str] = []
+    wrapper_delegations: dict[str, tuple[str, Path]] = {}
     entry_by_name: dict[str, dict[str, Any]] = {}
     external_entries = catalog.get("pack", {}).get("requiredExternalSkills", [])
     external_names = [item.get("name") for item in external_entries if isinstance(item, dict)]
@@ -372,7 +437,14 @@ def validate_repository(root: Path) -> dict[str, Any]:
                 }
             )
 
-        if not re.search(r"(?m)^##\s+Completion\s*$", body):
+        delegates_to = _delegation_target(body) if invocation == "human" else None
+        if delegates_to is not None:
+            # A delegating wrapper is an entry point a person types that holds no
+            # substance of its own. Its completion is its delegate's completion,
+            # so restating one here would put the same rule in two places. What it
+            # owes instead is that the delegate exists and can be reached.
+            wrapper_delegations[name] = (delegates_to, skill_file)
+        elif not re.search(r"(?m)^##\s+Completion\s*$", body):
             errors.append(
                 {
                     "code": "MISSING_COMPLETION",
@@ -509,11 +581,37 @@ def validate_repository(root: Path) -> dict[str, Any]:
 
     _validate_internal_skills(root, errors)
 
+    for wrapper, (target, wrapper_file) in sorted(wrapper_delegations.items()):
+        location = wrapper_file.relative_to(root).as_posix()
+        target_entry = entry_by_name.get(target)
+        if target_entry is None:
+            errors.append(
+                {
+                    "code": "WRAPPER_TARGET_MISSING",
+                    "message": (
+                        f"{location}: delegates to /{target}, which is not a promoted skill. "
+                        "A wrapper holds no substance, so a dead delegate leaves it doing nothing"
+                    ),
+                }
+            )
+        elif target_entry.get("invocation") != "model":
+            errors.append(
+                {
+                    "code": "WRAPPER_TARGET_NOT_MODEL",
+                    "message": (
+                        f"{location}: delegates to /{target}, which is human-invoked. "
+                        "A wrapper delegates to a model-invoked skill; chaining entry points "
+                        "leaves neither one reachable by the router"
+                    ),
+                }
+            )
+
     return {
         "valid": not errors,
         "errors": errors,
         "promotedSkills": sorted(promoted_names),
         "humanInvokedSkills": sorted(human_names),
+        "delegatingWrappers": {name: target for name, (target, _) in wrapper_delegations.items()},
         "requiredExternalSkills": sorted(external_set),
     }
 

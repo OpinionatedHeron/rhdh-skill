@@ -56,15 +56,19 @@ utterances is several skills. Split by verb, never by noun, and weight the split
 by what a misroute costs — merge where a misroute produces a wrong write, split
 where it produces an obvious wrong answer. See ADR-0005.
 
-Only `ask-rhdh` and `setup-rhdh-skills` are human-invoked. They carry
-`disable-model-invocation: true` in `SKILL.md` and
-`policy.allow_implicit_invocation: false` in `agents/openai.yaml`. Every other
+Human invocation is a class, not a roster. A human-invoked skill is an entry
+point a person types by name, and the router never reaches it. Every member
+carries `disable-model-invocation: true` in `SKILL.md` and
+`policy.allow_implicit_invocation: false` in `agents/openai.yaml`. Admit a new
+one only when it holds no substance of its own and delegates to exactly one
+model-invoked skill, the way `clean-prose` delegates to `prose-editing`;
+`ask-rhdh` and `setup-rhdh-skills` are the other members today. Every other
 promoted skill is model-invoked and omits both flags. Every promoted skill has
 an `agents/openai.yaml` interface entry.
 
-The complete pack also requires three external skills. Creation and interview
-flows use `/grilling`; PR-review prose uses `/humanizer`; `/handoff` carries
-context into a later session, which is why no artifact store does.
+The complete pack also requires two external skills. Creation and interview
+flows use `/grilling`; `/handoff` carries context into a later session, which is
+why no artifact store does.
 
 Keep drafts and retired skills outside the promoted discovery root:
 
@@ -86,6 +90,11 @@ Do not add them to promoted manifests or catalogs.
   artifacts remain credential-free. Setup owns login and never creates a
   parallel credential store.
 - `/rhdh-context` owns shared repository and version context.
+- `/prose-editing` owns the prose pass. A PR-review draft and a freeze
+  announcement both go through it before anyone sees them: `/rhdh-pr-review`
+  invokes it in the flavored register, `/rhdh-release-announce` in the voiced
+  one. The caller names the register, because the caller knows what kind of
+  document it wrote.
 - Skills pass context by invoking each other by name. There is no artifact
   envelope and no artifact store. When the user needs context to survive into a
   later session, tell them to run `/handoff`.

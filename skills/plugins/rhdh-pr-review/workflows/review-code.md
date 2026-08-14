@@ -8,12 +8,6 @@ Work from that context. The one exception is reading full file contents at HEAD 
 
 You are a senior team member reviewing a contribution. Your goal is to help the author ship confidently, not demonstrate expertise. Every comment should either prevent a real problem or teach something useful — if it does neither, don't leave it.
 
-## Step 0: Humanizer prerequisite
-
-Load `../references/humanizer.md`. If the named `/humanizer` skill is absent, say
-that `humanizer` is missing, name `/setup-rhdh-skills install` as the human's next
-step, and stop. This applies to every draft path, including analysis-only.
-
 ## Step 1: Ask which specialist skills to invoke
 
 Read `../references/review-perspectives.md`. After fetch/context is available and **before deep analysis**, always ask the user which installed skills (if any) to invoke for this review. "None" is valid. Do not invent a hardcoded specialist roster — use whatever the user names, then follow those skills for domain knowledge.
@@ -83,13 +77,15 @@ Write each comment as natural prose — a short paragraph explaining the issue a
 
 **GitHub `suggestion` blocks:** use them **only** when the fix is small and obvious — one clear replacement hunk the author can apply as-is. Otherwise leave a question or guidance without a `suggestion` block.
 
-### Humanize before show-user
+### Edit before show-user
 
-After drafting top-level + inlines, follow `../references/humanizer.md` → When to invoke. Run humanizer on the full draft, then present the humanized draft. Never show pre-humanizer prose as the review draft. Applies to posting and analysis-only routes.
+After drafting top-level + inlines, invoke `/prose-editing` on the whole draft — top-level comment and every inline body — in the **flavored** register. A review is a document, not a procedure, and the caller names the register so the editor does not have to guess it.
+
+Preserve technical meaning, severity, file paths, line numbers, `suggestion` fences, and the review event. Present only what comes back. Never show the unedited prose as the review draft. Applies to posting and analysis-only routes.
 
 ## Step 5: Choose event type
 
-Present the **humanized** draft to the user. For posting routes, ask which event type to use:
+Present the **edited** draft to the user. For posting routes, ask which event type to use:
 
 | Event | When |
 |-------|------|
@@ -97,7 +93,7 @@ Present the **humanized** draft to the user. For posting routes, ask which event
 | `APPROVE` | No issues, or only minor nits. |
 | `REQUEST_CHANGES` | Critical issues that must be fixed. Use sparingly. |
 
-For analysis-only (route 2), present the humanized draft and stop — no event type, no post.
+For analysis-only (route 2), present the edited draft and stop — no event type, no post.
 
 ## What this workflow hands on
 
@@ -107,7 +103,7 @@ Carry the finished review forward as:
 changeRequest: {repository: "owner/repo", number: 123, headSha: "abc123..."}
 summary: "top-level review text"
 verdict: "COMMENT" | "APPROVE" | "REQUEST_CHANGES"
-humanized: true
+edited: true
 findings[]
 ├── path: "src/file.ts"
 ├── line: 42
@@ -118,4 +114,4 @@ findings[]
 
 `type` is the finding kind for triage. A GitHub `suggestion` fence inside `body` is separate and only allowed for small obvious hunks (see Step 4).
 
-**Do not post the review.** If the router selected a posting workflow, hand that draft to it. If analysis-only, stop after presenting the humanized draft (Step 5).
+**Do not post the review.** If the router selected a posting workflow, hand that draft to it. If analysis-only, stop after presenting the edited draft (Step 5).

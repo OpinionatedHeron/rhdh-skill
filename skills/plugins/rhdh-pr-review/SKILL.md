@@ -24,7 +24,7 @@ independently.
 | Outcome | Workflow sequence |
 |---|---|
 | Code review and post | `workflows/fetch-github.md` → `workflows/review-code.md` → `workflows/post-to-github.md` |
-| Analysis only | `workflows/fetch-github.md` → `workflows/review-code.md`; stop after the humanized draft |
+| Analysis only | `workflows/fetch-github.md` → `workflows/review-code.md`; stop after the edited draft |
 | Test an rhdh-operator PR | `workflows/fetch-github.md` → `workflows/review-operator-pr.md` |
 | Full review | fetch → review code → confirm and post → operator cluster test |
 
@@ -41,11 +41,10 @@ can diverge, but respect an explicit route.
 - Ask which installed specialist skills, if any, the user wants applied after
   fetch and before deep analysis. Invoke chosen skills by name and give them the
   fetched PR context; never load their files.
-- `/humanizer` is required before any review draft is shown, including
-  analysis-only. If unavailable, say that `humanizer` is missing, name
-  `/setup-rhdh-skills install`, and stop the draft path. Do not implement a local
-  locator or substitute prose rewriting.
-- Present the complete humanized draft and review event for confirmation before
+- Every review draft goes through `/prose-editing` before it is shown, including
+  analysis-only. Invoke it in the **flavored** register: a review is a document,
+  not a procedure. Do not rewrite the prose here instead.
+- Present the complete edited draft and review event for confirmation before
   stating any post operation. An explicit request to post is intent, not approval
   of the exact write.
 - For cluster testing, deploy the full PR bundle or manifests, not only the
@@ -72,7 +71,7 @@ defined once, where they are produced:
 | Stage | Result | Defined in |
 |---|---|---|
 | Fetch | PR context: repository, changeRequest, files, diff, linkedIssues, jiraKeys, existingComments, existingReviews, ciStatus | `workflows/fetch-github.md` |
-| Analysis | Review draft: changeRequest, summary, verdict, findings, humanized | `workflows/review-code.md` |
+| Analysis | Review draft: changeRequest, summary, verdict, findings, edited | `workflows/review-code.md` |
 | Operator testing | Subject, per-check results, verdict, cluster state, cleanup | `workflows/review-operator-pr.md` |
 
 ## Scripts and references
@@ -80,12 +79,11 @@ defined once, where they are produced:
 - `scripts/fetch_pr_context.py` deterministically builds the PR context as one
   JSON object with no envelope.
 - `references/review-perspectives.md` routes optional specialist review lenses.
-- `references/humanizer.md` defines the named `/humanizer` gate.
 - `references/operator-pr-images.md` defines operator bundle/image extraction.
 
 ## Completion
 
-Complete when the report names the head SHA reviewed, presents the humanized
+Complete when the report names the head SHA reviewed, presents the edited
 draft, gives the outcome of every approved write with its target, includes the
 cluster check results when operator testing ran, and states every skipped check
 or cleanup action with its reason.

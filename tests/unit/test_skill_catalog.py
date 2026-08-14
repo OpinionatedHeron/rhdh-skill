@@ -115,10 +115,10 @@ def test_repository_catalog_exposes_the_approved_composable_skill_set():
     # assert they agree rather than restating the roster here, where it only rots.
     assert set(report["promotedSkills"]) == {entry["name"] for entry in catalog["skills"]}
 
-    # These two are contracts rather than inventory: exactly two entry points are
+    # These two are contracts rather than inventory: exactly three entry points are
     # human-invoked, and the pack depends on exactly two external skills.
-    assert set(report["humanInvokedSkills"]) == {"ask-rhdh", "setup-rhdh-skills"}
-    assert set(report["requiredExternalSkills"]) == {"grilling", "humanizer", "handoff"}
+    assert set(report["humanInvokedSkills"]) == {"ask-rhdh", "setup-rhdh-skills", "clean-prose"}
+    assert set(report["requiredExternalSkills"]) == {"grilling", "handoff"}
     assert every_promoted_skill_lives_in_a_domain_category(catalog)
 
 
@@ -391,3 +391,124 @@ def test_invocation_parity_is_checked_in_both_directions(tmp_path):
     frontmatter_human = validator.validate_repository(root)
     assert "INVOCATION_MISMATCH" in codes(frontmatter_human)
     assert "drop disable-model-invocation" in messages(frontmatter_human, "INVOCATION_MISMATCH")[0]
+
+
+def write_wrapper(root: Path, name: str, target: str) -> Path:
+    """Write a delegating wrapper: human-invoked, no sections, one skill named."""
+    skill_dir = write_skill(root, name, invocation="human")
+    (skill_dir / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: Sample {name} entry point.\n"
+        f"disable-model-invocation: true\n---\n\nRun a `/{target}` pass.\n",
+        encoding="utf-8",
+    )
+    return skill_dir
+
+
+def test_a_delegating_wrapper_owes_no_completion_section(tmp_path):
+    """A wrapper's completion is its delegate's; restating it would duplicate the rule."""
+    validator = load_validator()
+    root = write_repository(
+        tmp_path,
+        [entry("clean-prose", invocation="human"), entry("prose-editing", category="reference")],
+    )
+    write_wrapper(root, "clean-prose", "prose-editing")
+
+    report = validator.validate_repository(root)
+
+    assert "MISSING_COMPLETION" not in codes(report)
+    assert report["delegatingWrappers"] == {"clean-prose": "prose-editing"}
+
+
+def test_a_wrapper_pointing_at_nothing_is_reported(tmp_path):
+    validator = load_validator()
+    root = write_repository(tmp_path, [entry("clean-prose", invocation="human")])
+    write_wrapper(root, "clean-prose", "prose-editing")
+
+    report = validator.validate_repository(root)
+
+    assert "WRAPPER_TARGET_MISSING" in codes(report)
+    assert "/prose-editing" in messages(report, "WRAPPER_TARGET_MISSING")[0]
+
+
+def test_a_wrapper_may_not_delegate_to_another_entry_point(tmp_path):
+    """Chaining entry points leaves neither reachable by the router."""
+    validator = load_validator()
+    root = write_repository(
+        tmp_path,
+        [entry("clean-prose", invocation="human"), entry("ask-rhdh", invocation="human")],
+    )
+    write_wrapper(root, "clean-prose", "ask-rhdh")
+
+    report = validator.validate_repository(root)
+
+    assert "WRAPPER_TARGET_NOT_MODEL" in codes(report)
+
+
+def test_a_human_skill_that_carries_work_still_owes_a_completion_section(tmp_path):
+    """The exemption is for wrappers with no substance, not for human invocation."""
+    validator = load_validator()
+    root = write_repository(tmp_path, [entry("setup-rhdh-skills", invocation="human")])
+    skill = root / "skills" / "meta" / "setup-rhdh-skills" / "SKILL.md"
+    skill.write_text(
+        "---\nname: setup-rhdh-skills\ndescription: Sample setup skill.\n"
+        "disable-model-invocation: true\n---\n\n"
+        "# setup\n\n## Steps\n\nRun a `/prose-editing` pass, then do the rest here.\n",
+        encoding="utf-8",
+    )
+
+    report = validator.validate_repository(root)
+
+    assert "MISSING_COMPLETION" in codes(report)
+
+
+def test_a_substantive_skill_cannot_pose_as_a_wrapper_and_escape_completion(tmp_path):
+    """The exemption must fail closed: a real skill slipping into it loses a required section."""
+    module = load_validator()
+    poses = {
+        "an H1 instead of an H2": "# Setup\n\nDo the thing.\n\n- step one\n\nUse /rhdh-context.\n",
+        "no heading, several paragraphs": (
+            "Do the thing carefully.\n\nIt matters for the release.\n\nCheck /rhdh-context first.\n"
+        ),
+        "a setext heading": "Completion\n----------\n\nRun /rhdh-context.\n",
+        "delegate hidden in an HTML comment": "Do something else.\n<!-- /prose-editing -->\n",
+        "delegate hidden in a code fence": "Do something else.\n\n```\n/prose-editing\n```\n",
+        "names no skill at all": "Just do the thing.\n",
+    }
+    for label, body in poses.items():
+        assert module._delegation_target(body) is None, label
+
+    assert module._delegation_target("Run a `/prose-editing` pass.\n") == "prose-editing"
+
+
+def test_a_stale_skill_citation_is_caught_even_without_the_rhdh_prefix(tmp_path):
+    """A rename must not leave callers pointing at nothing, whatever the skill is named."""
+    module = load_validator()
+    root = write_repository(
+        tmp_path,
+        [entry("rhdh-pr-review", category="plugins"), entry("prose-editing", category="reference")],
+        skill_bodies={"rhdh-pr-review": "\nEvery draft goes through `/prose-edit` first.\n"},
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
+    assert "/prose-edit" in messages(report, "UNKNOWN_SKILL_REFERENCE")[0]
+
+
+def test_a_url_route_that_looks_like_a_citation_is_not_reported(tmp_path):
+    """Plugin docs mount routes with the same syntax; only names resembling a skill count."""
+    module = load_validator()
+    root = write_repository(
+        tmp_path,
+        [
+            entry("rhdh-plugin-wiring", category="plugins"),
+            entry("prose-editing", category="reference"),
+        ],
+        skill_bodies={
+            "rhdh-plugin-wiring": "\nMount the tab at `/image-registry` and route `/my-plugin`.\n"
+        },
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" not in codes(report)

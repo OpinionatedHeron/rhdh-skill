@@ -28,5 +28,5 @@ source of truth for the promoted skill set and its two required external depende
 The script validates every operation before running the first one and executes argument arrays
 directly without a command shell. If validation fails, no installation operation runs.
 
-Completion requires all promoted skills, `grilling`, `humanizer`, and `handoff` to be discovered in a
+Completion requires all promoted skills, `grilling`, and `handoff` to be discovered in a
 supported host layout.
