@@ -13,6 +13,33 @@ import pytest
 # Path to the project root
 PROJECT_ROOT = Path(__file__).parent.parent
 
+# Variables git uses to locate the repository it operates on. A git hook exports
+# these, so a `git init` that inherits them retargets the hook's repository
+# instead of the temporary directory the test asked for — which marks the shared
+# checkout core.bare=true and points `git add` at the real index.
+GIT_LOCATION_VARS = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_COMMON_DIR",
+    "GIT_NAMESPACE",
+    "GIT_PREFIX",
+)
+
+
+def git_env(**overrides: str) -> dict[str, str]:
+    """Return os.environ with git's repository-location variables removed.
+
+    Every subprocess git call in the test suite goes through this so a test that
+    creates its own repository cannot reach the checkout pytest is running in.
+    """
+    env = {key: value for key, value in os.environ.items() if key not in GIT_LOCATION_VARS}
+    env.update(overrides)
+    return env
+
+
 # Path to the context skill directory (where the preserved rhdh package lives)
 RHDH_SKILL_DIR = PROJECT_ROOT / "skills" / "reference" / "rhdh-context"
 
@@ -101,19 +128,18 @@ def isolated_env(tmp_path, monkeypatch):
     (sample_workspace / "plugins-list.yaml").write_text("- plugins/test/frontend:\n")
 
     # Initialize as git repo
-    subprocess.run(["git", "init"], cwd=overlay_dir, capture_output=True)
-    subprocess.run(["git", "add", "."], cwd=overlay_dir, capture_output=True)
+    subprocess.run(["git", "init"], cwd=overlay_dir, capture_output=True, env=git_env())
+    subprocess.run(["git", "add", "."], cwd=overlay_dir, capture_output=True, env=git_env())
     subprocess.run(
         ["git", "commit", "-m", "init"],
         cwd=overlay_dir,
         capture_output=True,
-        env={
-            **os.environ,
-            "GIT_AUTHOR_NAME": "test",
-            "GIT_AUTHOR_EMAIL": "test@test.com",
-            "GIT_COMMITTER_NAME": "test",
-            "GIT_COMMITTER_EMAIL": "test@test.com",
-        },
+        env=git_env(
+            GIT_AUTHOR_NAME="test",
+            GIT_AUTHOR_EMAIL="test@test.com",
+            GIT_COMMITTER_NAME="test",
+            GIT_COMMITTER_EMAIL="test@test.com",
+        ),
     )
 
     # Create mock rhdh-local
