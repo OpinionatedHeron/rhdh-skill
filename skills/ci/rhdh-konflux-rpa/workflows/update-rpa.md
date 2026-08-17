@@ -9,12 +9,10 @@ Never assume a checkout path. Accept the repository root or its
 `config/stone-prod-p02.hjvn.p1/product/ReleasePlanAdmission/rhdh/` directory.
 Resolve the owning repository with `git rev-parse --show-toplevel`.
 
-Before local branch or file mutation, require Bash 3.2+, Git 2.x, Python 3.9+,
-and the canonical repository identity. Run these checks without printing
-credentials:
+Before local branch or file mutation, require Git 2.x, Python 3.9+, and the
+canonical repository identity. Run these checks without printing credentials:
 
 ```bash
-bash --version
 git --version
 python3 --version
 git -C "${REPO}" remote get-url origin
@@ -33,8 +31,8 @@ checkout, branch, file, commit, push, browser, or merge-request operation:
 
 ```bash
 SKILL_DIR=/absolute/path/to/installed/rhdh-konflux-rpa
-SCRIPT="${SKILL_DIR}/scripts/update-rpa-tags.sh"
-bash "${SCRIPT}" 1.9.7 --repo-dir "${REPO}" --dry-run
+SCRIPT="${SKILL_DIR}/scripts/update_rpa_tags.py"
+python3 "${SCRIPT}" 1.9.7 --repo-dir "${REPO}" --dry-run
 ```
 
 Confirm the stream and replacement counts. The script must select exactly:
@@ -60,7 +58,7 @@ then run the script in local-only mode:
 test -z "$(git -C "${REPO}" status --porcelain --untracked-files=all)"
 git -C "${REPO}" fetch origin main
 git -C "${REPO}" switch -c "chore/rhdh-update-rpa-1.9.7" "origin/main"
-bash "${SCRIPT}" 1.9.7 --repo-dir "${REPO}" --local-only
+python3 "${SCRIPT}" 1.9.7 --repo-dir "${REPO}" --local-only
 git -C "${REPO}" diff --check
 git -C "${REPO}" diff -- \
   config/stone-prod-p02.hjvn.p1/product/ReleasePlanAdmission/rhdh/rhdh-1-9-prod.yaml \

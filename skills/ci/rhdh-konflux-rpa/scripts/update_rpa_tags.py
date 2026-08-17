@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Update RHDH patch versions only in YAML values owned by a ``tags`` key."""
+"""Update RHDH patch versions in release-data RPA ``tags`` values."""
+
+# SPDX-License-Identifier: EPL-2.0
 
 from __future__ import annotations
 
@@ -7,7 +9,9 @@ import argparse
 import json
 import os
 import re
+import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -18,6 +22,14 @@ TAGS_KEY = re.compile(r"^(?P<indent> *)tags[ ]*:(?P<rest>.*)$")
 LIST_ITEM = re.compile(r"^(?P<prefix> *-[ ]*)(?P<rest>.*)$")
 MAPPING_KEY = re.compile(r"^(?P<indent> *)(?P<key>[A-Za-z0-9_.-]+)[ ]*:(?P<rest>.*)$")
 BLOCK_SCALAR = re.compile(r"^[|>][0-9+-]*(?:[ \t]+#.*)?$")
+RPA_RELATIVE_DIR = Path("config/stone-prod-p02.hjvn.p1/product/ReleasePlanAdmission/rhdh")
+EXPECTED_REMOTES = frozenset(
+    {
+        "https://gitlab.cee.redhat.com/releng/konflux-release-data",
+        "git@gitlab.cee.redhat.com:releng/konflux-release-data",
+        "ssh://git@gitlab.cee.redhat.com/releng/konflux-release-data",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -238,23 +250,91 @@ def update_text(text: str, stream: str, target: str) -> Edit:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Update literal RHDH patch values under YAML tags keys."
+        description=(
+            "Update one RHDH patch stream in the four canonical konflux-release-data RPA files."
+        )
     )
-    parser.add_argument("--stream", required=True, help="RHDH MAJOR.MINOR stream")
-    parser.add_argument("--to", required=True, help="Target MAJOR.MINOR.PATCH version")
-    parser.add_argument("--write", action="store_true", help="Write validated edits")
+    parser.add_argument("version", help="target MAJOR.MINOR.PATCH version")
     parser.add_argument(
-        "--rpa-dir",
-        required=True,
+        "--repo-dir",
         type=Path,
-        help="Canonical directory that must directly contain every target",
+        help=(
+            "konflux-release-data root or canonical RPA directory "
+            "(default: KONFLUX_RELEASE_DATA_REPO or the current directory)"
+        ),
     )
-    parser.add_argument("paths", nargs="+", type=Path, help="RPA YAML files")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report changes without writing files",
+    )
+    mode.add_argument(
+        "--local-only",
+        action="store_true",
+        help="write only the local working tree (the default)",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="run tox -e test after writing",
+    )
     return parser
 
 
 def _absolute(path: Path) -> Path:
     return Path(os.path.abspath(path))
+
+
+def _git_environment() -> dict[str, str]:
+    """Keep ambient Git repository/config overrides from defeating ``-C``."""
+    return {key: value for key, value in os.environ.items() if not key.upper().startswith("GIT_")}
+
+
+def _git(directory: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(directory), *args],
+        check=False,
+        capture_output=True,
+        env=_git_environment(),
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "git command failed"
+        raise ValueError(detail)
+    return result.stdout.strip()
+
+
+def _resolve_checkout(input_path: Path, stream: str) -> tuple[Path, Path, tuple[Path, ...]]:
+    if not input_path.is_dir():
+        raise ValueError(f"directory not found: {input_path}")
+    supplied = input_path.resolve(strict=True)
+    repository = Path(_git(supplied, "rev-parse", "--show-toplevel")).resolve(strict=True)
+    rpa_dir = repository / RPA_RELATIVE_DIR
+    if supplied not in (repository, rpa_dir):
+        raise ValueError(f"use the repository root or its canonical RPA directory: {rpa_dir}")
+
+    dashed = stream.replace(".", "-")
+    paths = (
+        rpa_dir / f"rhdh-{dashed}-prod.yaml",
+        rpa_dir / f"rhdh-{dashed}-stage.yaml",
+        rpa_dir / f"rhdh-plugin-catalog-{dashed}-prod.yaml",
+        rpa_dir / f"rhdh-plugin-catalog-{dashed}-stage.yaml",
+    )
+    return repository, rpa_dir, paths
+
+
+def _ensure_repository_identity(repository: Path) -> None:
+    remote = _git(repository, "remote", "get-url", "origin").removesuffix(".git")
+    if remote not in EXPECTED_REMOTES:
+        raise ValueError("origin is not releng/konflux-release-data on gitlab.cee.redhat.com")
+
+
+def _ensure_clean_checkout(repository: Path) -> None:
+    if _git(repository, "status", "--porcelain", "--untracked-files=all"):
+        raise ValueError(
+            "repository has tracked or untracked changes; commit, stash, or remove them"
+        )
 
 
 def _validate_targets(rpa_dir: Path, paths: list[Path]) -> tuple[Path, ...]:
@@ -345,29 +425,24 @@ def _write_atomically(
                 temporary.unlink(missing_ok=True)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
-    args = _parser().parse_args(argv)
-    if not re.fullmatch(r"[0-9]+\.[0-9]+", args.stream):
-        print(json.dumps({"error": "--stream must be MAJOR.MINOR"}), file=sys.stderr)
-        return 2
-    if not re.fullmatch(rf"{re.escape(args.stream)}\.[0-9]+", args.to):
-        print(json.dumps({"error": "--to must be a patch version in --stream"}), file=sys.stderr)
-        return 2
-
+def _update_files(
+    rpa_dir: Path,
+    paths: tuple[Path, ...],
+    stream: str,
+    target: str,
+    *,
+    write: bool,
+) -> dict[str, object]:
     edits: dict[Path, Edit] = {}
     originals: dict[Path, bytes] = {}
     modes: dict[Path, int] = {}
-    try:
-        paths = _validate_targets(args.rpa_dir, args.paths)
-        for path in paths:
-            original = path.read_bytes()
-            source = original.decode("utf-8")
-            originals[path] = original
-            modes[path] = stat.S_IMODE(os.lstat(path).st_mode)
-            edits[path] = update_text(source, args.stream, args.to)
-    except (OSError, UnicodeError, ValueError) as error:
-        print(json.dumps({"error": f"{type(error).__name__}: {error}"}), file=sys.stderr)
-        return 2
+    normalized = _validate_targets(rpa_dir, list(paths))
+    for path in normalized:
+        original = path.read_bytes()
+        source = original.decode("utf-8")
+        originals[path] = original
+        modes[path] = stat.S_IMODE(os.lstat(path).st_mode)
+        edits[path] = update_text(source, stream, target)
 
     replacement_count = sum(edit.count for edit in edits.values())
     old_versions = sorted(
@@ -375,32 +450,68 @@ def main(argv: Optional[list[str]] = None) -> int:
         key=lambda version: tuple(int(part) for part in version.split(".")),
     )
     if replacement_count == 0:
-        print(
-            json.dumps({"error": f"no stale {args.stream}.PATCH tag values found"}),
-            file=sys.stderr,
+        raise ValueError(f"no stale {stream}.PATCH tag values found")
+
+    if write:
+        _write_atomically(edits, originals, modes)
+
+    return {
+        "stream": stream,
+        "target": target,
+        "write": write,
+        "old_versions": old_versions,
+        "replacement_count": replacement_count,
+        "files": {str(path): edit.count for path, edit in edits.items()},
+    }
+
+
+def _run_validation(repository: Path) -> None:
+    tox = shutil.which("tox")
+    if tox is None:
+        raise ValueError("--validate requires tox on PATH")
+    result = subprocess.run([tox, "-e", "test"], cwd=repository, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"tox -e test failed with exit code {result.returncode}")
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = _parser()
+    args = parser.parse_args(argv)
+    match = re.fullmatch(r"([0-9]+\.[0-9]+)\.[0-9]+", args.version)
+    if match is None:
+        parser.error("version must be MAJOR.MINOR.PATCH (for example, 1.9.7)")
+    if args.dry_run and args.validate:
+        parser.error("--validate cannot be combined with --dry-run")
+
+    stream = match.group(1)
+    requested = args.repo_dir
+    if requested is None:
+        requested = Path(os.environ.get("KONFLUX_RELEASE_DATA_REPO", os.getcwd()))
+
+    try:
+        repository, rpa_dir, paths = _resolve_checkout(requested, stream)
+        write = not args.dry_run
+        if write:
+            _ensure_repository_identity(repository)
+            _ensure_clean_checkout(repository)
+        report = _update_files(
+            rpa_dir,
+            paths,
+            stream,
+            args.version,
+            write=write,
         )
+        if args.validate:
+            _run_validation(repository)
+    except (OSError, UnicodeError, ValueError, RuntimeError) as error:
+        print(json.dumps({"error": f"{type(error).__name__}: {error}"}), file=sys.stderr)
         return 2
 
-    if args.write:
-        try:
-            _write_atomically(edits, originals, modes)
-        except OSError as error:
-            print(json.dumps({"error": f"{type(error).__name__}: {error}"}), file=sys.stderr)
-            return 2
-
-    print(
-        json.dumps(
-            {
-                "stream": args.stream,
-                "target": args.to,
-                "write": args.write,
-                "old_versions": old_versions,
-                "replacement_count": replacement_count,
-                "files": {str(path): edit.count for path, edit in edits.items()},
-            },
-            sort_keys=True,
-        )
-    )
+    print(json.dumps(report, sort_keys=True))
+    state = "Dry run complete; the checkout is unchanged"
+    if report["write"]:
+        state = "Local-only update complete; nothing was staged, committed, pushed, or opened"
+    print(state, file=sys.stderr)
     return 0
 
 

@@ -4,7 +4,7 @@ description: >-
   Updates the RHDH ReleasePlanAdmission tag values in konflux-release-data for
   one patch release while preserving stream tags and plugin version suffixes.
   Use for "update the RHDH RPA tags for 1.9.7".
-compatibility: "Bash 3.2+, Git 2.x, and Python 3.9+; glab authenticated to gitlab.cee.redhat.com for an approved GitLab merge request; tox is optional for schema validation."
+compatibility: "Git 2.x and Python 3.9+; glab authenticated to gitlab.cee.redhat.com for an approved GitLab merge request; tox is optional for schema validation."
 ---
 
 # RHDH Konflux ReleasePlanAdmission updates
@@ -16,7 +16,7 @@ files for that stream. It never commits, pushes, or opens a merge request.
 ## Route
 
 Load `workflows/update-rpa.md` and follow it end to end. Execute the bundled
-`scripts/update-rpa-tags.sh` by path relative to this installed skill; do not
+`scripts/update_rpa_tags.py` by path relative to this installed skill; do not
 copy its replacement logic into the conversation.
 
 ## Boundaries

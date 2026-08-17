@@ -4,12 +4,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import re
-import shutil
 import subprocess
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -53,20 +50,6 @@ def _path(relative: str) -> Path:
 
 def _text(relative: str) -> str:
     return _path(relative).read_text(encoding="utf-8")
-
-
-def _bash_runtime() -> tuple[str, Callable[[Path], str]]:
-    if os.name == "nt":
-        git = shutil.which("git")
-        git_bash = Path(git).resolve().parent.parent / "bin/bash.exe" if git else None
-        if not git_bash or not git_bash.exists():
-            pytest.skip("Git Bash is required for the shell-script contract")
-        return str(git_bash), lambda path: path.resolve().as_posix()
-
-    bash = shutil.which("bash")
-    if not bash:
-        pytest.skip("bash is required for the shell-script contract")
-    return bash, lambda path: path.resolve().as_posix()
 
 
 def _named_skill_contexts(relative: str, name: str = "/prose-editing") -> list[str]:
@@ -163,9 +146,8 @@ def _symlink_or_skip(link: Path, target: Path, *, directory: bool = False) -> No
 
 
 def _run_rpa(script: Path, repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    bash, shell_path = _bash_runtime()
     return subprocess.run(
-        [bash, shell_path(script), "1.9.7", "--repo-dir", shell_path(repo), *args],
+        [sys.executable, str(script.resolve()), "1.9.7", "--repo-dir", str(repo.resolve()), *args],
         check=False,
         capture_output=True,
         text=True,
@@ -251,7 +233,7 @@ def test_transport_layers_do_not_reedit_prose() -> None:
         "skills/jira/rhdh-jira-link/scripts/create-pr-mr.js",
         "skills/jira/rhdh-jira-link/scripts/link-pr-mr.js",
         "skills/ci/rhdh-base-images/scripts/base-images-and-rpms.sh",
-        "skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh",
+        "skills/ci/rhdh-konflux-rpa/scripts/update_rpa_tags.py",
     ):
         assert "/prose-editing" not in _text(relative)
 
@@ -322,7 +304,12 @@ def test_rpa_is_an_independently_installable_skill() -> None:
     assert "konflux-release-data" in rpa_frontmatter
     assert "rhdh-konflux-tasks" not in rpa_frontmatter
     compatibility = rpa_frontmatter.casefold()
-    assert all(tool in compatibility for tool in ("bash", "glab", "python", "git"))
+    assert all(tool in compatibility for tool in ("glab", "python", "git"))
+    assert "bash" not in compatibility
+    scripts = [
+        path for path in _path("skills/ci/rhdh-konflux-rpa/scripts").iterdir() if path.is_file()
+    ]
+    assert scripts == [RPA_UPDATER]
     assert "interface:" in interface
     forge_positions = [match.start() for match in re.finditer("/rhdh-forge", workflow)]
     gate_positions = [match.start() for match in re.finditer("/mutation-gate", workflow)]
@@ -339,7 +326,7 @@ def test_rpa_is_an_independently_installable_skill() -> None:
 
 def test_rpa_local_only_mode_changes_files_without_publish_transport(tmp_path: Path) -> None:
     repo, rpa_dir = _make_rpa_repo(tmp_path)
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
     dry_run = _run_rpa(script, repo, "--dry-run")
     assert dry_run.returncode == 0, dry_run.stderr
     assert (
@@ -359,6 +346,24 @@ def test_rpa_local_only_mode_changes_files_without_publish_transport(tmp_path: P
         ).returncode
         == 1
     )
+
+
+def test_rpa_cli_ignores_ambient_git_repository_overrides(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    target_repo, target_rpa = _make_rpa_repo(tmp_path / "target")
+    foreign_repo, _ = _make_rpa_repo(tmp_path / "foreign")
+    monkeypatch.setenv("GIT_DIR", str(foreign_repo / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(foreign_repo))
+    updater = _rpa_updater_module("rpa_updater_git_environment")
+
+    result = updater.main(["1.9.7", "--repo-dir", str(target_repo), "--dry-run"])
+    report = json.loads(capsys.readouterr().out)
+
+    assert result == 0
+    assert all(str(target_rpa) in path for path in report["files"])
 
 
 def test_rpa_replacement_changes_only_literal_tag_values(tmp_path: Path) -> None:
@@ -421,7 +426,7 @@ spec:
         - "1.9.6"
 """
     repo, rpa_dir = _make_rpa_repo(tmp_path, content=source)
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
 
     result = _run_rpa(script, repo, "--local-only")
 
@@ -444,7 +449,7 @@ def test_rpa_rejects_multiline_flow_tags_without_writing_any_file(
     (rpa_dir / RPA_FILENAMES[-1]).write_text(unsupported, encoding="utf-8")
     _commit_fixture(repo, "unsupported fixture")
     originals = {path: path.read_bytes() for path in rpa_dir.iterdir()}
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
 
     result = _run_rpa(script, repo, "--local-only")
 
@@ -468,7 +473,7 @@ def test_rpa_rejects_multiline_quoted_tag_values_without_writing_any_file(
     (rpa_dir / RPA_FILENAMES[-1]).write_text(unsupported, encoding="utf-8")
     _commit_fixture(repo, "unsupported quoted fixture")
     originals = {path: path.read_bytes() for path in rpa_dir.iterdir()}
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
 
     result = _run_rpa(script, repo, "--local-only")
 
@@ -481,7 +486,7 @@ def test_rpa_rejects_a_symlinked_canonical_directory(tmp_path: Path) -> None:
     physical = repo / "physical-rpa"
     rpa_dir.rename(physical)
     _symlink_or_skip(rpa_dir, physical, directory=True)
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
 
     result = _run_rpa(script, repo, "--dry-run")
 
@@ -494,7 +499,7 @@ def test_rpa_rejects_a_symlinked_target_file(tmp_path: Path) -> None:
     physical = repo / "outside-rpa.yaml"
     target.rename(physical)
     _symlink_or_skip(target, physical)
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
 
     result = _run_rpa(script, repo, "--dry-run")
 
@@ -504,7 +509,7 @@ def test_rpa_rejects_a_symlinked_target_file(tmp_path: Path) -> None:
 def test_rpa_write_restores_all_files_when_a_replace_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, rpa_dir = _make_rpa_repo(tmp_path)
+    repo, rpa_dir = _make_rpa_repo(tmp_path)
     paths = tuple(rpa_dir / name for name in RPA_FILENAMES)
     originals = {path: path.read_bytes() for path in paths}
     original_modes = {path: path.stat().st_mode for path in paths}
@@ -522,18 +527,7 @@ def test_rpa_write_restores_all_files_when_a_replace_fails(
 
     monkeypatch.setattr(updater.os, "replace", fail_third_replace)
 
-    result = updater.main(
-        [
-            "--stream",
-            "1.9",
-            "--to",
-            "1.9.7",
-            "--write",
-            "--rpa-dir",
-            str(rpa_dir),
-            *(str(path) for path in paths),
-        ]
-    )
+    result = updater.main(["1.9.7", "--repo-dir", str(repo), "--local-only"])
 
     assert result == 2
     assert {path: path.read_bytes() for path in paths} == originals
@@ -544,7 +538,7 @@ def test_rpa_write_restores_all_files_when_a_replace_fails(
 def test_rpa_write_restores_all_files_when_replacement_is_interrupted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, rpa_dir = _make_rpa_repo(tmp_path)
+    repo, rpa_dir = _make_rpa_repo(tmp_path)
     paths = tuple(rpa_dir / name for name in RPA_FILENAMES)
     originals = {path: path.read_bytes() for path in paths}
     original_modes = {path: path.stat().st_mode for path in paths}
@@ -563,18 +557,7 @@ def test_rpa_write_restores_all_files_when_replacement_is_interrupted(
     monkeypatch.setattr(updater.os, "replace", interrupt_third_replace)
 
     with pytest.raises(KeyboardInterrupt):
-        updater.main(
-            [
-                "--stream",
-                "1.9",
-                "--to",
-                "1.9.7",
-                "--write",
-                "--rpa-dir",
-                str(rpa_dir),
-                *(str(path) for path in paths),
-            ]
-        )
+        updater.main(["1.9.7", "--repo-dir", str(repo), "--local-only"])
 
     assert {path: path.read_bytes() for path in paths} == originals
     assert {path: path.stat().st_mode for path in paths} == original_modes
@@ -584,7 +567,7 @@ def test_rpa_write_restores_all_files_when_replacement_is_interrupted(
 def test_rpa_local_edit_rejects_untracked_files(tmp_path: Path) -> None:
     repo, rpa_dir = _make_rpa_repo(tmp_path)
     (repo / "untracked.txt").write_text("keep", encoding="utf-8")
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
 
     result = _run_rpa(script, repo, "--local-only")
 
@@ -596,7 +579,7 @@ def test_rpa_local_edit_requires_the_upstream_repository(tmp_path: Path) -> None
     repo, rpa_dir = _make_rpa_repo(
         tmp_path, remote="https://gitlab.cee.redhat.com/example/konflux-release-data.git"
     )
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
 
     result = _run_rpa(script, repo, "--local-only")
 
@@ -610,7 +593,7 @@ def test_rpa_local_edit_requires_the_canonical_rpa_directory(tmp_path: Path) -> 
     decoy.mkdir()
     for name in RPA_FILENAMES:
         (decoy / name).write_text('tags: ["1.9", "1.9.6"]\n', encoding="utf-8")
-    script = _path("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
+    script = RPA_UPDATER
 
     result = _run_rpa(script, decoy, "--dry-run")
 
@@ -619,14 +602,10 @@ def test_rpa_local_edit_requires_the_canonical_rpa_directory(tmp_path: Path) -> 
 
 
 def test_rpa_script_contains_no_publish_transport() -> None:
-    script = _text("skills/ci/rhdh-konflux-rpa/scripts/update-rpa-tags.sh")
-    for command in (
-        r"^\s*git\s+push\b",
-        r"^\s*git\s+commit\b",
-        r"^\s*git\s+fetch\b",
-        r"^\s*glab\b",
-    ):
-        assert not re.search(command, script, re.MULTILINE)
+    script = RPA_UPDATER.read_text(encoding="utf-8")
+    assert "glab" not in script
+    for command in ("push", "commit", "fetch"):
+        assert not re.search(rf"[\"']{command}[\"']", script)
 
 
 def test_base_image_automation_pr_payload_passes_static_prose_lint() -> None:
