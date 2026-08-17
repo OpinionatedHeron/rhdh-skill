@@ -595,6 +595,11 @@ oc wait csv -n $OPERATOR_NS -l "operators.coreos.com/$PACKAGE_NAME.$OPERATOR_NS=
 oc apply -f /tmp/rollback-install.yaml
 ```
 
+Before presenting the completed assessment, invoke `/prose-editing` once on the
+whole reviewer-facing draft in the **flavored** register. Preserve raw evidence,
+tables, commands, resource names, and rollback payloads exactly; the posting or
+handoff layer must not edit it again.
+
 </process>
 
 <action_triggers>
