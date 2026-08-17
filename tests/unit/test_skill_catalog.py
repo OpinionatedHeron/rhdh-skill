@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR = PROJECT_ROOT / "scripts" / "validate_skill_catalog.py"
 
@@ -235,6 +237,49 @@ def test_a_required_skill_absent_from_the_owning_body_is_reported(tmp_path):
 
     assert codes(report) == ["DEPENDENCY_NOT_DOCUMENTED"]
     assert "beta: requiresSkills declares alpha" in messages(report, "DEPENDENCY_NOT_DOCUMENTED")[0]
+
+
+@pytest.mark.parametrize("instruction_dir", ["workflows", "references"])
+def test_a_required_skill_may_be_documented_in_owned_instruction_markdown(
+    tmp_path, instruction_dir
+):
+    validator = load_validator()
+    root = build_fixture(tmp_path, skill_bodies={"alpha": "\nEmits `Widget/v1`.\n", "beta": ""})
+    instruction = root / "skills" / "meta" / "beta" / instruction_dir / "compose.md"
+    instruction.parent.mkdir(parents=True)
+    instruction.write_text(
+        "Use `/alpha` to produce `Widget/v1`, then consume its shape and size.\n",
+        encoding="utf-8",
+    )
+
+    report = validator.validate_repository(root)
+
+    assert report["valid"] is True, report["errors"]
+
+
+def test_a_dependency_named_only_in_a_workflow_code_example_is_not_documented(tmp_path):
+    validator = load_validator()
+    root = build_fixture(tmp_path, skill_bodies={"alpha": "\nEmits `Widget/v1`.\n", "beta": ""})
+    workflow = root / "skills" / "meta" / "beta" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text("```text\n/alpha\n```\n", encoding="utf-8")
+
+    report = validator.validate_repository(root)
+
+    assert "DEPENDENCY_NOT_DOCUMENTED" in codes(report)
+
+
+def test_a_typoed_dependency_in_a_workflow_is_still_rejected(tmp_path):
+    validator = load_validator()
+    root = build_fixture(tmp_path, skill_bodies={"alpha": "\nEmits `Widget/v1`.\n", "beta": ""})
+    workflow = root / "skills" / "meta" / "beta" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text("Use `/alph` before consuming `Widget/v1`.\n", encoding="utf-8")
+
+    report = validator.validate_repository(root)
+
+    assert "DEPENDENCY_NOT_DOCUMENTED" in codes(report)
+    assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
 
 
 def test_a_dependency_named_only_inside_a_longer_token_does_not_count(tmp_path):
@@ -493,6 +538,48 @@ def test_a_stale_skill_citation_is_caught_even_without_the_rhdh_prefix(tmp_path)
 
     assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
     assert "/prose-edit" in messages(report, "UNKNOWN_SKILL_REFERENCE")[0]
+
+
+def test_an_exact_retired_single_token_skill_citation_is_caught(tmp_path):
+    """Single-token skill names must not evade validation's citation grammar."""
+    module = load_validator()
+    root = write_repository(
+        tmp_path,
+        [entry("rhdh-pr-review", category="plugins"), entry("prose-editing", category="reference")],
+        skill_bodies={"rhdh-pr-review": "\nRun `/humanizer` before returning the review.\n"},
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
+    assert "/humanizer" in messages(report, "UNKNOWN_SKILL_REFERENCE")[0]
+
+
+def test_a_retired_single_token_skill_citation_in_a_workflow_is_caught(tmp_path):
+    module = load_validator()
+    root = write_repository(tmp_path, [entry("alpha")])
+    workflow = root / "skills" / "meta" / "alpha" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text("Run `/humanizer` before returning the draft.\n", encoding="utf-8")
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
+    assert "workflows/compose.md" in messages(report, "UNKNOWN_SKILL_REFERENCE")[0]
+
+
+def test_a_declared_external_single_token_skill_citation_is_valid(tmp_path):
+    """Expanding the grammar must preserve declared external composition."""
+    module = load_validator()
+    root = write_repository(
+        tmp_path,
+        [entry("alpha")],
+        skill_bodies={"alpha": "\nRun `/handoff` when context must survive the session.\n"},
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" not in codes(report)
 
 
 def test_a_url_route_that_looks_like_a_citation_is_not_reported(tmp_path):

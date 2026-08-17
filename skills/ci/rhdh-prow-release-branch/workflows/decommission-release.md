@@ -26,6 +26,16 @@ Read `../references/release-branch-config.md` for file paths and templates.
 
 6. **Confirm completion**: Summarize what was removed
 
+7. **Author the pull request**:
+   - Use a direct title such as `ci: remove RHDH {version} release branch jobs`.
+   - In the body, name the removed config, generated jobs, and branch-protection
+     block. Include `make update` in the test plan and state the recovery path.
+   - Invoke `/prose-editing` once on the completed title and body in the
+     **flavored** register. Preserve paths, job names, contexts, versions,
+     commands, and checklist state.
+   - Show the edited title and body in `/mutation-gate`, then open the PR only
+     after approval. The forge command only transports the approved strings.
+
 ## Important Notes
 
 - This operation is destructive -- always confirm with the user before proceeding

@@ -44,6 +44,17 @@ Read `../references/release-branch-config.md` for file paths, templates, and rel
    - Confirm generated job files exist: `ls ci-operator/jobs/redhat-developer/rhdh/redhat-developer-rhdh-release-{version}-*.yaml`
    - Show a summary of what was created
 
+9. **Author the pull request**:
+   - Use a direct title such as `ci: add RHDH {version} release branch jobs`.
+   - In the body, summarize the config, generated jobs, branch protection, and
+     Slack/Vault readiness. Include `make update` in the test plan and name every
+     generated job file.
+   - Invoke `/prose-editing` once on the completed title and body in the
+     **flavored** register. Preserve paths, job names, contexts, versions,
+     commands, and checklist state.
+   - Show the edited title and body in `/mutation-gate`, then open the PR only
+     after approval. The forge command only transports the approved strings.
+
 ## Important Notes
 
 - Always confirm OCP/K8s/OSD versions with the user before finalizing

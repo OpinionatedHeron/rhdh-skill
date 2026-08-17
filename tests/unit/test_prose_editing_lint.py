@@ -15,23 +15,29 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SKILL = PROJECT_ROOT / "skills" / "reference" / "prose-editing"
 SCRIPT = SKILL / "scripts" / "lint.py"
-REFERENCES = (SKILL / "references" / "mechanical.md", SKILL / "references" / "voice.md")
+REFERENCES = (
+    SKILL / "references" / "mechanical.md",
+    SKILL / "references" / "compression.md",
+    SKILL / "references" / "voice.md",
+)
 
-# seamless + leverage (ai_vocabulary), cutting-edge (promotional), one em dash,
+# seamless + leverage (ai_vocabulary), cutting-edge (promotional), one em dash marker,
 # "it is important to note" (modal_hedge, and nowhere else), "serves as"
 # (copula_avoidance), "I hope this helps" (chatbot_residue), the not-just
-# parallelism, and two contractions. Ten violations over 31 words.
+# parallelism, and two contractions. Nine scored violations over 31 words.
 SLOPPY = (
     "This seamless platform will leverage cutting-edge tooling — it is "
     "important to note that the parser serves as a gateway. I hope this helps! "
     "It's not just a parser, it's a platform."
 )
 SLOPPY_WORDS = 31
-SLOPPY_TOTAL = 10
-SLOPPY_PER100W = 32.26
+SLOPPY_TOTAL = 9
+SLOPPY_PER100W = 29.03
 
 PLAIN = "The parser reads the file. Then it writes the result."
 PLAIN_WORDS = 10
@@ -57,10 +63,11 @@ VOICED = (
 VOICED_WORDS = 36
 VOICED_TOTAL = 6
 VOICED_PER100W = 16.67
-# staccato_drama once and boldface_overuse twice are the voice layer. The
+# staccato_drama is the voice layer. Boldface overuse is mechanical because it
+# applies to every register. The
 # `## Conclusion` heading, "the future looks bright" and "plays a vital role"
 # are mechanical, because a README closes that way too.
-VOICED_VOICE_LAYER = 3
+VOICED_VOICE_LAYER = 1
 
 # Every term the modern marketing register runs on. Each one has to score
 # somewhere; which list owns it is an implementation detail.
@@ -88,6 +95,7 @@ CONTRACT_KEYS = {
     "score_version",
     "register",
     "quote_safe",
+    "voice_sample",
     "words",
     "sentences",
     "violations",
@@ -98,6 +106,7 @@ CONTRACT_KEYS = {
     "over_bar",
     "longest_sentence_words",
     "markers",
+    "manual_checks",
     "samples",
     "delta",
 }
@@ -168,14 +177,14 @@ def run_lint_bytes(*args: str, stdin: bytes) -> subprocess.CompletedProcess[byte
 # --------------------------------------------------------------------------
 
 
-def test_a_puffed_paragraph_scores_ten_over_thirty_one_words():
+def test_a_puffed_paragraph_scores_nine_over_thirty_one_words():
     report = load_lint().lint(SLOPPY)
     violations = report["violations"]
 
     assert report["register"] == "flavored"
     assert report["bar"] == 2.5
     assert report["words"] == SLOPPY_WORDS
-    assert violations["em_dash"] == 1
+    assert violations["em_dash"] == 0
     assert violations["ai_vocabulary"] == 2
     assert violations["promotional"] == 1
     assert violations["modal_hedge"] == 1
@@ -186,7 +195,7 @@ def test_a_puffed_paragraph_scores_ten_over_thirty_one_words():
     assert report["total"] == SLOPPY_TOTAL
     assert report["total_per100w"] == SLOPPY_PER100W
     assert report["over_bar"] is True
-    assert report["by_layer"]["mechanical"] == 8
+    assert report["by_layer"]["mechanical"] == 7
     assert report["by_layer"]["compression"] == 2
     assert report["by_layer"]["voice"] == 0
 
@@ -205,10 +214,13 @@ def test_the_report_carries_every_contract_key():
     report = load_lint().lint(PLAIN)
 
     assert set(report) == CONTRACT_KEYS
-    assert report["score_version"] == 5
+    assert report["score_version"] == 6
     assert report["quote_safe"] is False
+    assert report["voice_sample"] is False
     assert report["delta"] is None
-    assert report["markers"] == {"noun_train": 0, "rule_of_three": 0}
+    assert set(report["markers"]) == set(load_lint().MARKERS)
+    assert not any(report["markers"].values())
+    assert report["manual_checks"] == list(load_lint().MANUAL_CHECKS)
     assert report["longest_sentence_words"] == 5
 
 
@@ -250,7 +262,7 @@ def test_every_phrase_scores_its_own_category_exactly_once():
     wrong = []
     for name, phrases in module.PHRASE_LISTS.items():
         for phrase in phrases:
-            report = module.lint(f"The tool {phrase} the file.", register="review")
+            report = module.lint(f"The tool {phrase} the file.", register="audit")
             scored = {
                 category: count
                 for category, count in report["violations"].items()
@@ -265,11 +277,13 @@ def test_every_phrase_scores_its_own_category_exactly_once():
 def test_an_em_dash_scores_and_a_range_and_a_posix_separator_do_not():
     module = load_lint()
 
-    report = module.lint("Pass the --json flag. The build failed -- the cache was stale.")
+    report = module.lint(
+        "Pass the --json flag. The build failed -- the cache was stale. Retry -- once."
+    )
     assert report["violations"]["em_dash"] == 1
     assert report["total"] == 1
 
-    assert module.lint("The build failed — the cache was stale.")["violations"]["em_dash"] == 1
+    assert module.lint("The build failed — the cache was stale.")["violations"]["em_dash"] == 0
     # An en dash is the correct character for a range, and the spaced double
     # hyphen after a command is POSIX end-of-options, not punctuation.
     assert module.lint("The window is 10–20 seconds.")["violations"]["em_dash"] == 0
@@ -281,7 +295,7 @@ def test_an_em_dash_scores_and_a_range_and_a_posix_separator_do_not():
         == 0
     )
     # A free-standing en dash is still a dash doing a period's work.
-    assert module.lint("The build failed – the cache was stale.")["violations"]["em_dash"] == 1
+    assert module.lint("The build failed – the cache was stale.")["violations"]["em_dash"] == 0
 
 
 def test_the_not_just_parallelism_stops_at_a_paragraph_break():
@@ -304,8 +318,8 @@ def test_stdin_decodes_utf8_no_matter_the_platform_default(tmp_path):
     piped = run_lint_bytes("--json", stdin=text.encode("utf-8"))
     from_stdin = json.loads(piped.stdout.decode("utf-8"))
 
-    assert from_file["violations"]["em_dash"] == 2
-    assert from_stdin["violations"]["em_dash"] == 2
+    assert from_file["violations"]["em_dash"] == 1
+    assert from_stdin["violations"]["em_dash"] == 1
     assert from_stdin["words"] == from_file["words"]
     assert "file" not in from_stdin
 
@@ -334,7 +348,7 @@ def test_yaml_frontmatter_is_not_prose():
     assert framed["violations"]["ai_vocabulary"] == 0
 
 
-def test_table_rows_are_not_prose_and_produce_no_noun_train():
+def test_table_cells_are_first_party_prose_by_default():
     report = load_lint().lint(
         "The glossary lists replacements.\n\n"
         "| Avoid | Use |\n"
@@ -343,10 +357,10 @@ def test_table_rows_are_not_prose_and_produce_no_noun_train():
         "| leverage | use |\n"
     )
 
-    assert report["words"] == 4
-    assert report["total"] == 0
-    assert report["violations"]["phrasal_verb"] == 0
-    assert report["markers"]["noun_train"] == 0
+    assert report["words"] == 13
+    assert report["total"] == 3
+    assert report["violations"]["phrasal_verb"] == 2
+    assert report["violations"]["ai_vocabulary"] == 1
 
 
 def test_link_targets_are_dropped_and_link_text_is_kept():
@@ -361,7 +375,7 @@ def test_link_targets_are_dropped_and_link_text_is_kept():
     assert report["markers"]["noun_train"] == 0
 
 
-def test_blockquotes_and_code_are_not_scored():
+def test_blockquotes_are_prose_by_default_and_code_is_not_scored():
     module = load_lint()
 
     quoted = module.lint(
@@ -375,8 +389,15 @@ def test_blockquotes_and_code_are_not_scored():
         "Call `supercharge` to continue.\n"
     )
 
-    assert quoted["words"] == 4
-    assert quoted["total"] == 0
+    assert quoted["words"] == 15
+    assert quoted["total"] == 4
+    assert (
+        module.lint(
+            "> This seamless platform will leverage cutting-edge tooling.\n",
+            quote_safe=True,
+        )["total"]
+        == 0
+    )
     assert fenced["words"] == 8
     assert fenced["total"] == 0
 
@@ -434,7 +455,7 @@ def test_each_register_scores_its_own_layers():
 
     flavored = module.lint(PLAIN)
     voiced = module.lint(PLAIN, register="voiced")
-    review = module.lint(PLAIN, register="review")
+    audit = module.lint(PLAIN, register="audit")
 
     assert set(module.MECHANICAL) <= set(flavored["violations"])
     assert set(module.COMPRESSION) - {"strict_banned_word"} <= set(flavored["violations"])
@@ -444,24 +465,24 @@ def test_each_register_scores_its_own_layers():
     assert set(module.COMPRESSION).isdisjoint(voiced["violations"])
     assert voiced["bar"] == 2.0
 
-    assert set(review["violations"]) == (
+    assert set(audit["violations"]) == (
         set(module.MECHANICAL) | set(module.COMPRESSION) | set(module.VOICE)
     )
-    assert review["bar"] is None
-    assert review["over_bar"] is False
+    assert audit["bar"] is None
+    assert audit["over_bar"] is False
 
 
-def test_review_reports_the_strict_word_set_because_it_cannot_know_the_document_type():
+def test_audit_reports_the_strict_word_set_because_it_cannot_know_the_document_type():
     """A read-only pass over a runbook must still surface the procedure word set."""
     module = load_lint()
     runbook = "You should follow the runbook using the listed steps."
 
-    review = module.lint(runbook, register="review")
+    audit = module.lint(runbook, register="audit")
     flavored = module.lint(runbook, register="flavored")
 
-    assert review["violations"]["strict_banned_word"] >= 3
+    assert audit["violations"]["strict_banned_word"] >= 3
     assert "strict_banned_word" not in flavored["violations"]
-    assert review["bar"] is None, "review reports; it never gates"
+    assert audit["bar"] is None, "audit reports; it never gates"
 
 
 def test_the_voice_layer_scores_drama_boldface_conclusions_and_inflation():
@@ -485,16 +506,21 @@ def test_a_send_off_and_an_inflated_claim_score_in_every_register():
     module = load_lint()
     text = "In conclusion, the release marks a turning point for the platform.\n"
 
-    for register in ("strict", "flavored", "voiced", "review"):
+    for register in ("strict", "flavored", "voiced", "audit"):
         report = module.lint(text, register=register)
         assert report["violations"]["generic_conclusion"] == 1, register
         assert report["violations"]["significance_inflation"] == 1, register
         assert report["by_layer"]["mechanical"] >= 2, register
 
-    # The two that stayed behind: short steps are right in a runbook and a bold
-    # defined term is right in a README.
-    assert set(module.VOICE) == {"staccato_drama", "boldface_overuse"}
-    assert {"generic_conclusion", "significance_inflation"} <= set(module.MECHANICAL)
+    # Short steps remain voice-specific. Repeated decorative boldface applies
+    # everywhere, while one defined term stays below its cluster threshold.
+    assert set(module.VOICE) == {"staccato_drama"}
+    assert {
+        "boldface_overuse",
+        "generic_conclusion",
+        "significance_inflation",
+    } <= set(module.MECHANICAL)
+    assert module.lint("The **parser** reads the file.")["violations"]["boldface_overuse"] == 0
 
 
 def test_markers_are_reported_and_never_added_to_the_total():
@@ -568,7 +594,7 @@ def test_false_ranges_ignore_real_numbers_and_real_conversions():
 def test_emoji_covers_pictographs_and_leaves_punctuation_alone():
     module = load_lint()
 
-    decorated = module.lint("🚀 The build shipped. ✅ Tests pass. “done”\n")
+    decorated = module.lint("🚀 The build shipped. ✅ Tests pass. “done” and “ship”.\n")
     punctuation = module.lint("The arrow → and the ellipsis … are not emoji.")
 
     assert decorated["violations"]["emoji"] == 2
@@ -662,7 +688,8 @@ def test_a_baseline_adds_a_delta(tmp_path):
     draft = tmp_path / "draft.md"
     draft.write_text(SLOPPY, encoding="utf-8")
     baseline = tmp_path / "before.json"
-    baseline.write_text(json.dumps({"file": str(draft), "total_per100w": 40.0}), encoding="utf-8")
+    before = json.loads(run_lint("--json", str(draft)).stdout)
+    baseline.write_text(json.dumps({**before, "total_per100w": 40.0}), encoding="utf-8")
 
     improved = json.loads(run_lint("--json", "--baseline", str(baseline), str(draft)).stdout)
     assert improved["delta"] == {
@@ -671,13 +698,11 @@ def test_a_baseline_adds_a_delta(tmp_path):
         "improved": True,
     }
 
-    baseline.write_text(json.dumps({"file": str(draft), "total_per100w": 1.0}), encoding="utf-8")
+    baseline.write_text(json.dumps({**before, "total_per100w": 1.0}), encoding="utf-8")
     worse = json.loads(run_lint("--json", "--baseline", str(baseline), str(draft)).stdout)
     assert worse["delta"] == {"before": 1.0, "after": SLOPPY_PER100W, "improved": False}
 
-    baseline.write_text(
-        json.dumps({"file": str(draft), "total_per100w": SLOPPY_PER100W}), encoding="utf-8"
-    )
+    baseline.write_text(json.dumps({**before, "total_per100w": SLOPPY_PER100W}), encoding="utf-8")
     equal = json.loads(run_lint("--json", "--baseline", str(baseline), str(draft)).stdout)
     assert equal["delta"] == {
         "before": SLOPPY_PER100W,
@@ -686,7 +711,7 @@ def test_a_baseline_adds_a_delta(tmp_path):
     }
 
 
-def test_a_baseline_for_another_file_reports_no_delta(tmp_path):
+def test_a_baseline_for_another_file_is_a_hard_mismatch(tmp_path):
     """The delta paired on position, so an unrelated baseline invented one.
 
     Linting an unedited file against somebody else's baseline reported
@@ -695,22 +720,29 @@ def test_a_baseline_for_another_file_reports_no_delta(tmp_path):
     draft = tmp_path / "draft.md"
     draft.write_text(PLAIN, encoding="utf-8")
     baseline = tmp_path / "before.json"
+    before = json.loads(run_lint("--json", str(draft)).stdout)
     baseline.write_text(
-        json.dumps({"file": str(tmp_path / "other.md"), "total_per100w": 42.86}), encoding="utf-8"
+        json.dumps({**before, "file": str(tmp_path / "other.md")}), encoding="utf-8"
     )
 
-    report = json.loads(run_lint("--json", "--baseline", str(baseline), str(draft)).stdout)
-    assert report["delta"] is None
+    result = run_lint("--json", "--baseline", str(baseline), str(draft))
+    assert result.returncode == 2
+    assert "baseline mismatch" in result.stderr
 
     # A named current file never pairs with an unnamed baseline report either.
-    baseline.write_text(json.dumps({"total_per100w": 42.86}), encoding="utf-8")
-    unnamed = json.loads(run_lint("--json", "--baseline", str(baseline), str(draft)).stdout)
-    assert unnamed["delta"] is None
+    anonymous = {
+        key: value for key, value in before.items() if key not in {"file", "file_identity"}
+    }
+    baseline.write_text(json.dumps(anonymous), encoding="utf-8")
+    unnamed = run_lint("--json", "--baseline", str(baseline), str(draft))
+    assert unnamed.returncode == 2
+    assert "baseline mismatch" in unnamed.stderr
 
 
 def test_a_single_unnamed_baseline_pairs_with_a_single_unnamed_run(tmp_path):
     baseline = tmp_path / "before.json"
-    baseline.write_text(json.dumps({"total_per100w": 40.0}), encoding="utf-8")
+    before = json.loads(run_lint("--json", stdin=SLOPPY).stdout)
+    baseline.write_text(json.dumps({**before, "total_per100w": 40.0}), encoding="utf-8")
 
     piped = run_lint("--json", "--baseline", str(baseline), stdin=SLOPPY)
     assert json.loads(piped.stdout)["delta"] == {
@@ -720,10 +752,18 @@ def test_a_single_unnamed_baseline_pairs_with_a_single_unnamed_run(tmp_path):
     }
 
     baseline.write_text(
-        json.dumps([{"total_per100w": 40.0}, {"total_per100w": 3.0}]), encoding="utf-8"
+        json.dumps(
+            [
+                {**before, "total_per100w": 40.0},
+                {**before, "total_per100w": 3.0},
+            ]
+        ),
+        encoding="utf-8",
     )
     ambiguous = run_lint("--json", "--baseline", str(baseline), stdin=SLOPPY)
     assert json.loads(ambiguous.stdout)["delta"] is None
+    assert ambiguous.returncode == 2
+    assert "baseline ambiguous" in ambiguous.stderr
 
 
 def test_an_unreadable_path_is_reported_and_the_run_continues(tmp_path):
@@ -795,7 +835,7 @@ def test_output_survives_a_console_that_is_not_utf8(tmp_path):
     on the write rather than on anything about the prose.
     """
     draft = tmp_path / "café.md"
-    draft.write_text("The build failed — the cache was stale.\n", encoding="utf-8")
+    draft.write_text("The build failed — the cache was stale. Retry — once.\n", encoding="utf-8")
     ascii_console = {**os.environ, "PYTHONIOENCODING": "ascii"}
 
     lines = subprocess.run(
@@ -857,8 +897,8 @@ def test_a_hard_wrapped_paragraph_reads_as_whole_sentences():
     """Splitting on newlines hid the long sentences and invented short ones."""
     module = load_lint()
 
-    wrapped = module.lint(WRAPPED, register="review")
-    joined = module.lint(" ".join(WRAPPED.split()), register="review")
+    wrapped = module.lint(WRAPPED, register="audit")
+    joined = module.lint(" ".join(WRAPPED.split()), register="audit")
 
     assert wrapped["sentences"] == joined["sentences"] == 2
     assert wrapped["longest_sentence_words"] == joined["longest_sentence_words"] == 34
@@ -878,7 +918,7 @@ def test_a_wrapped_paragraph_is_not_a_long_paragraph():
         "worth taking today.\n"
     )
 
-    report = module.lint(seven_lines, register="review")
+    report = module.lint(seven_lines, register="audit")
 
     assert report["sentences"] == 2
     assert report["violations"]["long_paragraph"] == 0
@@ -946,7 +986,7 @@ def test_nominalization_needs_a_noun_that_names_an_action():
     action = module.lint("The installation of the plugin precedes the migration of the data.")
     things = module.lint(
         "An instance of the class, the distance of the run, and the sentence of the paragraph.",
-        register="review",
+        register="audit",
     )
 
     assert action["violations"]["nominalization"] == 2
@@ -957,7 +997,7 @@ def test_passive_voice_leaves_predicate_adjectives_alone():
     module = load_lint()
     report = module.lint(
         "The field is indeed correct. The value is missing. The token is required.",
-        register="review",
+        register="audit",
     )
     real = module.lint("The chart was installed by the operator. The pod is restarted.")
 
@@ -968,17 +1008,17 @@ def test_passive_voice_leaves_predicate_adjectives_alone():
 
 def test_one_verb_phrase_and_one_apostrophe_score_once():
     module = load_lint()
-    perfect = module.lint("The chart has been deployed to the cluster.", register="review")
-    curly = module.lint("It doesn’t restart. The operator’s log is short.", register="review")
-    utilization = module.lint("The utilization of the cache is high.", register="review")
+    perfect = module.lint("The chart has been deployed to the cluster.", register="audit")
+    curly = module.lint("It doesn’t restart. The operator’s log is short.", register="audit")
+    utilization = module.lint("The utilization of the cache is high.", register="audit")
 
     assert perfect["violations"]["complex_tense"] == 1
     assert perfect["violations"]["passive_voice"] == 0
 
-    # The contraction owns its apostrophe; the possessive one is still a curly
-    # quote, because no other category scored it.
+    # The contraction owns its apostrophe. One possessive apostrophe is only a
+    # singleton typography marker, so it does not contribute to the score.
     assert curly["violations"]["contraction"] == 1
-    assert curly["violations"]["curly_quote"] == 1
+    assert curly["violations"]["curly_quote"] == 0
 
     assert utilization["violations"]["ai_vocabulary"] == 1
     assert utilization["violations"]["nominalization"] == 0
@@ -1026,6 +1066,18 @@ def test_false_ranges_stay_linear_on_a_large_document():
 
     assert count == 16000
     assert elapsed < 3.0, f"false_ranges took {elapsed:.1f}s on {len(document)} characters"
+
+
+def test_passive_span_ownership_stays_linear_on_a_large_document():
+    module = load_lint()
+    document = "The chart has been deployed. The pod was restarted by the operator. " * 8000
+
+    started = time.monotonic()
+    count, _ = module.passive_voices(document)
+    elapsed = time.monotonic() - started
+
+    assert count == 8000
+    assert elapsed < 3.0, f"passive_voices took {elapsed:.1f}s on {len(document)} characters"
 
 
 # --------------------------------------------------------------------------
@@ -1169,7 +1221,7 @@ def test_every_documented_example_scores_the_category_it_teaches():
 
     missed = []
     for category, example, path in examples:
-        report = module.lint(example, register="review")
+        report = module.lint(example, register="audit")
         count = report["violations"].get(category, report["markers"].get(category))
         assert count is not None, f"{path.name} documents an unknown category {category}"
         if not count:
@@ -1194,7 +1246,7 @@ def test_the_documented_rewrites_score_nothing_in_their_category():
     }
 
     for category, rewrite in rewrites.items():
-        report = module.lint(rewrite, register="review")
+        report = module.lint(rewrite, register="audit")
         assert report["violations"][category] == 0, (category, rewrite)
 
 
@@ -1243,3 +1295,203 @@ def test_an_ai_marketing_page_lands_far_over_every_bar():
     assert flavored["over_bar"] is True
     assert voiced["total_per100w"] > 10.0
     assert voiced["over_bar"] is True
+
+
+# --------------------------------------------------------------------------
+# Repaired public contract
+# --------------------------------------------------------------------------
+
+
+def test_audit_is_the_only_no_edit_register():
+    module = load_lint()
+
+    report = module.lint("The file was written by the script.", register="audit")
+
+    assert report["register"] == "audit"
+    assert report["bar"] is None
+    assert report["violations"]["passive_voice"] == 1
+    with pytest.raises(ValueError, match="unknown register"):
+        module.lint("The file was written by the script.", register="review")
+
+
+def test_instruction_and_descriptive_sentences_have_different_length_caps():
+    module = load_lint()
+    instruction = "Remove the " + " ".join(f"item{index}" for index in range(20)) + "."
+    description = "The parser reads " + " ".join(f"item{index}" for index in range(19)) + "."
+
+    assert module.word_count(instruction) == module.word_count(description) == 22
+    assert module.lint(instruction)["violations"]["long_sentence"] == 1
+    assert module.lint(description)["violations"]["long_sentence"] == 0
+
+    too_long = "The parser reads " + " ".join(f"item{index}" for index in range(23)) + "."
+    assert module.word_count(too_long) == 26
+    assert module.lint(too_long)["violations"]["long_sentence"] == 1
+
+
+def test_singleton_typography_and_transition_tells_need_a_cluster_or_voice_mismatch(tmp_path):
+    module = load_lint()
+
+    singleton = module.lint("However, the writer said “ship it” — once.")
+    assert singleton["violations"]["em_dash"] == 0
+    assert singleton["violations"]["curly_quote"] == 0
+    assert singleton["violations"]["transition_stack"] == 0
+
+    clustered = module.lint(
+        "However, the writer said “ship it” — once. Moreover, she said “today” — twice."
+    )
+    assert clustered["violations"]["em_dash"] == 1
+    assert clustered["violations"]["curly_quote"] == 2
+    assert clustered["violations"]["transition_stack"] == 1
+
+    sample = "However, I use “quotes” — at this rate."
+    matched = module.lint(
+        "However, the writer said “ship it” — once. Moreover, she said “today” — twice.",
+        register="voiced",
+        voice_sample=sample,
+    )
+    assert matched["violations"]["em_dash"] == 0
+    assert matched["violations"]["curly_quote"] == 0
+    assert matched["violations"]["transition_stack"] == 0
+
+    draft = tmp_path / "draft.md"
+    voice = tmp_path / "voice.md"
+    draft.write_text(
+        clustered["samples"]["em_dash"][0] and "Two — dashes — here.", encoding="utf-8"
+    )
+    voice.write_text("One — dash.", encoding="utf-8")
+    cli = run_lint("--json", "--register", "voiced", "--voice-sample", str(voice), str(draft))
+    assert cli.returncode == 0
+    assert json.loads(cli.stdout)["voice_sample"] == str(voice)
+
+
+def test_first_party_markdown_prose_is_linted_and_quote_safe_protects_quoted_material():
+    module = load_lint()
+    text = (
+        "> [!NOTE]\n"
+        "> The robust platform is seamless.\n\n"
+        "| Field | Description |\n"
+        "| --- | --- |\n"
+        "| mode | The powerful mode will leverage automation. |\n"
+    )
+
+    report = module.lint(text)
+    safe = module.lint(text, quote_safe=True)
+
+    assert report["violations"]["promotional"] == 1
+    assert report["violations"]["ai_vocabulary"] == 3
+    assert safe["violations"]["promotional"] == 0
+    assert safe["violations"]["ai_vocabulary"] == 0
+    assert safe["words"] < report["words"]
+
+
+def test_markdown_delimiters_and_identifiers_are_protected_only_when_they_match():
+    module = load_lint()
+    protected = (
+        "````text\nThe robust platform will leverage tooling.\n````\n"
+        "The ``robust leverage`` identifier stays.\n"
+        "The robust_setting and leverageMode identifiers stay.\n"
+        "[robust label](https://example.com/leverage) stays visible.\n"
+    )
+    mismatched = "````text\nThe robust platform will leverage tooling.\n```\n"
+
+    clean = module.lint(protected)
+    exposed = module.lint(mismatched)
+
+    assert clean["violations"]["ai_vocabulary"] == 1  # link label is prose
+    assert clean["violations"]["promotional"] == 0
+    assert exposed["violations"]["ai_vocabulary"] == 2
+    assert exposed["violations"]["promotional"] == 0
+
+
+def test_low_confidence_humanizer_patterns_are_markers_not_guessed_violations():
+    module = load_lint()
+    text = (
+        "Her work received independent coverage from national media outlets. "
+        "Details are not publicly available, so she likely keeps a low profile. "
+        "To be clear, this is not really about documentation. "
+        "A tempting approach would be to restart the service, but that drops sessions.\n\n"
+        "## Future outlook\n\n"
+        "This feature was added to replace the previous implementation.\n\n"
+        "She opened the file. She read the file. She closed the file.\n\n"
+        "The report is high-quality.\n"
+    )
+
+    report = module.lint(text, register="audit")
+
+    for category in (
+        "notability_padding",
+        "knowledge_gap",
+        "unsupported_objection",
+        "fake_alternative",
+        "formulaic_section",
+        "previous_version_frame",
+        "repeated_opening",
+        "predicate_hyphenation",
+    ):
+        assert report["markers"][category] >= 1, category
+        assert category not in report["violations"]
+
+
+def test_context_sensitive_new_vocabulary_is_marked_for_manual_review():
+    module = load_lint()
+    report = module.lint(
+        "The actually valuable change quietly gated a key path. "
+        "Heads up, the next paragraph explains it.",
+        register="audit",
+    )
+
+    assert report["markers"]["watched_vocabulary"] == 5
+    assert report["markers"]["casual_signposting"] == 1
+
+
+def test_baselines_require_compatible_metadata_and_an_exact_unique_identity(tmp_path):
+    draft = tmp_path / "draft.md"
+    other = tmp_path / "other.md"
+    baseline = tmp_path / "baseline.json"
+    draft.write_text(SLOPPY, encoding="utf-8")
+    other.write_text(SLOPPY, encoding="utf-8")
+
+    before = json.loads(run_lint("--json", str(draft)).stdout)
+    baseline.write_text(json.dumps(before), encoding="utf-8")
+    draft.write_text(PLAIN, encoding="utf-8")
+
+    matched = run_lint("--json", "--baseline", str(baseline), str(draft))
+    assert matched.returncode == 0
+    assert json.loads(matched.stdout)["delta"]["improved"] is True
+
+    for field, incompatible in (
+        ("score_version", before["score_version"] - 1),
+        ("register", "strict"),
+        ("quote_safe", True),
+    ):
+        changed = {**before, field: incompatible}
+        baseline.write_text(json.dumps(changed), encoding="utf-8")
+        result = run_lint("--json", "--baseline", str(baseline), str(draft))
+        assert result.returncode == 2, field
+        assert "baseline incompatible" in result.stderr
+
+    mismatch = {**before, "file": str(other)}
+    baseline.write_text(json.dumps(mismatch), encoding="utf-8")
+    result = run_lint("--json", "--baseline", str(baseline), str(draft))
+    assert result.returncode == 2
+    assert "baseline mismatch" in result.stderr
+
+    baseline.write_text(json.dumps([before, before]), encoding="utf-8")
+    ambiguous = run_lint("--json", "--baseline", str(baseline), str(draft))
+    assert ambiguous.returncode == 2
+    assert "baseline ambiguous" in ambiguous.stderr
+
+
+def test_report_names_the_rules_that_still_require_manual_judgment():
+    report = load_lint().lint("The parser reads the file.")
+
+    assert report["manual_checks"] == list(load_lint().MANUAL_CHECKS)
+    assert {
+        "claim_preservation",
+        "voice_fidelity",
+        "terminology_consistency",
+        "article_use",
+        "paragraph_focus",
+        "safety_labels",
+        "quotation_ownership",
+    } <= set(report["manual_checks"])

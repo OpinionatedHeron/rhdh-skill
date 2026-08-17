@@ -1,8 +1,7 @@
 # Compression layer
 
-Loaded in `strict` and `flavored`. Not loaded in `voiced`, where compressing
-prose to twenty-word sentences would remove the voice that register exists to
-protect.
+Loaded in `strict` and `flavored`. Not loaded in `voiced`, where fixed sentence
+caps would remove the voice that register exists to protect.
 
 This is Simplified Technical English discipline: short sentences, plain words,
 named actors, one name per thing. It shapes how a sentence is built. The
@@ -18,8 +17,10 @@ the end of Structure and stop there.
 
 ### `long_sentence`
 
-Over twenty words. Split at the natural joint, usually a conjunction or a
-relative pronoun.
+An instruction has at most 20 words. A descriptive sentence has at most 25.
+Classify by function, not by punctuation: an imperative step or a sentence
+that tells the reader what to do is an instruction. Split at the natural joint,
+usually a conjunction or a relative pronoun.
 
 > When the plugin export overlay is regenerated after an upstream release, the
 > workflow opens a pull request against the overlays repository so that the
@@ -29,10 +30,9 @@ relative pronoun.
 > It then opens a pull request against the overlays repository. The plugin
 > catalog picks up the new version on the next build.
 
-Split by adding a period, never by deleting a qualifier. A condition, a
-version, or a scope word that was in the draft stays in the rewrite even when
-the sentence goes back over twenty words. Keep the long sentence and say why in
-the report.
+Split by adding a period, never by deleting a qualifier. A condition, version,
+or scope word that was in the draft stays even when the sentence remains over
+its limit. Keep the long sentence and report the reason.
 
 ### `semicolon`
 
@@ -160,6 +160,19 @@ first time it appears, and is the only form used from then on.
 
 This rule is not lintable. Read for it.
 
+### One meaning per word
+
+Use a word with the same meaning throughout the document. Do not use `fall` for
+both physical movement and a decrease, or `follow` for both sequence and
+obedience. Keep established technical meanings and replace only the ambiguous
+use. This rule requires judgment.
+
+### American spelling
+
+Use American spelling in compressed technical prose: `color`, `behavior`,
+`catalog`, and `license` as the noun. Do not alter product names, quotations,
+identifiers, or a repository's explicit house style.
+
 ## Structure
 
 ### Keep the articles
@@ -220,6 +233,7 @@ the wrong command.
 | using | with, or `use` as the verb |
 | follow, follows, followed | do, or `do the steps in` |
 | may | can for ability, might for possibility |
+| press | push, for a physical control |
 
 The match on `may` is case-sensitive, so the month is not flagged.
 

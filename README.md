@@ -84,9 +84,10 @@ Jira creation depend on, so those flows stop rather than guess. `/handoff` is
 what carries context into a later session, which is why this pack ships no
 artifact store of its own.
 
-Prose that leaves the pack goes through `/prose-editing` first, so a review or a
-freeze announcement does not go out reading like a machine wrote it. Run
-`/clean-prose` to put your own draft through the same pass.
+Free-form GitHub, GitLab, Jira, and Slack prose goes through `/prose-editing`
+exactly once at its final composer. Structured payloads, commands, generated
+reports, and local authoring artifacts do not. Run `/clean-prose` with pasted
+text or a file path to put your own draft through the same pass.
 
 Every external write goes through the write gate. The skill states each operation
 with its target, exact command, preview, and what happens on failure; you approve

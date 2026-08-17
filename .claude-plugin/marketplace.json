@@ -43,6 +43,7 @@
       "skills": [
         "./skills/ci/rhdh-base-images",
         "./skills/reference/mutation-gate",
+        "./skills/reference/prose-editing",
         "./skills/ci/rhdh-konflux-tasks",
         "./skills/ci/rhdh-prow-jobs",
         "./skills/ci/rhdh-prow-release-branch",
@@ -60,6 +61,7 @@
         "./skills/plugins/rhdh-local",
         "./skills/plugins/rhdh-overlay",
         "./skills/reference/mutation-gate",
+        "./skills/reference/prose-editing",
         "./skills/plugins/rhdh-plugin-authoring",
         "./skills/plugins/rhdh-plugin-bug-fix",
         "./skills/reference/rhdh-forge",
@@ -69,7 +71,6 @@
         "./skills/plugins/rhdh-plugin-wiring",
         "./skills/plugins/rhdh-pr-create",
         "./skills/plugins/rhdh-pr-review",
-        "./skills/reference/prose-editing",
         "./skills/plugins/rhdh-test-placement"
       ]
     },
@@ -80,6 +81,7 @@
       "skills": [
         "./skills/jira/rhdh-jira-create",
         "./skills/reference/rhdh-jira-api",
+        "./skills/reference/prose-editing",
         "./skills/reference/rhdh-jira-authoring",
         "./skills/reference/mutation-gate",
         "./skills/jira/rhdh-jira-link",

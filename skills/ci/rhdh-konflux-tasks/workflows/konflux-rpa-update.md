@@ -87,6 +87,11 @@ On success the script:
 7. Verifies the MR includes file changes before opening the browser
 8. Opens the MR URL in the first available browser: **Brave → Chrome → Firefox**
 
+The script owns a fixed MR template, so it does not invoke an agent at runtime.
+Maintain that template under static `/prose-editing` lint in the **flavored**
+register. Preserve `Generated-by: cursor`, version values, tag lists, headings,
+and the empty Tickets section. The `glab api` call only transports the template.
+
 Use `--dry-run` to preview tag changes without modifying files or opening an MR.
 
 ## Validation

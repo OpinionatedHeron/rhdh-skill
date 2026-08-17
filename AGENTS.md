@@ -90,11 +90,13 @@ Do not add them to promoted manifests or catalogs.
   artifacts remain credential-free. Setup owns login and never creates a
   parallel credential store.
 - `/rhdh-context` owns shared repository and version context.
-- `/prose-editing` owns the prose pass. A PR-review draft and a freeze
-  announcement both go through it before anyone sees them: `/rhdh-pr-review`
-  invokes it in the flavored register, `/rhdh-release-announce` in the voiced
-  one. The caller names the register, because the caller knows what kind of
-  document it wrote.
+- `/prose-editing` owns the prose pass. The final composer invokes it exactly
+  once for free-form GitHub, GitLab, Jira, or Slack prose before anybody sees,
+  gates, or posts that text. The caller names the register because it knows what
+  it wrote. Helpers invoke it only when they return the final prose directly;
+  transport layers never do. Structured payloads, fixed commands, checksums,
+  generated reports, and local documents with an owning authoring skill stay
+  outside this automatic pass.
 - Skills pass context by invoking each other by name. There is no artifact
   envelope and no artifact store. When the user needs context to survive into a
   later session, tell them to run `/handoff`.

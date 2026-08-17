@@ -49,8 +49,17 @@ not disagree about tells; they disagree about compression. Three layers fall
 out: mechanical tells, scored in every register; compression, scored only
 where prose should be flat; voice, scored only where prose is allowed one. Those
 give three registers — `strict`, `flavored`, `voiced` — inferred from document
-type, plus a read-only `review` route. A caller that knows names the register:
+purpose, plus a read-only `audit` route. A caller that knows names the register:
 `/rhdh-pr-review` uses flavored, `/rhdh-release-announce` uses voiced.
+
+**Intent chooses editing versus audit.** An explicit rewrite wins even when the
+caller also asks for a score. Only an explicit no-change request selects
+`audit`. Document ownership does not silently cancel a requested edit, though
+quoted third-party spans stay protected.
+
+**Mixed documents keep one primary score.** Document purpose outranks a byline.
+A mixed document keeps one primary register and applies strict rules manually
+to procedural or safety sections. It does not expose a numeric register map.
 
 **The score is a delta, not a gate.** Violation density is a function of
 document type, so an absolute bar across arbitrary prose is a promise the metric
@@ -59,6 +68,19 @@ on curated text. The skill reports before and after and leaves the judgement
 with the reader. The fixed bar survives only as a `--fail-over N` knob a human
 points at their own corpus in CI, where the text is uniform enough for one
 number to mean something.
+
+**A regex does not certify judgment.** High-confidence deterministic patterns
+contribute to the density score. Context-sensitive patterns appear as markers
+or manual checks and still block completion until the editor accounts for them.
+Singleton transitions, curly quotes, em dashes, and short emphatic sentences
+are weak evidence; repetition or a cluster can be scored. A supplied writing
+sample governs the voiced register.
+
+**Meaning preservation is bidirectional.** The editor inventories claims,
+conditions, scope qualifiers, and modal force before rewriting. Completion
+requires both that every source proposition survives and that every output
+proposition came from the source or the user. A lower score cannot excuse a
+lost limit or an invented detail.
 
 **The capability comes in-pack.** Two skills hard-failing on a third-party
 repository is a live failure mode on the path of every PR review, and owning the
@@ -82,6 +104,13 @@ a structural guarantee rather than a convention, which is why the human-invoked
 rule is stated as a class of skill rather than a roster of names. Neither skill
 takes the `rhdh-` prefix: editing prose is not about Red Hat Developer Hub.
 
+**Outbound prose is edited at the final composition seam.** A skill invokes
+`/prose-editing` exactly once after it has assembled free-form GitHub, GitLab,
+Jira, or Slack prose and before it shows, gates, or posts it. A helper does so
+only when it directly returns the final prose; a transport layer never does.
+Structured payloads, commands, checksums, generated reports, and local documents
+with their own authoring skill are excluded from the automatic pass.
+
 ## Consequences
 
 - One skill answers both utterances. `/rhdh-pr-review` and
@@ -89,7 +118,9 @@ takes the `rhdh-` prefix: editing prose is not about Red Hat Developer Hub.
   and no third-party repository sits on the path of a review.
 - The pack maintains a pattern catalogue it previously rented, on a
   taxonomy-only footing: whoever adds a pattern restates it rather than quoting
-  a source. Upstream improvements stop arriving for free.
+  a source. The implementation does not promise compatibility with a pinned
+  upstream version; a later source audit can adopt new behavior, including a
+  breaking change, as one reviewed release.
 - Three registers are more surface than two modes, and register inference is a
   new failure mode: a caller that names none gets the register the skill guesses.
   A wrong guess is a wrong write — the same cost that argued for merging.
@@ -98,3 +129,6 @@ takes the `rhdh-` prefix: editing prose is not about Red Hat Developer Hub.
   against a corpus they own.
 - The human-invoked rule in `AGENTS.md` becomes a property of a class of skill
   rather than a list of two names, so a future wrapper needs no amendment.
+- Every external prose producer records `/prose-editing` as a named dependency,
+  while automation templates that cannot invoke a skill receive static lint
+  coverage instead.

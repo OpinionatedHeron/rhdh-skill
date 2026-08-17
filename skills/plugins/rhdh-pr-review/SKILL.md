@@ -41,9 +41,6 @@ can diverge, but respect an explicit route.
 - Ask which installed specialist skills, if any, the user wants applied after
   fetch and before deep analysis. Invoke chosen skills by name and give them the
   fetched PR context; never load their files.
-- Every review draft goes through `/prose-editing` before it is shown, including
-  analysis-only. Invoke it in the **flavored** register: a review is a document,
-  not a procedure. Do not rewrite the prose here instead.
 - Present the complete edited draft and review event for confirmation before
   stating any post operation. An explicit request to post is intent, not approval
   of the exact write.

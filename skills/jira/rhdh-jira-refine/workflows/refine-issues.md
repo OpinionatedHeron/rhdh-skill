@@ -248,6 +248,12 @@ uncontroversial fixes and prompts for each of the rest. **N** is report-only.
 Whatever survives that selection is an external write. Invoke
 `/mutation-gate` and follow it, with one row per issue key.
 
+For every remediation that includes a Jira comment, compose the complete set of
+comment bodies first, then invoke `/prose-editing` once on that set in the
+**flavored** register. Preserve issue keys, resolutions, links, and quoted
+rationales. Put the edited bodies into `/mutation-gate`; the write adapter must
+not edit them again.
+
 **Applied without individual prompts:**
 
 - Setting Priority to the parent's priority when the child reads "Undefined".

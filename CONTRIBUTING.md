@@ -95,9 +95,11 @@ installed, so `AGENTS.md`, `CONTEXT.md`, this file, and `docs/adr/` do not trave
 with it. A skill citing them is broken for everyone who installs it. Restate the
 rule locally instead.
 
-Human-only metadata is for `ask-rhdh` and `setup-rhdh-skills` alone. A skill
-missing from `catalog.json` fails `scripts/validate_skill_catalog.py`, and nothing
-installs it.
+Human-only metadata is for entry points a person explicitly invokes and the
+router must never select. A delegating entry point contains no domain behavior,
+names exactly one model-invoked target, and passes the person's input to it;
+`clean-prose` is the current example. A skill missing from `catalog.json` fails
+`scripts/validate_skill_catalog.py`, and nothing installs it.
 
 Do not add prose-shape assertions. Tests should survive editorial improvements
 that preserve the skill interface.

@@ -10,16 +10,21 @@ from __future__ import annotations
 
 import subprocess
 
-from conftest import GIT_LOCATION_VARS, git_env
+from conftest import GIT_LOCAL_ENV_VARS, git_env
 
 
 def test_location_vars_are_removed(monkeypatch):
-    for name in GIT_LOCATION_VARS:
+    assert {"GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"} <= set(GIT_LOCAL_ENV_VARS)
+    for name in GIT_LOCAL_ENV_VARS:
         monkeypatch.setenv(name, "/somewhere/else")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "redirect.setting")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "inherited")
 
     env = git_env()
 
-    assert not [name for name in GIT_LOCATION_VARS if name in env]
+    assert not [name for name in GIT_LOCAL_ENV_VARS if name in env]
+    assert "GIT_CONFIG_KEY_0" not in env
+    assert "GIT_CONFIG_VALUE_0" not in env
 
 
 def test_identity_vars_survive_because_they_do_not_redirect(monkeypatch):
@@ -71,3 +76,25 @@ def test_git_init_under_a_hook_environment_leaves_the_outer_repo_alone(tmp_path,
         env=git_env(),
     ).stdout.strip()
     assert still_bare == "false", "git init reached out of its cwd and rewrote the outer repository"
+
+
+def test_dynamic_config_environment_does_not_reach_a_temporary_repo(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True, env=git_env())
+
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "redirect.setting")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "inherited")
+    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", "'other.setting'='also-inherited'")
+
+    result = subprocess.run(
+        ["git", "config", "--get-regexp", r"^(redirect|other)\.setting$"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env=git_env(),
+    )
+
+    assert result.returncode == 1
+    assert result.stdout == ""

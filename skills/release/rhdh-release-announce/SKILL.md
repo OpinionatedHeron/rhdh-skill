@@ -15,16 +15,7 @@ compatibility: "Python 3.9+ and uv; acli with a Jira session; gog for team data;
 Produce a Slack message a human posts under their own name. The counts come from
 the CLI; the voice must not sound machine-written.
 
-## The prose pass
-
-Every draft goes through `/prose-editing` before the user sees it, on every
-route. Invoke it in the **voiced** register: a Slack post carries a person's
-voice, so the caller names the register rather than leaving the editor to infer
-it from a message full of Jira counts.
-
-Never show the unedited message — not as a preview, not in a code block, not
-"just so you can see the numbers". Reporting the counts as plain data is fine;
-presenting anything shaped like the post is not.
+## Delivery boundary
 
 Never post to Slack. This skill hands the user a message to copy; the user
 decides whether, when, and where it goes out.

@@ -1,10 +1,8 @@
 # Voice layer
 
-Loaded in `voiced`: release announcements, engineering blog posts, and anything
-carrying a byline. These two tells only appear once prose is allowed a voice, so
-no other register scores them. Short steps are right in a runbook and a bold
-defined term is right in a README, which is why neither of those registers loads
-this file.
+Loaded in `voiced`: release announcements, engineering blog posts, community
+messages, and personal prose. Short steps are right in a runbook, so apply this
+layer only where the document's purpose permits a voice.
 
 `mechanical.md` still applies in full. Nothing compresses sentences here.
 
@@ -23,6 +21,23 @@ register runs none. In `voiced`, leave these alone:
 Voice is stance, not fact. A writer may say the upgrade was harder than
 expected. A writer may not gain a benchmark, a customer count, or a date that
 the draft never contained.
+
+## A writing sample wins
+
+When the user supplies their own prior writing, match its stable sentence
+length, word choice, openings, punctuation, repeated phrases, and transitions.
+Do not replace a deliberate casual word with a formal one or flatten a quirk.
+The sample outranks default cleanup rules for em dashes, curly quotes,
+transitions, and repeated openings. Match a habit at roughly the sample's rate;
+do not use one occurrence as permission to multiply it.
+
+## Preserve human detail
+
+Keep specific and unusual details, mixed feelings, unresolved tension, dated
+references, deliberate first-person choices, sentence-length variety, genuine
+asides, and self-correction. Add none of these when the source lacks them.
+Technical, legal, safety, and reference prose stays neutral even when it is
+inside a voiced document.
 
 ## `staccato_drama`
 
@@ -46,18 +61,3 @@ sentence of a procedure until the steps stopped connecting. Here it usually
 arrives on purpose, out of a draft reaching for drama. The edit is the same
 either way: join the fragments with a plain connector such as `then`, `but`,
 `so`, or `after that`.
-
-## `boldface_overuse`
-
-Bold applied to ordinary nouns inside running prose, as if the reader could not
-find the important part alone.
-
-> RHDH **1.10** ships the **marketplace** plugin and adds **RBAC** support for
-> **dynamic plugins**.
-
-> RHDH 1.10 ships the marketplace plugin and adds RBAC support for dynamic
-> plugins.
-
-Bold earns its place on a defined term at first use, on a label in a definition
-list, and on the one word in a warning that a reader must not miss. It does not
-earn its place on every noun the writer likes.

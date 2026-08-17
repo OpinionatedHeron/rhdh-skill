@@ -22,14 +22,15 @@ PROMOTED_CATEGORIES = ("jira", "plugins", "ci", "release", "reference", "meta")
 # prefixes missed every skill
 # whose subject is not RHDH — prose-editing, clean-prose, mutation-gate,
 # skill-authoring — so renaming one left its callers dangling silently. Every
-# promoted name is kebab-case, so requiring a hyphen keeps the match broad enough
-# to catch a dangling citation while excluding /tmp, /usr and friends. A trailing
-# slash or dot means the token is a path, not a skill.
+# promoted name is kebab-case, but a skill can still be a single token. Route-like
+# tokens are filtered against the promoted/external/retired name sets below. A
+# trailing slash or dot means the token is a path, not a skill.
 NAMED_INVOCATION = re.compile(
-    r"(?:^|(?<=[\s(\[`]))/([a-z0-9]+(?:-[a-z0-9]+)+)(?![\w-])(?![/.])",
+    r"(?:^|(?<=[\s(\[`]))/([a-z0-9]+(?:-[a-z0-9]+)*)(?![\w-])(?![/.])",
     re.MULTILINE,
 )
 EXTERNAL_SKILLS = {"grilling", "handoff"}
+RETIRED_SKILLS = {"humanizer"}
 # A bundled script reading a file that ships *with it*, such as
 # `_DATA_DIR / "jql-release.md"`. Anchored to the handful of names that mean
 # "this script's own directory", because a bare `dir / "config.json"` is usually
@@ -83,6 +84,13 @@ def _body(text: str) -> str:
     return re.sub(r"^---\n.*?\n---(?:\n|$)", "", normalized, count=1, flags=re.DOTALL)
 
 
+def _without_noninstructions(text: str) -> str:
+    """Remove fenced examples and comments that an agent does not follow."""
+    text = re.sub(r"(?ms)^\s*```.*?^\s*```\s*$", " ", text)
+    text = re.sub(r"(?ms)^\s*~~~.*?^\s*~~~\s*$", " ", text)
+    return re.sub(r"<!--.*?-->", " ", text, flags=re.DOTALL)
+
+
 # A wrapper delegates and stops, so its body is one short sentence. Anything
 # past that is substance, and substance owes a '## Completion' section.
 WRAPPER_MAX_LINES = 1
@@ -126,7 +134,27 @@ def _mentions(body: str, term: str) -> bool:
 
     ``/rhdh-jira`` and `` `rhdh-jira` `` both count; ``rhdh-jira-legacy`` does not.
     """
+    body = _without_noninstructions(body)
     return re.search(rf"(?<![\w-]){re.escape(term)}(?![\w-])", body) is not None
+
+
+def _dependency_instructions(skill_dir: Path, skill_body: str) -> str:
+    """Return instruction prose that can own a catalog dependency citation.
+
+    A skill may route the relevant operation into a workflow or keep supporting
+    protocol in a reference. Requiring the parent SKILL.md to repeat that citation
+    would make the prompt say the same thing in two places.
+    """
+    documents = [skill_body]
+    for directory in ("workflows", "references"):
+        instruction_root = skill_dir / directory
+        if not instruction_root.is_dir():
+            continue
+        documents.extend(
+            path.read_text(encoding="utf-8", errors="replace")
+            for path in sorted(instruction_root.rglob("*.md"))
+        )
+    return "\n".join(documents)
 
 
 def _shipped_files(skill_dir: Path) -> Iterator[Path]:
@@ -189,6 +217,8 @@ def _resembles_a_skill(cited: str, known: set[str]) -> bool:
     skill that replaced it. ``/rhdh-jira`` survives as a prefix of ``rhdh-jira-create``;
     ``/image-registry`` resembles nothing in the catalog.
     """
+    if cited in RETIRED_SKILLS:
+        return True
     for name in known:
         if cited.startswith(f"{name}-") or name.startswith(f"{cited}-"):
             return True
@@ -214,7 +244,7 @@ def _validate_named_invocations(
             text = path.read_text(encoding="utf-8", errors="replace")
             # A `/name` inside a fenced block is sample code — a React route, a
             # URL path, a shell argument — not an instruction to invoke a skill.
-            text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
+            text = _without_noninstructions(text)
             for cited in sorted(set(NAMED_INVOCATION.findall(text))):
                 if cited in known or not _resembles_a_skill(cited, known):
                     continue
@@ -478,15 +508,16 @@ def validate_repository(root: Path) -> dict[str, Any]:
                     }
                 )
 
+        dependency_instructions = _dependency_instructions(skill_dir, body)
         for dependency in entry.get("requiresSkills") or []:
-            if isinstance(dependency, str) and not _mentions(body, dependency):
+            if isinstance(dependency, str) and not _mentions(dependency_instructions, dependency):
                 errors.append(
                     {
                         "code": "DEPENDENCY_NOT_DOCUMENTED",
                         "message": (
-                            f"{name}: requiresSkills declares {dependency} but SKILL.md never "
-                            f"names it; document when to invoke {dependency} and what it returns, "
-                            "or drop the dependency"
+                            f"{name}: requiresSkills declares {dependency} but its SKILL.md, "
+                            "workflows, and references never name it; document when to invoke "
+                            f"{dependency} and what it returns, or drop the dependency"
                         ),
                     }
                 )

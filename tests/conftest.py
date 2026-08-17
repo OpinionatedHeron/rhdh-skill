@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 from io import StringIO
@@ -13,29 +14,41 @@ import pytest
 # Path to the project root
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# Variables git uses to locate the repository it operates on. A git hook exports
-# these, so a `git init` that inherits them retargets the hook's repository
-# instead of the temporary directory the test asked for — which marks the shared
-# checkout core.bare=true and points `git add` at the real index.
-GIT_LOCATION_VARS = (
-    "GIT_DIR",
-    "GIT_WORK_TREE",
-    "GIT_INDEX_FILE",
-    "GIT_OBJECT_DIRECTORY",
-    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-    "GIT_COMMON_DIR",
-    "GIT_NAMESPACE",
-    "GIT_PREFIX",
+# Git advertises the environment variables whose values are local to a repository.
+# A hook exports them, so a `git init` that inherits them can retarget the hook's
+# repository instead of the temporary directory a test asked for. Ask the installed
+# Git for the complete list rather than maintaining an inevitably incomplete copy.
+GIT_LOCAL_ENV_VARS = tuple(
+    dict.fromkeys(
+        subprocess.run(
+            ["git", "rev-parse", "--local-env-vars"],
+            check=True,
+            capture_output=True,
+            text=True,
+            env={key: value for key, value in os.environ.items() if not key.startswith("GIT_")},
+        ).stdout.splitlines()
+        + ["GIT_NAMESPACE"]
+    )
 )
+
+# Compatibility for tests or helpers that imported the narrower old name.
+GIT_LOCATION_VARS = GIT_LOCAL_ENV_VARS
 
 
 def git_env(**overrides: str) -> dict[str, str]:
-    """Return os.environ with git's repository-location variables removed.
+    """Return os.environ with Git's repository-local variables removed.
 
     Every subprocess git call in the test suite goes through this so a test that
     creates its own repository cannot reach the checkout pytest is running in.
+    ``GIT_CONFIG_COUNT`` is in Git's advertised list; remove its dynamically named
+    ``GIT_CONFIG_KEY_n`` and ``GIT_CONFIG_VALUE_n`` companions as well.
     """
-    env = {key: value for key, value in os.environ.items() if key not in GIT_LOCATION_VARS}
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key.upper() not in GIT_LOCAL_ENV_VARS
+        and not re.fullmatch(r"GIT_CONFIG_(?:KEY|VALUE)_\d+", key.upper())
+    }
     env.update(overrides)
     return env
 

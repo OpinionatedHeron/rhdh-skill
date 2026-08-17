@@ -69,6 +69,10 @@ a session log and not a self-assessment.
 | Abandoned approach | "Investigated {approach}. Abandoned because {reason}. Switching to {alternative}." |
 | Scope discovery | "Investigation revealed {finding}. Scope is {larger/smaller/different}. {recommendation}." |
 
+Invoke `/prose-editing` once on the final comment body in the **flavored**
+register. Preserve issue keys, links, states, and quoted error text. Use the
+edited body for both the preview and the write; the Jira adapter does not edit it.
+
 Confirm before posting: "Proposed comment: {comment}. Post this? [y/N/edit]"
 
 ```bash

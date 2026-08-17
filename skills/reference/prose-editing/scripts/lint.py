@@ -10,14 +10,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import os
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
-SCORE_VERSION = 5
+SCORE_VERSION = 6
 
-REGISTERS = ("strict", "flavored", "voiced", "review")
+REGISTERS = ("strict", "flavored", "voiced", "audit")
 DEFAULT_REGISTER = "flavored"
 
 STRICT_BAR = 1.5
@@ -27,10 +29,11 @@ BARS = {
     "strict": STRICT_BAR,
     "flavored": FLAVORED_BAR,
     "voiced": VOICED_BAR,
-    "review": None,
+    "audit": None,
 }
 
-LONG_SENTENCE_WORDS = 20
+INSTRUCTION_MAX_WORDS = 20
+DESCRIPTIVE_MAX_WORDS = 25
 LONG_PARAGRAPH_SENTENCES = 6
 # The documented example stacks fragments of four to seven words, so a cap of
 # five saw three of its five fragments and never fired. The run is the tell,
@@ -43,6 +46,7 @@ SAMPLE_LIMIT = 6
 
 MECHANICAL = (
     "em_dash",
+    "transition_stack",
     "chatbot_residue",
     "copula_avoidance",
     "negative_parallelism",
@@ -50,6 +54,7 @@ MECHANICAL = (
     "curly_quote",
     "title_case_heading",
     "inline_header_list",
+    "boldface_overuse",
     "ai_vocabulary",
     "promotional",
     "authority_trope",
@@ -83,31 +88,50 @@ COMPRESSION = (
 # Only the two tells that a register can legitimately want. Short steps are
 # correct in a runbook and a bold defined term is correct in a README, so
 # neither is scored outside prose that is allowed a voice.
-VOICE = (
-    "staccato_drama",
-    "boldface_overuse",
+VOICE = ("staccato_drama",)
+MARKERS = (
+    "noun_train",
+    "rule_of_three",
+    "notability_padding",
+    "knowledge_gap",
+    "unsupported_objection",
+    "fake_alternative",
+    "formulaic_section",
+    "previous_version_frame",
+    "repeated_opening",
+    "predicate_hyphenation",
+    "heading_restatement",
+    "missing_subject",
+    "watched_vocabulary",
+    "casual_signposting",
 )
-MARKERS = ("noun_train", "rule_of_three")
+MANUAL_CHECKS = (
+    "claim_preservation",
+    "voice_fidelity",
+    "terminology_consistency",
+    "word_meaning_consistency",
+    "active_subject_context",
+    "one_instruction_per_sentence",
+    "article_use",
+    "abbreviation_definition",
+    "paragraph_focus",
+    "safety_labels",
+    "heading_restatement",
+    "hollow_paragraph",
+    "quotation_ownership",
+    "objection_context",
+    "alternative_relevance",
+)
 
 LAYERS = {"mechanical": MECHANICAL, "compression": COMPRESSION, "voice": VOICE}
 REGISTER_LAYERS = {
     "strict": ("mechanical", "compression"),
     "flavored": ("mechanical", "compression"),
     "voiced": ("mechanical", "voice"),
-    # review reports every rewriting layer and applies none of it.
-    "review": ("mechanical", "compression", "voice"),
+    # audit reports every rewriting layer and applies none of it.
+    "audit": ("mechanical", "compression", "voice"),
 }
 STRICT_ONLY = ("strict_banned_word",)
-QUOTE_SAFE_SUPPRESSED = (
-    "ai_vocabulary",
-    "promotional",
-    "verbose_word",
-    "strict_banned_word",
-    "phrasal_verb",
-    "filler_phrase",
-    "chatbot_residue",
-)
-
 # ---------------------------------------------------------------------------
 # Phrase lists. Data only. Every list is matched in one pass and the longest
 # match over a span wins, so a longer phrase in one list may contain a shorter
@@ -118,7 +142,6 @@ QUOTE_SAFE_SUPPRESSED = (
 
 AI_VOCABULARY = (
     "actionable insights",
-    "additionally",
     "aforementioned",
     "align with",
     "aligns with",
@@ -146,7 +169,6 @@ AI_VOCABULARY = (
     "foster",
     "fosters",
     "fostered",
-    "furthermore",
     "garner",
     "garners",
     "garnered",
@@ -168,7 +190,6 @@ AI_VOCABULARY = (
     "leverages",
     "leveraged",
     "leveraging",
-    "moreover",
     "multifaceted",
     "myriad",
     "navigate the complexities",
@@ -697,6 +718,22 @@ when then than not no is are was were be been being am do does did has have had 
 may might must should shall it its their your our his her they we you i""".split()
 )
 
+TRANSITIONS = ("additionally", "consequently", "furthermore", "however", "moreover")
+
+# An imperative has no grammatical subject, so the first word is the public
+# signal available to a deterministic checker. Keep this list to common
+# technical-writing commands. Ambiguous verbs such as "change" still need the
+# same 20-word cap when they open a sentence because that is the imperative
+# reading in procedures.
+INSTRUCTION_VERBS = frozenset(
+    """add apply attach build change check choose click close compare configure
+connect copy create delete disable download edit enable enter examine export
+extract fetch follow get give import install keep load make move open paste
+press provide publish pull push read remove rename replace restart restore run
+save select send set start stop supply switch test type uninstall update upgrade
+upload use validate verify wait write""".split()
+)
+
 # ---------------------------------------------------------------------------
 # Patterns
 # ---------------------------------------------------------------------------
@@ -805,11 +842,15 @@ SUBORDINATORS = frozenset(
 although though since until as""".split()
 )
 
-FENCE_RE = re.compile(r"^(```+|~~~+)")
+FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
 TABLE_ROW_RE = re.compile(r"^\s{0,3}\|")
 BLOCKQUOTE_RE = re.compile(r"^\s{0,3}>")
 LINK_DEF_RE = re.compile(r"^\s{0,3}\[[^\]\n]+\]:\s*\S+")
-INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+TABLE_DELIMITER_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$")
+IDENTIFIER_RE = re.compile(
+    r"(?<![A-Za-z0-9])(?:[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+|"
+    r"[a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*)(?![A-Za-z0-9])"
+)
 IMAGE_RE = re.compile(r"!\[[^\]\n]*\]\([^)\n]*\)")
 LINK_RE = re.compile(r"\[([^\]\n]*)\]\([^)\n]*\)")
 REF_LINK_RE = re.compile(r"\[([^\]\n]*)\]\[[^\]\n]*\]")
@@ -830,6 +871,7 @@ BOLD_RE = re.compile(r"\*\*[^*\n]+\*\*|__[^_\n]+__")
 # so only a free-standing one scores.
 EM_DASH_RE = re.compile("[—―]|(?<!\\w)–(?!\\w)|(?<=\\s)--(?=\\s)")
 CURLY_QUOTE_RE = re.compile("[‘’‚‛“”„‟]")
+TRANSITION_RE = re.compile(r"(?<![a-z0-9-])(?:" + "|".join(TRANSITIONS) + r")(?![a-z0-9-])", re.I)
 # Pictographic ranges only. Arrows, dashes, quotes and ellipses are not emoji,
 # and neither are the check and cross marks that carry the data in a support
 # matrix: U+2713-U+2718 and the arrow block at U+2B00 are left out on purpose.
@@ -900,6 +942,54 @@ GENERIC_HEADING_RE = re.compile(
     r"^\s{0,3}#{1,6}\s*(?:conclusion|final thoughts|closing thoughts|"
     r"in closing|wrapping up|the road ahead)\s*$",
     re.I | re.M,
+)
+NOTABILITY_PADDING_RE = re.compile(
+    r"\b(?:independent coverage|(?:local|regional|national) media outlets?|"
+    r"leading expert|active social media presence)\b",
+    re.I,
+)
+KNOWLEDGE_GAP_RE = re.compile(
+    r"\b(?:up to my last (?:training )?update|based on available information|"
+    r"not publicly available|maintains? a low profile|keeps? (?:their|his|her) "
+    r"personal details private|likely\b|it is believed that)\b",
+    re.I,
+)
+UNSUPPORTED_OBJECTION_RE = re.compile(
+    r"\b(?:this (?:isn't|is not) (?:mainly |really )?about|i(?:'m| am) not "
+    r"(?:saying|arguing|trying to)|to be clear|don't get me wrong|"
+    r"this is not to say|some might say)\b",
+    re.I,
+)
+FAKE_ALTERNATIVE_RE = re.compile(
+    r"\b(?:a tempting (?:option|approach) would be|one might be tempted to|"
+    r"an obvious approach would be|you might think|it would be easy to just|"
+    r"some would suggest)\b",
+    re.I,
+)
+FORMULAIC_SECTION_RE = re.compile(
+    r"^\s{0,3}#{1,6}\s*(?:challenges(?: and legacy)?|future outlook|legacy)\s*$",
+    re.I | re.M,
+)
+PREVIOUS_VERSION_RE = re.compile(
+    r"\b(?:was added|newly added|previous(?:ly| implementation| approach)|"
+    r"former implementation|now (?:uses|supports|returns|reads|writes))\b",
+    re.I,
+)
+PREDICATE_HYPHEN_RE = re.compile(
+    rf"\b{BE}\s+[a-z]+-[a-z]+(?:-[a-z]+)*\b",
+    re.I,
+)
+MISSING_SUBJECT_RE = re.compile(
+    r"^(?:no|not)\s+[^.!?]{0,80}\b(?:needed|required|available|configured)\b",
+    re.I,
+)
+WATCHED_VOCABULARY_RE = re.compile(
+    r"(?<![a-z0-9-])(?:actually|key|valuable|quietly|gate|gated|gating)(?![a-z0-9-])",
+    re.I,
+)
+CASUAL_SIGNPOSTING_RE = re.compile(
+    r"\b(?:heads up|quick note|before i forget|one thing that bit me)\b",
+    re.I,
 )
 
 # `'s` is a possessive far more often than it is a contraction, so the general
@@ -1002,9 +1092,14 @@ def _fenced_lines(lines: list[str]) -> set[int]:
         if not opened:
             index += 1
             continue
-        marker = opened.group(1)[:3]
+        marker = opened.group(1)
         for close in range(index + 1, len(lines)):
-            if lines[close].strip().startswith(marker):
+            candidate = re.fullmatch(r"(`{3,}|~{3,})\s*", lines[close].strip())
+            if (
+                candidate
+                and candidate.group(1)[0] == marker[0]
+                and len(candidate.group(1)) >= len(marker)
+            ):
                 inside.update(range(index, close + 1))
                 index = close + 1
                 break
@@ -1013,13 +1108,44 @@ def _fenced_lines(lines: list[str]) -> set[int]:
     return inside
 
 
-def strip_quoted(text: str) -> str:
+def _strip_inline_code(text: str) -> str:
+    """Blank code spans whose closing backtick run matches the opener."""
+    out: list[str] = []
+    cursor = 0
+    while cursor < len(text):
+        opened = re.search(r"`+", text[cursor:])
+        if opened is None:
+            out.append(text[cursor:])
+            break
+        start = cursor + opened.start()
+        marker = opened.group(0)
+        out.append(text[cursor:start])
+        close_re = re.compile(r"(?<!`)" + re.escape(marker) + r"(?!`)")
+        closed = close_re.search(text, start + len(marker))
+        if closed is None:
+            out.append(text[start : start + len(marker)])
+            cursor = start + len(marker)
+            continue
+        out.append(" ")
+        cursor = closed.end()
+    return "".join(out)
+
+
+def _table_prose(line: str) -> str:
+    if TABLE_DELIMITER_RE.match(line):
+        return ""
+    cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+    return ". ".join(cell for cell in cells if cell)
+
+
+def strip_quoted(text: str, quote_safe: bool = False) -> str:
     """Remove every zone that is not the author's own prose.
 
-    Fenced code, inline code, YAML frontmatter, table rows, link targets and
-    blockquotes all carry words the author did not write as sentences. Scoring
-    them turns a glossary row into a noun train and a frontmatter block into
-    ninety words of prose.
+    Fenced code, inline code, YAML frontmatter, identifiers and link targets are
+    not prose. Blockquotes, callouts and table cells can be first-party prose,
+    so the default mode keeps their words. Quote-safe mode blanks blockquotes
+    because it is the caller's explicit signal that quoted material is not the
+    author's voice.
     """
     lines = text.split("\n")
     frontmatter_end = _frontmatter_end(lines)
@@ -1029,12 +1155,23 @@ def strip_quoted(text: str) -> str:
         if index < frontmatter_end or index in fenced:
             kept.append("")
             continue
-        if TABLE_ROW_RE.match(line) or BLOCKQUOTE_RE.match(line) or LINK_DEF_RE.match(line):
+        if LINK_DEF_RE.match(line):
             kept.append("")
+            continue
+        if TABLE_ROW_RE.match(line):
+            kept.append(_table_prose(line))
+            continue
+        if BLOCKQUOTE_RE.match(line):
+            if quote_safe:
+                kept.append("")
+                continue
+            unquoted = re.sub(r"^\s{0,3}>\s?", "", line)
+            kept.append("" if re.fullmatch(r"\[![A-Za-z]+\]", unquoted.strip()) else unquoted)
             continue
         kept.append(line)
     body = "\n".join(kept)
-    body = INLINE_CODE_RE.sub(" ", body)
+    body = _strip_inline_code(body)
+    body = IDENTIFIER_RE.sub(" ", body)
     body = IMAGE_RE.sub(" ", body)
     body = LINK_RE.sub(r"\1", body)
     body = REF_LINK_RE.sub(r"\1", body)
@@ -1117,6 +1254,12 @@ def prose_lines(block: str) -> list[str]:
 
 def word_count(sentence: str) -> int:
     return len(WORD_RE.findall(sentence))
+
+
+def is_instruction(sentence: str) -> bool:
+    """Return whether a sentence has the deterministic imperative shape."""
+    words = WORD_RE.findall(sentence)
+    return bool(words and words[0].lower() in INSTRUCTION_VERBS)
 
 
 def _normalize(text: str) -> str:
@@ -1342,17 +1485,28 @@ def passive_voices(text: str) -> tuple[int, list[str]]:
     """
     claimed = [(match.start(), match.end()) for match in COMPLEX_TENSE_RE.finditer(text)]
 
-    def unclaimed(match: "re.Match[str]") -> bool:
-        return not any(match.start() < end and match.end() > start for start, end in claimed)
+    def unclaimed(matches: list["re.Match[str]"]) -> list["re.Match[str]"]:
+        kept: list["re.Match[str]"] = []
+        claimed_index = 0
+        for match in matches:
+            while claimed_index < len(claimed) and claimed[claimed_index][1] <= match.start():
+                claimed_index += 1
+            overlaps = (
+                claimed_index < len(claimed)
+                and claimed[claimed_index][0] < match.end()
+                and claimed[claimed_index][1] > match.start()
+            )
+            if not overlaps:
+                kept.append(match)
+        return kept
 
-    hits = [
-        match.group(0)
+    candidates = [
+        match
         for match in PASSIVE_RE.finditer(text)
-        if match.group(1).lower() not in NOT_PARTICIPLE
-        and not STATIVE_RE.fullmatch(match.group(1))
-        and unclaimed(match)
+        if match.group(1).lower() not in NOT_PARTICIPLE and not STATIVE_RE.fullmatch(match.group(1))
     ]
-    hits.extend(match.group(0) for match in STATIVE_BY_RE.finditer(text) if unclaimed(match))
+    hits = [match.group(0) for match in unclaimed(candidates)]
+    hits.extend(match.group(0) for match in unclaimed(list(STATIVE_BY_RE.finditer(text))))
     return len(hits), hits
 
 
@@ -1378,6 +1532,25 @@ def curly_quotes(text: str) -> tuple[int, list[str]]:
         match.group(0) for match in CURLY_QUOTE_RE.finditer(text) if match.start() not in claimed
     ]
     return len(hits), hits
+
+
+def clustered_tell(
+    current: tuple[int, list[str]],
+    sample: tuple[int, list[str]] | None,
+    target_words: int,
+    sample_words: int,
+    singleton_allowance: int = 1,
+) -> tuple[int, list[str]]:
+    """Count style evidence only above a singleton or a supplied voice rate."""
+    count, hits = current
+    allowance = singleton_allowance
+    if sample is not None:
+        allowance = max(
+            singleton_allowance,
+            math.ceil(sample[0] * target_words / max(sample_words, 1)),
+        )
+    excess = max(0, count - allowance)
+    return excess, hits[allowance : allowance + excess]
 
 
 def staccato_runs(blocks: list[str]) -> tuple[int, list[str]]:
@@ -1434,23 +1607,112 @@ def rule_of_three(text: str) -> tuple[int, list[str]]:
     return len(hits), hits
 
 
+def repeated_openings(found: list[str]) -> tuple[int, list[str]]:
+    hits: list[str] = []
+    run: list[str] = []
+    opening = ""
+    for sentence in found + [""]:
+        match = FIRST_WORD_RE.match(sentence.strip())
+        current = match.group(0).lower() if match else ""
+        if current and current == opening:
+            run.append(sentence)
+            continue
+        if len(run) >= 3:
+            hits.append(" ".join(run))
+        run = [sentence] if current else []
+        opening = current
+    return len(hits), hits
+
+
+def heading_restatements(text: str) -> tuple[int, list[str]]:
+    """Mark close lexical repeats between a heading and its first sentence."""
+    hits: list[str] = []
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        heading = HEADING_RE.match(line)
+        if not heading:
+            continue
+        for candidate in lines[index + 1 :]:
+            candidate = candidate.strip()
+            if not candidate:
+                continue
+            if _starts_a_unit(candidate):
+                break
+            heading_words = {word.lower() for word in WORD_RE.findall(heading.group(1))}
+            sentence_words = {word.lower() for word in WORD_RE.findall(candidate)}
+            if heading_words and heading_words <= sentence_words and len(sentence_words) <= 8:
+                hits.append(candidate)
+            break
+    return len(hits), hits
+
+
+def marker_scores(
+    body: str, found: list[str], quote_safe: bool
+) -> dict[str, tuple[int, list[str]]]:
+    phrase_markers = {
+        "notability_padding": _hits(NOTABILITY_PADDING_RE, body),
+        "knowledge_gap": _hits(KNOWLEDGE_GAP_RE, body),
+        "unsupported_objection": _hits(UNSUPPORTED_OBJECTION_RE, body),
+        "fake_alternative": _hits(FAKE_ALTERNATIVE_RE, body),
+        "watched_vocabulary": _hits(WATCHED_VOCABULARY_RE, body),
+        "casual_signposting": _hits(CASUAL_SIGNPOSTING_RE, body),
+    }
+    if quote_safe:
+        phrase_markers = {name: (0, []) for name in phrase_markers}
+    missing = [sentence for sentence in found if MISSING_SUBJECT_RE.match(sentence)]
+    return {
+        "noun_train": noun_trains(body),
+        "rule_of_three": rule_of_three(body),
+        **phrase_markers,
+        "formulaic_section": _hits(FORMULAIC_SECTION_RE, body),
+        "previous_version_frame": _hits(PREVIOUS_VERSION_RE, body),
+        "repeated_opening": repeated_openings(found),
+        "predicate_hyphenation": _hits(PREDICATE_HYPHEN_RE, body),
+        "heading_restatement": heading_restatements(body),
+        "missing_subject": (len(missing), missing),
+    }
+
+
 def _phrase(phrases: dict[str, list[str]], name: str) -> tuple[int, list[str]]:
     hits = phrases[name]
     return len(hits), hits
 
 
 def _mechanical_scores(
-    body: str, found: list[str], phrases: dict[str, list[str]]
+    body: str,
+    found: list[str],
+    phrases: dict[str, list[str]],
+    voice_body: str | None,
+    words: int,
 ) -> dict[str, tuple[int, list[str]]]:
+    sample_words = sum(word_count(sentence) for sentence in sentences(voice_body or "")) or 1
     return {
-        "em_dash": em_dashes(body),
+        "em_dash": clustered_tell(
+            em_dashes(body),
+            em_dashes(voice_body) if voice_body is not None else None,
+            words,
+            sample_words,
+        ),
+        "transition_stack": clustered_tell(
+            _hits(TRANSITION_RE, body),
+            _hits(TRANSITION_RE, voice_body) if voice_body is not None else None,
+            words,
+            sample_words,
+        ),
         "chatbot_residue": _phrase(phrases, "chatbot_residue"),
         "copula_avoidance": _phrase(phrases, "copula_avoidance"),
         "negative_parallelism": negative_parallelisms(body),
         "emoji": _hits(EMOJI_RE, body),
-        "curly_quote": curly_quotes(body),
+        "curly_quote": clustered_tell(
+            curly_quotes(body),
+            curly_quotes(voice_body) if voice_body is not None else None,
+            words,
+            sample_words,
+            2,
+        ),
         "title_case_heading": title_case_headings(body),
         "inline_header_list": inline_header_lists(body),
+        "boldface_overuse": boldface_excess(paragraphs(body)),
         "ai_vocabulary": _phrase(phrases, "ai_vocabulary"),
         "promotional": _phrase(phrases, "promotional"),
         "authority_trope": _phrase(phrases, "authority_trope"),
@@ -1470,7 +1732,12 @@ def _mechanical_scores(
 def _compression_scores(
     body: str, found: list[str], blocks: list[str], phrases: dict[str, list[str]]
 ) -> dict[str, tuple[int, list[str]]]:
-    longs = [sentence for sentence in found if word_count(sentence) > LONG_SENTENCE_WORDS]
+    longs = [
+        sentence
+        for sentence in found
+        if word_count(sentence)
+        > (INSTRUCTION_MAX_WORDS if is_instruction(sentence) else DESCRIPTIVE_MAX_WORDS)
+    ]
     strict_count, strict_hits = _phrase(phrases, "strict_banned_word")
     may_count, may_hits = _hits(MAY_RE, body)
     nominal_count, nominal_hits = _hits(NOMINALIZATION_VERB_RE, body)
@@ -1493,7 +1760,6 @@ def _compression_scores(
 def _voice_scores(blocks: list[str]) -> dict[str, tuple[int, list[str]]]:
     return {
         "staccato_drama": staccato_runs(blocks),
-        "boldface_overuse": boldface_excess(blocks),
     }
 
 
@@ -1506,17 +1772,23 @@ def lint(
     text: str,
     register: str = DEFAULT_REGISTER,
     quote_safe: bool = False,
+    voice_sample: str | None = None,
 ) -> dict[str, Any]:
     if register not in REGISTERS:
         raise ValueError(f"unknown register: {register!r}")
-    body = strip_quoted(text)
+    body = strip_quoted(text, quote_safe=quote_safe)
     found = sentences(body)
     blocks = paragraphs(body)
     words = sum(word_count(sentence) for sentence in found) or 1
 
     phrases = phrase_hits(body)
     scored: dict[str, tuple[int, list[str]]] = {}
-    scored.update(_mechanical_scores(body, found, phrases))
+    voice_body = (
+        strip_quoted(voice_sample, quote_safe=quote_safe)
+        if voice_sample is not None and register == "voiced"
+        else None
+    )
+    scored.update(_mechanical_scores(body, found, phrases, voice_body, words))
     scored.update(_compression_scores(body, found, blocks, phrases))
     scored.update(_voice_scores(blocks))
 
@@ -1527,26 +1799,27 @@ def lint(
         if layer not in REGISTER_LAYERS[register]:
             continue
         for name in LAYERS[layer]:
-            # review reports the strict word set too. It cannot know whether the
-            # document is a procedure, and a review that hides the one word set
+            # audit reports the strict word set too. It cannot know whether the
+            # document is a procedure, and an audit that hides the one word set
             # procedures exist to enforce is worse than a review that overreports:
             # nothing here is applied, and the reader filters by document type.
-            if name in STRICT_ONLY and register not in ("strict", "review"):
+            if name in STRICT_ONLY and register not in ("strict", "audit"):
                 continue
             count, hits = scored[name]
-            if quote_safe and name in QUOTE_SAFE_SUPPRESSED:
+            if quote_safe and name in PHRASE_LISTS:
                 count, hits = 0, []
             violations[name] = count
             by_layer[layer] += count
             if hits:
                 samples[name] = _sample(hits)
 
-    train_count, train_hits = noun_trains(body)
-    three_count, three_hits = rule_of_three(body)
-    if train_hits:
-        samples["noun_train"] = _sample(train_hits)
-    if three_hits:
-        samples["rule_of_three"] = _sample(three_hits)
+    marker_results = marker_scores(body, found, quote_safe)
+    markers: dict[str, int] = {}
+    for name in MARKERS:
+        count, hits = marker_results[name]
+        markers[name] = count
+        if hits:
+            samples[name] = _sample(hits)
 
     total = sum(violations.values())
     per100 = round(total * 100.0 / words, 2)
@@ -1555,6 +1828,7 @@ def lint(
         "score_version": SCORE_VERSION,
         "register": register,
         "quote_safe": quote_safe,
+        "voice_sample": voice_sample is not None and register == "voiced",
         "words": words,
         "sentences": len(found),
         "violations": violations,
@@ -1564,7 +1838,8 @@ def lint(
         "bar": bar,
         "over_bar": bar is not None and per100 > bar,
         "longest_sentence_words": max((word_count(s) for s in found), default=0),
-        "markers": {"noun_train": train_count, "rule_of_three": three_count},
+        "markers": markers,
+        "manual_checks": list(MANUAL_CHECKS),
         "samples": samples,
         "delta": None,
     }
@@ -1583,7 +1858,7 @@ def _parser() -> argparse.ArgumentParser:
             "Score prose for AI tells and Simplified Technical English discipline.\n"
             "Registers: strict (bar 1.5) for procedures and error messages, "
             "flavored (bar 2.5) for docs and PR bodies, voiced (bar 2.0) for "
-            "bylined prose, review (no bar) to report without rewriting."
+            "bylined prose, audit (no bar) to report without rewriting."
         ),
         epilog=(
             "usage example: python3 lint.py --json --register strict RUNBOOK.md\n"
@@ -1608,6 +1883,11 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Suppress word-list categories so a glossary does not score the words it names.",
     )
+    parser.add_argument(
+        "--voice-sample",
+        metavar="FILE",
+        help="Match typography and transition rates from this sample in the voiced register.",
+    )
     parser.add_argument("--json", action="store_true", help="Emit the full JSON report.")
     parser.add_argument(
         "--fail-over",
@@ -1631,46 +1911,87 @@ def _resolve_register(args: argparse.Namespace) -> str:
     return DEFAULT_REGISTER
 
 
-def _baseline_scores(path: str) -> tuple[dict[str, float], float | None]:
-    """Baseline scores by file, plus the score of a single unnamed report.
+class BaselineError(ValueError):
+    """A readable baseline that cannot be compared to this run."""
 
-    A run over stdin has no file to match on, so one anonymous baseline report
-    pairs with one anonymous current report. Nothing else pairs. Falling back
-    to the first score whenever the name did not match reported a delta between
-    two unrelated documents, which read as an improvement that never happened.
-    """
+    def __init__(self, kind: str, detail: str):
+        super().__init__(detail)
+        self.kind = kind
+
+
+def _file_identity(name: str) -> str:
+    return os.path.normcase(str(Path(name).resolve(strict=False)))
+
+
+def _baseline_scores(
+    path: str, register: str, quote_safe: bool
+) -> tuple[dict[str, float], float | None]:
+    """Load compatible baseline scores keyed by normalized path identity."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     reports = data if isinstance(data, list) else [data]
-    scored = [
-        report for report in reports if isinstance(report, dict) and "total_per100w" in report
-    ]
+    if not reports or any(not isinstance(report, dict) for report in reports):
+        raise BaselineError("incompatible", "expected one report or a list of reports")
     by_file: dict[str, float] = {}
-    for report in scored:
+    anonymous_scores: list[float] = []
+    for report in reports:
+        required = {"score_version", "register", "quote_safe", "total_per100w"}
+        missing = sorted(required - report.keys())
+        if missing:
+            raise BaselineError("incompatible", f"missing {', '.join(missing)}")
+        if report["score_version"] != SCORE_VERSION:
+            raise BaselineError(
+                "incompatible",
+                f"score_version {report['score_version']!r} != {SCORE_VERSION}",
+            )
+        if report["register"] != register:
+            raise BaselineError("incompatible", f"register {report['register']!r} != {register!r}")
+        if report["quote_safe"] is not quote_safe:
+            raise BaselineError(
+                "incompatible",
+                f"quote_safe {report['quote_safe']!r} != {quote_safe!r}",
+            )
+        try:
+            score = float(report["total_per100w"])
+        except (TypeError, ValueError) as error:
+            raise BaselineError("incompatible", "total_per100w is not numeric") from error
         name = report.get("file")
         if name:
-            by_file[str(name)] = float(report["total_per100w"])
-            by_file[Path(str(name)).name] = float(report["total_per100w"])
-    anonymous = None
-    if len(scored) == 1 and not scored[0].get("file"):
-        anonymous = float(scored[0]["total_per100w"])
-    return by_file, anonymous
+            identity = _file_identity(str(name))
+            if identity in by_file:
+                raise BaselineError("ambiguous", f"duplicate file identity {identity!r}")
+            by_file[identity] = score
+        else:
+            anonymous_scores.append(score)
+    if len(anonymous_scores) > 1 or (anonymous_scores and by_file):
+        raise BaselineError("ambiguous", "anonymous report cannot be mixed or repeated")
+    return by_file, anonymous_scores[0] if anonymous_scores else None
 
 
-def _attach_delta(
-    report: dict[str, Any],
+def _attach_deltas(
+    reports: list[dict[str, Any]],
     by_file: dict[str, float],
     anonymous: float | None,
-    single: bool,
 ) -> None:
-    name = report.get("file")
-    if name is None:
-        before = anonymous if single else None
-    else:
-        before = by_file.get(str(name), by_file.get(Path(str(name)).name))
-    if before is None:
+    named = [report for report in reports if report.get("file") is not None]
+    if named:
+        identities = [_file_identity(str(report["file"])) for report in named]
+        if len(identities) != len(set(identities)):
+            raise BaselineError("ambiguous", "current run repeats a file identity")
+        if anonymous is not None or set(identities) != set(by_file):
+            raise BaselineError("mismatch", "current and baseline file identities differ")
+        for report, identity in zip(named, identities, strict=True):
+            before = by_file[identity]
+            after = report["total_per100w"]
+            report["delta"] = {"before": before, "after": after, "improved": after < before}
         return
-    after = report["total_per100w"]
-    report["delta"] = {"before": before, "after": after, "improved": after < before}
+    if len(reports) != 1 or anonymous is None or by_file:
+        raise BaselineError("mismatch", "stdin requires one anonymous baseline report")
+    after = reports[0]["total_per100w"]
+    reports[0]["delta"] = {
+        "before": anonymous,
+        "after": after,
+        "improved": after < anonymous,
+    }
 
 
 def _read_stdin() -> str:
@@ -1709,6 +2030,13 @@ def main(argv: list[str] | None = None) -> int:
 
     reports: list[dict[str, Any]] = []
     failed = False
+    voice_sample: str | None = None
+    if args.voice_sample:
+        try:
+            voice_sample = _read_file(Path(args.voice_sample))
+        except (OSError, ValueError, UnicodeDecodeError) as error:
+            print(f"voice sample unreadable: {type(error).__name__}: {error}", file=sys.stderr)
+            failed = True
     if args.paths:
         for raw_path in args.paths:
             path = Path(raw_path)
@@ -1720,24 +2048,46 @@ def main(argv: list[str] | None = None) -> int:
                 reports.append(_failure(str(path), error))
                 failed = True
                 continue
-            report = lint(text, register=register, quote_safe=args.quote_safe)
+            report = lint(
+                text,
+                register=register,
+                quote_safe=args.quote_safe,
+                voice_sample=voice_sample,
+            )
+            if args.voice_sample and register == "voiced":
+                report["voice_sample"] = str(args.voice_sample)
             report["file"] = str(path)
+            report["file_identity"] = _file_identity(str(path))
             reports.append(report)
     else:
-        reports.append(lint(_read_stdin(), register=register, quote_safe=args.quote_safe))
+        report = lint(
+            _read_stdin(),
+            register=register,
+            quote_safe=args.quote_safe,
+            voice_sample=voice_sample,
+        )
+        if args.voice_sample and register == "voiced":
+            report["voice_sample"] = str(args.voice_sample)
+        reports.append(report)
 
     scored = [report for report in reports if "total_per100w" in report]
     if args.baseline:
         try:
-            by_file, anonymous = _baseline_scores(args.baseline)
+            by_file, anonymous = _baseline_scores(args.baseline, register, args.quote_safe)
         # JSONDecodeError is a ValueError, which also covers a baseline report
         # whose total_per100w is not a number.
+        except BaselineError as error:
+            print(f"baseline {error.kind}: {error}", file=sys.stderr)
+            failed = True
         except (OSError, UnicodeDecodeError, ValueError) as error:
             print(f"baseline unreadable: {type(error).__name__}: {error}", file=sys.stderr)
             failed = True
         else:
-            for report in scored:
-                _attach_delta(report, by_file, anonymous, len(scored) == 1)
+            try:
+                _attach_deltas(scored, by_file, anonymous)
+            except BaselineError as error:
+                print(f"baseline {error.kind}: {error}", file=sys.stderr)
+                failed = True
 
     if args.json:
         payload: Any = reports[0] if len(reports) == 1 else reports
