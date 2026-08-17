@@ -55,12 +55,13 @@ openings, or other deliberate habits that are weak evidence by themselves.
 ## Prepare a safe working copy
 
 Never write beside this installed skill. Create a unique directory with the
-system temporary-directory API. Keep three paths inside it:
+system temporary-directory API. Keep these paths inside it:
 
 - `source.md`: an unchanged snapshot used for the meaning check.
 - `rewrite.md`: the only bytes scored before and after; edit this file.
 - `before.json`: the baseline report for that exact normalized `rewrite.md`
   path.
+- `voice.md`: an unchanged snapshot of a supplied writing sample, when present.
 
 For pasted text, write the supplied bytes to `source.md`, then copy it to
 `rewrite.md`. For a user file, copy the file to both paths and do not touch the
@@ -69,13 +70,21 @@ where the host supports them. If a shell is unavoidable, quote every path,
 including the trusted skill directory and all temporary paths. Never paste a
 user-controlled path into an unquoted command.
 
+When the user supplies a writing sample, copy its exact bytes to `voice.md` and
+pass `--voice-sample "<unique-temp-dir>/voice.md"` on both linter runs. Omit the
+option on both runs when there is no sample. A different or changed sample makes
+the baseline incompatible.
+
 Resolve `scripts/lint.py` relative to this `SKILL.md`. The equivalent shell
-shape is:
+shape without a writing sample is:
 
 ```bash
 python "<skill-dir>/scripts/lint.py" --json --register <register> \
   "<unique-temp-dir>/rewrite.md" > "<unique-temp-dir>/before.json"
 ```
+
+When a sample exists, insert
+`--voice-sample "<unique-temp-dir>/voice.md"` after the register argument.
 
 Use the host's UTF-8 file APIs or redirection in the temporary directory. Do
 not use a fixed `before.json`. Delete the unique directory after delivery.
@@ -101,6 +110,9 @@ Skip to [Audit](#audit) for `audit`. For an edit:
      --baseline "<unique-temp-dir>/before.json" \
      "<unique-temp-dir>/rewrite.md"
    ```
+
+   When the baseline used a writing sample, insert the same
+   `--voice-sample "<unique-temp-dir>/voice.md"` argument after the register.
 
    A baseline metadata or path mismatch is a failed verification, not a score.
    Correct the invocation and rerun it. Never reuse a report from another
@@ -132,9 +144,9 @@ Do not rewrite or create an output document.
 3. Check every marker and every manual rule, including claim preservation,
    voice-sample conflicts, repeated names/openings, article use, paragraph
    focus, headings that restate themselves, and hollow paragraphs.
-4. Return the single score and a compact findings table: rule, source span,
-   classification, and suggested edit. Include the source inventory when it
-   helps the caller verify meaning. Make no change.
+4. Return the single score, the source claim/condition/scope inventory, and a
+   compact findings table: rule, source span, classification, and suggested
+   edit. Make no change.
 
 ## Protected spans and Markdown
 
@@ -146,7 +158,8 @@ it as a quotation, title, example under discussion, or externally owned text.
 Blockquotes, callouts, and table cells are not inherently quotations. Lint and
 edit their first-party prose. Use `--quote-safe` only when the caller explicitly
 identifies the running prose as examples or third-party quotation that must be
-excluded. The option must not become a way to hide ordinary prose from a score.
+excluded. It suppresses findings only in those protected regions. The option
+must not hide ordinary first-party prose elsewhere in the document.
 
 ## Read the report
 
@@ -158,8 +171,10 @@ Consume the full JSON object. Never decide from the exit code alone.
 | `markers` | possible issues that require contextual judgment and do not contribute to the score |
 | `by_layer` | the reference layer that owns each scored category |
 | `manual_checks` | rules the linter cannot certify |
+| `file_identity`, `voice_sample_identity` | canonical inputs that make baseline comparison safe |
 | `delta` | compatible baseline `before`, `after`, and `improved` values |
-| `total_per100w`, `bar`, `over_bar` | one primary density score and context, not a quality verdict |
+| `total_per100w` | one primary density score, not a quality verdict |
+| `fail_over`, `over_fail_over` | optional caller-supplied finite, nonnegative CI threshold and its result; absent without `--fail-over N` |
 
 Singleton transitions, curly quotes, em dashes, short emphatic sentences, and
 deliberate repetition are markers, not proof of machine writing. Score them
@@ -187,8 +202,9 @@ can still edit any prose document.
 Work is complete only when:
 
 - the operation and primary register match the caller's intent;
-- the before and after reports came from the same `rewrite.md`, score version,
-  register, and quote policy, or the response says **not linted**;
+- the before and after reports came from the same canonical `rewrite.md`, voice
+  sample, score version, register, and quote policy, or the response says
+  **not linted**;
 - every scored violation, marker, and applicable manual rule is fixed, rejected
   with a concrete false-positive reason, classified out of register in an
   audit, or reported as unresolved;

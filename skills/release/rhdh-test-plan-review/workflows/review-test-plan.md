@@ -218,8 +218,10 @@ only transports it.
 
 Follow `/mutation-gate`. State one operation: the target ticket and the exact
 comment body shown above. The user may approve, edit, or cancel it. Post only
-after approval, through `/rhdh-jira-update`, then report the outcome. Stop here;
-do not create child tasks for a comment-only outcome.
+after approval. Hand the exact approved body to `/rhdh-jira-update` as
+**caller-finalized**, so it transports the body without another prose pass or
+confirmation. Report the outcome, then stop; do not create child tasks for a
+comment-only outcome.
 
 ---
 

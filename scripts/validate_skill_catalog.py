@@ -26,7 +26,7 @@ PROMOTED_CATEGORIES = ("jira", "plugins", "ci", "release", "reference", "meta")
 # tokens are filtered against the promoted/external/retired name sets below. A
 # trailing slash or dot means the token is a path, not a skill.
 NAMED_INVOCATION = re.compile(
-    r"(?:^|(?<=[\s(\[`]))/([a-z0-9]+(?:-[a-z0-9]+)*)(?![\w-])(?![/.])",
+    r"""(?:^|(?<=[\s(\[`'"]))/([a-z0-9]+(?:-[a-z0-9]+)*)(?![\w-])(?![/.])""",
     re.MULTILINE,
 )
 EXTERNAL_SKILLS = {"grilling", "handoff"}
@@ -42,6 +42,8 @@ SCRIPT_DATA_READ = re.compile(
 HOST_SKILL_PATHS = (".claude/skills", ".agents/skills", ".cursor/skills", ".codex/skills")
 SHIPPED_SUFFIXES = {".md", ".py", ".sh", ".mjs"}
 DUPLICATE_BLOCK_LINES = 25
+FENCE_OPEN = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})[^\r\n]*(?:\r?\n|$)")
+BLOCKQUOTE_MARKER = re.compile(r" {0,3}> ?")
 
 
 def _frontmatter(text: str) -> dict[str, Any]:
@@ -84,10 +86,56 @@ def _body(text: str) -> str:
     return re.sub(r"^---\n.*?\n---(?:\n|$)", "", normalized, count=1, flags=re.DOTALL)
 
 
+def _blockquote_layers(line: str) -> list[str]:
+    """Return the line after each valid nested CommonMark blockquote marker."""
+    layers = [line]
+    remainder = line
+    while marker := BLOCKQUOTE_MARKER.match(remainder):
+        remainder = remainder[marker.end() :]
+        layers.append(remainder)
+    return layers
+
+
 def _without_noninstructions(text: str) -> str:
     """Remove fenced examples and comments that an agent does not follow."""
-    text = re.sub(r"(?ms)^\s*```.*?^\s*```\s*$", " ", text)
-    text = re.sub(r"(?ms)^\s*~~~.*?^\s*~~~\s*$", " ", text)
+    instructions: list[str] = []
+    fence_character: str | None = None
+    fence_length = 0
+    fence_blockquote_depth = 0
+    for line in text.splitlines(keepends=True):
+        blockquote_layers = _blockquote_layers(line)
+        blockquote_depth = len(blockquote_layers) - 1
+        if fence_character is not None:
+            if blockquote_depth >= fence_blockquote_depth:
+                fence_line = blockquote_layers[fence_blockquote_depth]
+                closing = (
+                    rf" {{0,3}}{re.escape(fence_character)}{{{fence_length},}}"
+                    r"[ \t]*(?:\r?\n)?"
+                )
+                if re.fullmatch(closing, fence_line):
+                    fence_character = None
+                    fence_length = 0
+                    fence_blockquote_depth = 0
+                continue
+            fence_character = None
+            fence_length = 0
+            fence_blockquote_depth = 0
+
+        fence_line = blockquote_layers[-1]
+        opening = FENCE_OPEN.match(fence_line)
+        if opening:
+            fence = opening.group("fence")
+            info = fence_line[opening.end("fence") :].rstrip("\r\n")
+            if fence[0] == "`" and "`" in info:
+                instructions.append(line)
+                continue
+            fence_character = fence[0]
+            fence_length = len(fence)
+            fence_blockquote_depth = blockquote_depth
+            continue
+        instructions.append(line)
+
+    text = "".join(instructions)
     return re.sub(r"<!--.*?-->", " ", text, flags=re.DOTALL)
 
 
@@ -111,8 +159,7 @@ def _delegation_target(body: str) -> str | None:
     either one is not an instruction the agent follows, so it cannot be the
     delegation, and a body whose visible text delegates to nothing must fail.
     """
-    body = re.sub(r"```.*?```", " ", body, flags=re.DOTALL)
-    body = re.sub(r"<!--.*?-->", " ", body, flags=re.DOTALL)
+    body = _without_noninstructions(body)
     if re.search(r"(?m)^#{1,6}\s+\S", body):
         return None
     lines = [line for line in body.splitlines() if line.strip()]

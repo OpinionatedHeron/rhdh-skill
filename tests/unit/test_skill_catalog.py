@@ -269,6 +269,32 @@ def test_a_dependency_named_only_in_a_workflow_code_example_is_not_documented(tm
     assert "DEPENDENCY_NOT_DOCUMENTED" in codes(report)
 
 
+@pytest.mark.parametrize("fence", ["````", "~~~~"])
+def test_a_dependency_inside_a_matching_long_fence_is_not_documented(tmp_path, fence):
+    validator = load_validator()
+    root = build_fixture(tmp_path, skill_bodies={"alpha": "\nEmits `Widget/v1`.\n", "beta": ""})
+    workflow = root / "skills" / "meta" / "beta" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        f"{fence}markdown\n```text\n/alpha\n```\n{fence}\n",
+        encoding="utf-8",
+    )
+
+    report = validator.validate_repository(root)
+
+    assert "DEPENDENCY_NOT_DOCUMENTED" in codes(report)
+
+
+@pytest.mark.parametrize("opening,closing", [("````", "`````"), ("~~~~", "~~~~~")])
+def test_removing_a_long_fence_preserves_only_surrounding_instructions(opening, closing):
+    validator = load_validator()
+    text = f"Before.\n\n{opening}markdown\n```text\n/alpha\n```\n{closing}\n\nAfter.\n"
+
+    cleaned = validator._without_noninstructions(text)
+
+    assert cleaned.split() == ["Before.", "After."]
+
+
 def test_a_typoed_dependency_in_a_workflow_is_still_rejected(tmp_path):
     validator = load_validator()
     root = build_fixture(tmp_path, skill_bodies={"alpha": "\nEmits `Widget/v1`.\n", "beta": ""})
@@ -525,6 +551,14 @@ def test_a_substantive_skill_cannot_pose_as_a_wrapper_and_escape_completion(tmp_
     assert module._delegation_target("Run a `/prose-editing` pass.\n") == "prose-editing"
 
 
+@pytest.mark.parametrize("fence", ["````", "~~~~"])
+def test_a_long_fenced_invocation_cannot_turn_prose_into_a_wrapper(fence):
+    module = load_validator()
+    body = f"Do something else.\n\n{fence}markdown\n/prose-editing\n{fence}\n"
+
+    assert module._delegation_target(body) is None
+
+
 def test_a_stale_skill_citation_is_caught_even_without_the_rhdh_prefix(tmp_path):
     """A rename must not leave callers pointing at nothing, whatever the skill is named."""
     module = load_validator()
@@ -566,6 +600,181 @@ def test_a_retired_single_token_skill_citation_in_a_workflow_is_caught(tmp_path)
 
     assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
     assert "workflows/compose.md" in messages(report, "UNKNOWN_SKILL_REFERENCE")[0]
+
+
+def test_backtick_in_fence_info_does_not_hide_a_quoted_skill_invocation(tmp_path):
+    """CommonMark rejects a backtick fence whose info string contains a backtick."""
+    module = load_validator()
+    root = write_repository(tmp_path, [entry("alpha")])
+    workflow = root / "skills" / "meta" / "alpha" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        '```bad`info\nRun "/humanizer" before returning the draft.\n```\n',
+        encoding="utf-8",
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
+    assert "/humanizer" in messages(report, "UNKNOWN_SKILL_REFERENCE")[0]
+
+
+def test_tab_indented_fence_does_not_hide_a_retired_invocation(tmp_path):
+    """A tab is four columns, so CommonMark treats the opener as indented code."""
+    module = load_validator()
+    root = write_repository(tmp_path, [entry("alpha")])
+    workflow = root / "skills" / "meta" / "alpha" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        '\t```text\nRun "/humanizer" before returning the draft.\n```\n',
+        encoding="utf-8",
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
+    assert "/humanizer" in messages(report, "UNKNOWN_SKILL_REFERENCE")[0]
+
+
+def test_a_retired_invocation_in_a_blockquoted_fence_is_an_example(tmp_path):
+    module = load_validator()
+    root = write_repository(tmp_path, [entry("alpha")])
+    workflow = root / "skills" / "meta" / "alpha" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        '> ```text\n> Run "/humanizer" only as an example.\n> ```\n',
+        encoding="utf-8",
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" not in codes(report)
+
+
+def test_live_blockquote_text_after_a_fence_is_still_validated(tmp_path):
+    module = load_validator()
+    root = write_repository(tmp_path, [entry("alpha")])
+    workflow = root / "skills" / "meta" / "alpha" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        (
+            '> ```text\n> Run "/humanizer" only as an example.\n> ```\n'
+            '> Run "/humanizer" as a live instruction.\n'
+        ),
+        encoding="utf-8",
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
+    assert "/humanizer" in messages(report, "UNKNOWN_SKILL_REFERENCE")[0]
+
+
+@pytest.mark.parametrize(
+    ("opening", "closing"),
+    [("````markdown", "`````"), ("~~~~bad~info", "~~~~~")],
+)
+def test_nested_blockquoted_fence_removes_only_its_example(opening, closing):
+    module = load_validator()
+    text = (
+        f' > > {opening}\n > > Run "/humanizer" only as an example.\n'
+        f" > > {closing}\n"
+        '> Run "/humanizer" as a live instruction.\n'
+    )
+
+    cleaned = module._without_noninstructions(text)
+
+    assert cleaned == '> Run "/humanizer" as a live instruction.\n'
+
+
+def test_ending_a_blockquote_ends_its_unclosed_fence():
+    module = load_validator()
+    text = (
+        '> ```text\n> Run "/humanizer" only as an example.\n'
+        'Run "/humanizer" as a live instruction.\n'
+    )
+
+    cleaned = module._without_noninstructions(text)
+
+    assert cleaned == 'Run "/humanizer" as a live instruction.\n'
+
+
+@pytest.mark.parametrize("indent", ["\t", "    "])
+def test_indented_blockquote_marker_cannot_open_a_fence(indent):
+    module = load_validator()
+    text = f'{indent}> ```text\n> Run "/humanizer" as a live instruction.\n> ```\n'
+
+    cleaned = module._without_noninstructions(text)
+
+    assert "/humanizer" in cleaned
+
+
+@pytest.mark.parametrize("fence", ["```", "~~~"])
+def test_tab_indented_fence_opener_remains_instruction_text(fence):
+    module = load_validator()
+    text = f'\t{fence}text\nRun "/humanizer" before returning.\n{fence}\n'
+
+    cleaned = module._without_noninstructions(text)
+
+    assert "/humanizer" in cleaned
+
+
+@pytest.mark.parametrize("fence", ["```", "~~~"])
+def test_tab_indented_fence_closer_does_not_end_a_fence(fence):
+    module = load_validator()
+    text = f"{fence}text\nexample\n\t{fence}\n/humanizer\n{fence}\nAfter.\n"
+
+    cleaned = module._without_noninstructions(text)
+
+    assert cleaned == "After.\n"
+
+
+def test_tilde_fence_info_may_contain_a_tilde_and_still_hide_an_example(tmp_path):
+    module = load_validator()
+    root = write_repository(tmp_path, [entry("alpha")])
+    workflow = root / "skills" / "meta" / "alpha" / "workflows" / "compose.md"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(
+        '~~~bad~info\nRun "/humanizer" as an example.\n~~~\n',
+        encoding="utf-8",
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" not in codes(report)
+
+
+@pytest.mark.parametrize("quote", ["'", '"'])
+def test_a_quoted_retired_skill_citation_is_caught(tmp_path, quote):
+    module = load_validator()
+    root = write_repository(
+        tmp_path,
+        [entry("alpha")],
+        skill_bodies={"alpha": f"\nRun {quote}/humanizer{quote} before returning the draft.\n"},
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" in codes(report)
+
+
+@pytest.mark.parametrize(
+    "route", ['"/image-registry"', "'/my-plugin'", '"https://example.com/humanizer"']
+)
+def test_quoted_routes_and_urls_are_not_skill_citations(tmp_path, route):
+    module = load_validator()
+    root = write_repository(
+        tmp_path,
+        [
+            entry("rhdh-plugin-wiring", category="plugins"),
+            entry("prose-editing", category="reference"),
+        ],
+        skill_bodies={"rhdh-plugin-wiring": f"\nMount or fetch {route}.\n"},
+    )
+
+    report = module.validate_repository(root)
+
+    assert "UNKNOWN_SKILL_REFERENCE" not in codes(report)
 
 
 def test_a_declared_external_single_token_skill_citation_is_valid(tmp_path):

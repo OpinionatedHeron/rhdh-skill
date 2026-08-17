@@ -31,9 +31,6 @@ GIT_LOCAL_ENV_VARS = tuple(
     )
 )
 
-# Compatibility for tests or helpers that imported the narrower old name.
-GIT_LOCATION_VARS = GIT_LOCAL_ENV_VARS
-
 
 def git_env(**overrides: str) -> dict[str, str]:
     """Return os.environ with Git's repository-local variables removed.
@@ -274,32 +271,3 @@ def unconfigured_cli(isolated_env, monkeypatch):
         return run_cli_python(*args, env=full_env, isolated_env=isolated_env)
 
     return _run_cli
-
-
-# Legacy fixture for subprocess-based testing (kept for backward compatibility)
-def run_cli_subprocess(*args, cwd=None, env=None):
-    """Run the rhdh CLI via subprocess and return result.
-
-    Args:
-        *args: CLI arguments
-        cwd: Working directory
-        env: Environment variables (merged with current env)
-
-    Returns:
-        subprocess.CompletedProcess with stdout, stderr, returncode
-    """
-    script_path = SCRIPTS_DIR / "rhdh"
-
-    run_env = os.environ.copy()
-    if env:
-        run_env.update(env)
-
-    result = subprocess.run(
-        [str(script_path), *args],
-        capture_output=True,
-        text=True,
-        cwd=cwd,
-        env=run_env,
-    )
-
-    return CLIResult(result.returncode, result.stdout, result.stderr)

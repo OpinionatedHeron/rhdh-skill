@@ -217,8 +217,7 @@
       "category": "ci",
       "invocation": "model",
       "requiresSkills": [
-        "mutation-gate",
-        "prose-editing"
+        "mutation-gate"
       ],
       "requiresExternalSkills": []
     },
@@ -227,8 +226,17 @@
       "category": "ci",
       "invocation": "model",
       "requiresSkills": [
+        "mutation-gate"
+      ],
+      "requiresExternalSkills": []
+    },
+    {
+      "name": "rhdh-konflux-rpa",
+      "category": "ci",
+      "invocation": "model",
+      "requiresSkills": [
         "mutation-gate",
-        "prose-editing"
+        "rhdh-forge"
       ],
       "requiresExternalSkills": []
     },
@@ -245,7 +253,8 @@
       "invocation": "model",
       "requiresSkills": [
         "mutation-gate",
-        "prose-editing"
+        "prose-editing",
+        "rhdh-forge"
       ],
       "requiresExternalSkills": []
     },

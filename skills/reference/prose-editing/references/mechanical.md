@@ -57,6 +57,11 @@ content. Delete the whole sentence and keep what surrounded it.
 > The bulk-import plugin adds repositories from a GitHub organization to the
 > software catalog.
 
+Praise that exists only to agree with the reader is the same residue. Remove
+`great question`, `you are absolutely right`, `that is an excellent point`, and
+similar approval before an answer. Keep praise when evaluating somebody's work
+is the document's actual purpose.
+
 ### `modal_hedge`
 
 A sentence that announces the importance of the next clause instead of stating

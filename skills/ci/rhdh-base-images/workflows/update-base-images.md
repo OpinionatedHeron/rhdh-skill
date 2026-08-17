@@ -119,8 +119,8 @@ For **rhdh**, paths under `e2e-tests/` and `.ci/` are excluded from scans.
 5. Human merges PRs; do **not** push directly to protected branches without review.
 
 The bundled script's fixed automation PR title and body are authored artifacts,
-not runtime agent prose. Keep them under static `/prose-editing` lint in the
-**flavored** register. The `gh pr create` call transports those fixed strings and
+not runtime agent prose. Keep them under the repository's static prose linter in
+flavored mode. The `gh pr create` call transports those fixed strings and
 must not invoke an editor during an automation run.
 
 ## What each step does

@@ -57,6 +57,14 @@ issue has a parent — if it does not, skip Step 6 entirely.
 
 ## Step 3 — Compose the status comment
 
+A **caller-finalized** comment already passed its owning workflow's prose edit
+and write gate. Verify the current transcript contains the exact operation plan
+and the user's approval, then post that exact body without another prose pass or
+confirmation and report the Jira result. If the transcript does not prove
+approval of those exact bytes, return to `/mutation-gate` before posting them.
+
+For a direct update request, compose the body here.
+
 Two to five sentences. What was done, where it stands, what is next. Factual, not
 a session log and not a self-assessment.
 

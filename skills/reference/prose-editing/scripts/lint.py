@@ -9,28 +9,20 @@ voice. See the register table in --help. Standard library only.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import re
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-SCORE_VERSION = 6
+SCORE_VERSION = 11
 
 REGISTERS = ("strict", "flavored", "voiced", "audit")
 DEFAULT_REGISTER = "flavored"
-
-STRICT_BAR = 1.5
-FLAVORED_BAR = 2.5
-VOICED_BAR = 2.0
-BARS = {
-    "strict": STRICT_BAR,
-    "flavored": FLAVORED_BAR,
-    "voiced": VOICED_BAR,
-    "audit": None,
-}
 
 INSTRUCTION_MAX_WORDS = 20
 DESCRIPTIVE_MAX_WORDS = 25
@@ -90,6 +82,14 @@ COMPRESSION = (
 # neither is scored outside prose that is allowed a voice.
 VOICE = ("staccato_drama",)
 MARKERS = (
+    "singleton_em_dash",
+    "singleton_curly_quote",
+    "singleton_transition",
+    "singleton_bold",
+    "american_spelling",
+    "condition_before_command",
+    "copula_candidate",
+    "qualifier_phrase",
     "noun_train",
     "rule_of_three",
     "notability_padding",
@@ -121,6 +121,8 @@ MANUAL_CHECKS = (
     "quotation_ownership",
     "objection_context",
     "alternative_relevance",
+    "american_spelling",
+    "condition_before_command",
 )
 
 LAYERS = {"mechanical": MECHANICAL, "compression": COMPRESSION, "voice": VOICE}
@@ -317,6 +319,7 @@ SIGNPOSTING = (
 )
 CHATBOT_RESIDUE = (
     "certainly!",
+    "excellent point",
     "great question",
     "here is a",
     "here is an",
@@ -733,6 +736,7 @@ press provide publish pull push read remove rename replace restart restore run
 save select send set start stop supply switch test type uninstall update upgrade
 upload use validate verify wait write""".split()
 )
+CONDITION_OPENERS = frozenset("after before if once unless until when whenever while".split())
 
 # ---------------------------------------------------------------------------
 # Patterns
@@ -842,7 +846,8 @@ SUBORDINATORS = frozenset(
 although though since until as""".split()
 )
 
-FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
+FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+BACKTICK_FENCE_CANDIDATE_RE = re.compile(r"^[ \t]*`{3,}")
 TABLE_ROW_RE = re.compile(r"^\s{0,3}\|")
 BLOCKQUOTE_RE = re.compile(r"^\s{0,3}>")
 LINK_DEF_RE = re.compile(r"^\s{0,3}\[[^\]\n]+\]:\s*\S+")
@@ -855,6 +860,7 @@ IMAGE_RE = re.compile(r"!\[[^\]\n]*\]\([^)\n]*\)")
 LINK_RE = re.compile(r"\[([^\]\n]*)\]\([^)\n]*\)")
 REF_LINK_RE = re.compile(r"\[([^\]\n]*)\]\[[^\]\n]*\]")
 AUTOLINK_RE = re.compile(r"<https?://[^>\s]+>|\bhttps?://\S+")
+INLINE_QUOTATION_RE = re.compile(r'(?:"[^"\n]+"|“[^”\n]+”)')
 
 HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$", re.M)
 LIST_ITEM_RE = re.compile(r"^(?:[-*+]|\d+[.)])\s")
@@ -872,6 +878,24 @@ BOLD_RE = re.compile(r"\*\*[^*\n]+\*\*|__[^_\n]+__")
 EM_DASH_RE = re.compile("[—―]|(?<!\\w)–(?!\\w)|(?<=\\s)--(?=\\s)")
 CURLY_QUOTE_RE = re.compile("[‘’‚‛“”„‟]")
 TRANSITION_RE = re.compile(r"(?<![a-z0-9-])(?:" + "|".join(TRANSITIONS) + r")(?![a-z0-9-])", re.I)
+PRESS_CONTROL_RE = re.compile(
+    r"\bpress\s+(?:(?:the|a|an|this|that)\s+)?(?:[\w-]+\s+){0,2}(?:button|key|control|switch)\b",
+    re.I,
+)
+NON_AMERICAN_SPELLING_RE = re.compile(
+    r"\b(?:colours?|coloured|colouring|behaviours?|catalogues?|licence)\b", re.I
+)
+COPULA_CANDIDATE_RE = re.compile(
+    r"\b(?:represents?|marks?)\s+"
+    r"(?!(?:(?:a|an|the)\s+)?(?:pivotal moment|shift|(?:key\s+)?turning point)\b)"
+    r"(?:a|an|the|[A-Za-z][\w’'-]*)\b",
+    re.I,
+)
+QUALIFIER_PHRASE_RE = re.compile(
+    r"\b(?:to be fair|it['’]s also possible|might arguably|in some cases it may|"
+    r"this is an inference)\b",
+    re.I,
+)
 # Pictographic ranges only. Arrows, dashes, quotes and ellipses are not emoji,
 # and neither are the check and cross marks that carry the data in a support
 # matrix: U+2713-U+2718 and the arrow block at U+2B00 are left out on purpose.
@@ -1088,13 +1112,12 @@ def _fenced_lines(lines: list[str]) -> set[int]:
     inside: set[int] = set()
     index = 0
     while index < len(lines):
-        opened = FENCE_RE.match(lines[index].strip())
-        if not opened:
+        marker = _fence_marker(lines[index])
+        if marker is None:
             index += 1
             continue
-        marker = opened.group(1)
         for close in range(index + 1, len(lines)):
-            candidate = re.fullmatch(r"(`{3,}|~{3,})\s*", lines[close].strip())
+            candidate = re.fullmatch(r" {0,3}(`{3,}|~{3,})[ \t]*", lines[close])
             if (
                 candidate
                 and candidate.group(1)[0] == marker[0]
@@ -1108,18 +1131,46 @@ def _fenced_lines(lines: list[str]) -> set[int]:
     return inside
 
 
+def _fence_marker(line: str) -> str | None:
+    """Return a valid CommonMark fence marker from an opening line."""
+    opened = FENCE_RE.match(line)
+    if not opened:
+        return None
+    marker = opened.group(1)
+    info = line[opened.end() :]
+    if marker[0] == "`" and "`" in info:
+        return None
+    return marker
+
+
+def _invalid_backtick_fence(line: str) -> bool:
+    return bool(BACKTICK_FENCE_CANDIDATE_RE.match(line) and _fence_marker(line) is None)
+
+
 def _strip_inline_code(text: str) -> str:
     """Blank code spans whose closing backtick run matches the opener."""
     out: list[str] = []
     cursor = 0
     while cursor < len(text):
-        opened = re.search(r"`+", text[cursor:])
+        opened = None
+        for candidate in re.finditer(r"`+", text[cursor:]):
+            start = cursor + candidate.start()
+            slash_count = 0
+            before = start - 1
+            while before >= 0 and text[before] == "\\":
+                slash_count += 1
+                before -= 1
+            if slash_count % 2 == 0:
+                opened = candidate
+                break
         if opened is None:
             out.append(text[cursor:])
             break
         start = cursor + opened.start()
         marker = opened.group(0)
         out.append(text[cursor:start])
+        # Backslashes do not escape a closing code-span delimiter. Only the
+        # opening delimiter follows Markdown's odd/even backslash rule.
         close_re = re.compile(r"(?<!`)" + re.escape(marker) + r"(?!`)")
         closed = close_re.search(text, start + len(marker))
         if closed is None:
@@ -1138,6 +1189,33 @@ def _table_prose(line: str) -> str:
     return ". ".join(cell for cell in cells if cell)
 
 
+def _has_unescaped_pipe(line: str) -> bool:
+    backslashes = 0
+    for character in line:
+        if character == "|" and backslashes % 2 == 0:
+            return True
+        backslashes = backslashes + 1 if character == "\\" else 0
+    return False
+
+
+def _gfm_table_lines(lines: list[str]) -> set[int]:
+    """Find pipe-table rows from their required delimiter row in one pass."""
+    found: set[int] = set()
+    index = 1
+    while index < len(lines):
+        if not (
+            TABLE_DELIMITER_RE.fullmatch(lines[index]) and _has_unescaped_pipe(lines[index - 1])
+        ):
+            index += 1
+            continue
+        found.update((index - 1, index))
+        index += 1
+        while index < len(lines) and lines[index].strip() and _has_unescaped_pipe(lines[index]):
+            found.add(index)
+            index += 1
+    return found
+
+
 def strip_quoted(text: str, quote_safe: bool = False) -> str:
     """Remove every zone that is not the author's own prose.
 
@@ -1150,6 +1228,7 @@ def strip_quoted(text: str, quote_safe: bool = False) -> str:
     lines = text.split("\n")
     frontmatter_end = _frontmatter_end(lines)
     fenced = _fenced_lines(lines)
+    gfm_table_lines = _gfm_table_lines(lines)
     kept: list[str] = []
     for index, line in enumerate(lines):
         if index < frontmatter_end or index in fenced:
@@ -1158,8 +1237,10 @@ def strip_quoted(text: str, quote_safe: bool = False) -> str:
         if LINK_DEF_RE.match(line):
             kept.append("")
             continue
-        if TABLE_ROW_RE.match(line):
-            kept.append(_table_prose(line))
+        if index in gfm_table_lines or TABLE_ROW_RE.match(line):
+            # A row is one prose unit. The extra newline prevents adjacent
+            # rows from becoming one artificial typography cluster.
+            kept.append(_table_prose(line) + "\n")
             continue
         if BLOCKQUOTE_RE.match(line):
             if quote_safe:
@@ -1168,9 +1249,14 @@ def strip_quoted(text: str, quote_safe: bool = False) -> str:
             unquoted = re.sub(r"^\s{0,3}>\s?", "", line)
             kept.append("" if re.fullmatch(r"\[![A-Za-z]+\]", unquoted.strip()) else unquoted)
             continue
+        if _invalid_backtick_fence(line):
+            kept.append(line.replace("`", " "))
+            continue
         kept.append(line)
     body = "\n".join(kept)
     body = _strip_inline_code(body)
+    if quote_safe:
+        body = INLINE_QUOTATION_RE.sub(" ", body)
     body = IDENTIFIER_RE.sub(" ", body)
     body = IMAGE_RE.sub(" ", body)
     body = LINK_RE.sub(r"\1", body)
@@ -1185,7 +1271,7 @@ def _starts_a_unit(line: str) -> bool:
         or LIST_ITEM_RE.match(line)
         or TABLE_ROW_RE.match(line)
         or BLOCKQUOTE_RE.match(line)
-        or FENCE_RE.match(line)
+        or _fence_marker(line) is not None
     )
 
 
@@ -1213,7 +1299,7 @@ def logical_lines(text: str) -> list[str]:
                 out.append(" ".join(buffer))
             # A stray fence marker left by an unterminated block is punctuation,
             # not the opening of a sentence.
-            buffer = [] if FENCE_RE.match(stripped) else [stripped]
+            buffer = [] if _fence_marker(stripped) is not None else [stripped]
             continue
         buffer.append(stripped)
     if buffer:
@@ -1259,7 +1345,99 @@ def word_count(sentence: str) -> int:
 def is_instruction(sentence: str) -> bool:
     """Return whether a sentence has the deterministic imperative shape."""
     words = WORD_RE.findall(sentence)
-    return bool(words and words[0].lower() in INSTRUCTION_VERBS)
+    lowered = [word.lower() for word in words]
+    if not lowered:
+        return False
+
+    def command_at(sequence: list[str], index: int) -> bool:
+        while index < len(sequence) and (
+            sequence[index].endswith("ly") or sequence[index] in {"always", "never"}
+        ):
+            index += 1
+        return index < len(sequence) and sequence[index] in INSTRUCTION_VERBS
+
+    if command_at(lowered, 0):
+        return True
+    # A declarative requirement remains an instruction when an adverb or a
+    # passive construction separates `must` from the functional verb.
+    if "must" in lowered:
+        return True
+    if lowered[0] not in CONDITION_OPENERS:
+        return False
+    if "," in sentence:
+        command = [word.lower() for word in WORD_RE.findall(sentence.split(",", 1)[1])]
+        return command_at(command, 0)
+    condition_predicates = {
+        "change",
+        "changes",
+        "complete",
+        "completed",
+        "completes",
+        "differ",
+        "differs",
+        "exist",
+        "exists",
+        "fail",
+        "failed",
+        "fails",
+        "finish",
+        "finished",
+        "finishes",
+        "match",
+        "matches",
+        "occur",
+        "occurs",
+        "pass",
+        "passed",
+        "passes",
+        "return",
+        "returns",
+        "start",
+        "starts",
+        "stop",
+        "stops",
+        "succeed",
+        "succeeded",
+        "succeeds",
+    }
+    condition_states = {
+        "available",
+        "complete",
+        "empty",
+        "invalid",
+        "missing",
+        "present",
+        "ready",
+        "successful",
+        "unavailable",
+        "valid",
+    }
+    for index, word in enumerate(lowered[1:], start=1):
+        if word in condition_predicates and command_at(lowered, index + 1):
+            return True
+        if word in {"do", "does", "did", "has", "have", "had"}:
+            predicate = index + 1
+            if predicate < len(lowered) and lowered[predicate] == "not":
+                predicate += 1
+            if (
+                predicate < len(lowered)
+                and lowered[predicate] in condition_predicates
+                and command_at(lowered, predicate + 1)
+            ):
+                return True
+        if word in {"am", "is", "are", "was", "were", "be", "been"}:
+            state = index + 1
+            while state < len(lowered) and (
+                lowered[state] in {"not", "no", "longer"} or lowered[state].endswith("ly")
+            ):
+                state += 1
+            if (
+                state < len(lowered)
+                and lowered[state] in condition_states
+                and command_at(lowered, state + 1)
+            ):
+                return True
+    return False
 
 
 def _normalize(text: str) -> str:
@@ -1553,6 +1731,47 @@ def clustered_tell(
     return excess, hits[allowance : allowance + excess]
 
 
+def local_clustered_tell(
+    body: str,
+    detector: Callable[[str], tuple[int, list[str]]],
+    voice_body: str | None,
+    singleton_allowance: int = 1,
+) -> tuple[tuple[int, list[str]], tuple[int, list[str]]]:
+    """Separate local clusters from isolated style markers.
+
+    A repeated tell is evidence only within one paragraph. Two isolated uses in
+    distant paragraphs remain two markers instead of becoming one violation.
+    A supplied voice sample governs the allowed rate in each target paragraph.
+    """
+    sample = detector(voice_body) if voice_body is not None else None
+    sample_words = sum(word_count(sentence) for sentence in sentences(voice_body or "")) or 1
+    target_words = sum(word_count(sentence) for sentence in sentences(body)) or 1
+    violation_hits: list[str] = []
+    isolated_hits: list[str] = []
+    sample_allowance_used = 0
+    for block in logical_lines(body):
+        current = detector(block)
+        block_words = sum(word_count(sentence) for sentence in sentences(block)) or 1
+        violation = clustered_tell(
+            current,
+            sample,
+            block_words,
+            sample_words,
+            singleton_allowance,
+        )
+        violation_hits.extend(violation[1])
+        if violation[0]:
+            sample_allowance_used += current[0] - violation[0]
+        else:
+            isolated_hits.extend(current[1])
+    marker_allowance = 0
+    if sample is not None and sample[0] > 0:
+        total_allowance = math.ceil(sample[0] * target_words / sample_words)
+        marker_allowance = max(0, total_allowance - sample_allowance_used)
+    marker_hits = isolated_hits[marker_allowance:]
+    return (len(violation_hits), violation_hits), (len(marker_hits), marker_hits)
+
+
 def staccato_runs(blocks: list[str]) -> tuple[int, list[str]]:
     hits: list[str] = []
     for block in blocks:
@@ -1570,13 +1789,20 @@ def staccato_runs(blocks: list[str]) -> tuple[int, list[str]]:
     return len(hits), hits
 
 
-def boldface_excess(blocks: list[str]) -> tuple[int, list[str]]:
-    hits: list[str] = []
+def boldface_clusters(
+    blocks: list[str],
+) -> tuple[tuple[int, list[str]], tuple[int, list[str]]]:
+    violation_hits: list[str] = []
+    marker_hits: list[str] = []
     for block in blocks:
-        spans = BOLD_RE.findall("\n".join(prose_lines(block)))
+        if HEADING_PREFIX_RE.match(block):
+            continue
+        spans = BOLD_RE.findall(LIST_PREFIX_RE.sub("", block))
         if len(spans) > BOLD_PER_PARAGRAPH:
-            hits.extend(spans[BOLD_PER_PARAGRAPH:])
-    return len(hits), hits
+            violation_hits.extend(spans[BOLD_PER_PARAGRAPH:])
+        elif spans:
+            marker_hits.extend(spans)
+    return (len(violation_hits), violation_hits), (len(marker_hits), marker_hits)
 
 
 def long_paragraphs(blocks: list[str]) -> tuple[int, list[str]]:
@@ -1632,13 +1858,13 @@ def heading_restatements(text: str) -> tuple[int, list[str]]:
         heading = HEADING_RE.match(line)
         if not heading:
             continue
-        for candidate in lines[index + 1 :]:
-            candidate = candidate.strip()
+        heading_words = {word.lower() for word in WORD_RE.findall(heading.group(1))}
+        for candidate_index in range(index + 1, len(lines)):
+            candidate = lines[candidate_index].strip()
             if not candidate:
                 continue
             if _starts_a_unit(candidate):
                 break
-            heading_words = {word.lower() for word in WORD_RE.findall(heading.group(1))}
             sentence_words = {word.lower() for word in WORD_RE.findall(candidate)}
             if heading_words and heading_words <= sentence_words and len(sentence_words) <= 8:
                 hits.append(candidate)
@@ -1647,20 +1873,41 @@ def heading_restatements(text: str) -> tuple[int, list[str]]:
 
 
 def marker_scores(
-    body: str, found: list[str], quote_safe: bool
+    body: str,
+    phrase_body: str,
+    found: list[str],
+    register: str,
+    singleton_markers: dict[str, tuple[int, list[str]]],
 ) -> dict[str, tuple[int, list[str]]]:
     phrase_markers = {
-        "notability_padding": _hits(NOTABILITY_PADDING_RE, body),
-        "knowledge_gap": _hits(KNOWLEDGE_GAP_RE, body),
-        "unsupported_objection": _hits(UNSUPPORTED_OBJECTION_RE, body),
-        "fake_alternative": _hits(FAKE_ALTERNATIVE_RE, body),
-        "watched_vocabulary": _hits(WATCHED_VOCABULARY_RE, body),
-        "casual_signposting": _hits(CASUAL_SIGNPOSTING_RE, body),
+        "notability_padding": _hits(NOTABILITY_PADDING_RE, phrase_body),
+        "knowledge_gap": _hits(KNOWLEDGE_GAP_RE, phrase_body),
+        "unsupported_objection": _hits(UNSUPPORTED_OBJECTION_RE, phrase_body),
+        "fake_alternative": _hits(FAKE_ALTERNATIVE_RE, phrase_body),
+        "watched_vocabulary": _hits(WATCHED_VOCABULARY_RE, phrase_body),
+        "casual_signposting": _hits(CASUAL_SIGNPOSTING_RE, phrase_body),
     }
-    if quote_safe:
-        phrase_markers = {name: (0, []) for name in phrase_markers}
     missing = [sentence for sentence in found if MISSING_SUBJECT_RE.match(sentence)]
+    misplaced_conditions = []
+    for sentence in found:
+        words = WORD_RE.findall(sentence)
+        if (
+            words
+            and words[0].lower() in INSTRUCTION_VERBS - {"check"}
+            and re.search(r"\b(?:if|when|unless|until)\b", sentence, re.I)
+        ):
+            misplaced_conditions.append(sentence)
+
     return {
+        **singleton_markers,
+        "american_spelling": (
+            (0, []) if register == "voiced" else _hits(NON_AMERICAN_SPELLING_RE, phrase_body)
+        ),
+        "condition_before_command": (
+            (0, []) if register == "voiced" else (len(misplaced_conditions), misplaced_conditions)
+        ),
+        "copula_candidate": _hits(COPULA_CANDIDATE_RE, phrase_body),
+        "qualifier_phrase": _hits(QUALIFIER_PHRASE_RE, phrase_body),
         "noun_train": noun_trains(body),
         "rule_of_three": rule_of_three(body),
         **phrase_markers,
@@ -1683,36 +1930,29 @@ def _mechanical_scores(
     found: list[str],
     phrases: dict[str, list[str]],
     voice_body: str | None,
-    words: int,
-) -> dict[str, tuple[int, list[str]]]:
-    sample_words = sum(word_count(sentence) for sentence in sentences(voice_body or "")) or 1
-    return {
-        "em_dash": clustered_tell(
-            em_dashes(body),
-            em_dashes(voice_body) if voice_body is not None else None,
-            words,
-            sample_words,
-        ),
-        "transition_stack": clustered_tell(
-            _hits(TRANSITION_RE, body),
-            _hits(TRANSITION_RE, voice_body) if voice_body is not None else None,
-            words,
-            sample_words,
-        ),
+) -> tuple[
+    dict[str, tuple[int, list[str]]],
+    dict[str, tuple[int, list[str]]],
+]:
+    em_dash = local_clustered_tell(body, em_dashes, voice_body)
+    transition = local_clustered_tell(
+        body,
+        lambda text: _hits(TRANSITION_RE, text),
+        voice_body,
+    )
+    curly_quote = local_clustered_tell(body, curly_quotes, voice_body, 2)
+    bold = boldface_clusters(logical_lines(body))
+    scores = {
+        "em_dash": em_dash[0],
+        "transition_stack": transition[0],
         "chatbot_residue": _phrase(phrases, "chatbot_residue"),
         "copula_avoidance": _phrase(phrases, "copula_avoidance"),
         "negative_parallelism": negative_parallelisms(body),
         "emoji": _hits(EMOJI_RE, body),
-        "curly_quote": clustered_tell(
-            curly_quotes(body),
-            curly_quotes(voice_body) if voice_body is not None else None,
-            words,
-            sample_words,
-            2,
-        ),
+        "curly_quote": curly_quote[0],
         "title_case_heading": title_case_headings(body),
         "inline_header_list": inline_header_lists(body),
-        "boldface_overuse": boldface_excess(paragraphs(body)),
+        "boldface_overuse": bold[0],
         "ai_vocabulary": _phrase(phrases, "ai_vocabulary"),
         "promotional": _phrase(phrases, "promotional"),
         "authority_trope": _phrase(phrases, "authority_trope"),
@@ -1727,6 +1967,13 @@ def _mechanical_scores(
         "generic_conclusion": _phrase(phrases, "generic_conclusion"),
         "significance_inflation": _phrase(phrases, "significance_inflation"),
     }
+    singleton_markers = {
+        "singleton_em_dash": em_dash[1],
+        "singleton_curly_quote": curly_quote[1],
+        "singleton_transition": transition[1],
+        "singleton_bold": bold[1],
+    }
+    return scores, singleton_markers
 
 
 def _compression_scores(
@@ -1739,6 +1986,9 @@ def _compression_scores(
         > (INSTRUCTION_MAX_WORDS if is_instruction(sentence) else DESCRIPTIVE_MAX_WORDS)
     ]
     strict_count, strict_hits = _phrase(phrases, "strict_banned_word")
+    press_count, press_hits = _hits(PRESS_CONTROL_RE, body)
+    strict_count += press_count
+    strict_hits.extend(press_hits)
     may_count, may_hits = _hits(MAY_RE, body)
     nominal_count, nominal_hits = _hits(NOMINALIZATION_VERB_RE, body)
     noun_count, noun_hits = _hits(NOMINALIZATION_NOUN_RE, body)
@@ -1777,18 +2027,20 @@ def lint(
     if register not in REGISTERS:
         raise ValueError(f"unknown register: {register!r}")
     body = strip_quoted(text, quote_safe=quote_safe)
+    phrase_body = body
     found = sentences(body)
     blocks = paragraphs(body)
     words = sum(word_count(sentence) for sentence in found) or 1
 
-    phrases = phrase_hits(body)
+    phrases = phrase_hits(phrase_body)
     scored: dict[str, tuple[int, list[str]]] = {}
     voice_body = (
         strip_quoted(voice_sample, quote_safe=quote_safe)
         if voice_sample is not None and register == "voiced"
         else None
     )
-    scored.update(_mechanical_scores(body, found, phrases, voice_body, words))
+    mechanical_scores, singleton_markers = _mechanical_scores(body, found, phrases, voice_body)
+    scored.update(mechanical_scores)
     scored.update(_compression_scores(body, found, blocks, phrases))
     scored.update(_voice_scores(blocks))
 
@@ -1806,14 +2058,12 @@ def lint(
             if name in STRICT_ONLY and register not in ("strict", "audit"):
                 continue
             count, hits = scored[name]
-            if quote_safe and name in PHRASE_LISTS:
-                count, hits = 0, []
             violations[name] = count
             by_layer[layer] += count
             if hits:
                 samples[name] = _sample(hits)
 
-    marker_results = marker_scores(body, found, quote_safe)
+    marker_results = marker_scores(body, phrase_body, found, register, singleton_markers)
     markers: dict[str, int] = {}
     for name in MARKERS:
         count, hits = marker_results[name]
@@ -1823,20 +2073,22 @@ def lint(
 
     total = sum(violations.values())
     per100 = round(total * 100.0 / words, 2)
-    bar = BARS[register]
     return {
         "score_version": SCORE_VERSION,
         "register": register,
         "quote_safe": quote_safe,
         "voice_sample": voice_sample is not None and register == "voiced",
+        "voice_sample_identity": (
+            hashlib.sha256(voice_sample.encode("utf-8")).hexdigest()
+            if voice_sample is not None and register == "voiced"
+            else None
+        ),
         "words": words,
         "sentences": len(found),
         "violations": violations,
         "by_layer": by_layer,
         "total": total,
         "total_per100w": per100,
-        "bar": bar,
-        "over_bar": bar is not None and per100 > bar,
         "longest_sentence_words": max((word_count(s) for s in found), default=0),
         "markers": markers,
         "manual_checks": list(MANUAL_CHECKS),
@@ -1850,15 +2102,22 @@ def lint(
 # ---------------------------------------------------------------------------
 
 
+def _finite_non_negative(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed < 0:
+        raise argparse.ArgumentTypeError("must be a finite non-negative number")
+    return parsed
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="lint.py",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
             "Score prose for AI tells and Simplified Technical English discipline.\n"
-            "Registers: strict (bar 1.5) for procedures and error messages, "
-            "flavored (bar 2.5) for docs and PR bodies, voiced (bar 2.0) for "
-            "bylined prose, audit (no bar) to report without rewriting."
+            "Registers: strict for procedures and error messages, flavored for "
+            "docs and PR bodies, voiced for bylined prose, and audit to report "
+            "without rewriting. Thresholds exist only when --fail-over is set."
         ),
         epilog=(
             "usage example: python3 lint.py --json --register strict RUNBOOK.md\n"
@@ -1891,7 +2150,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", help="Emit the full JSON report.")
     parser.add_argument(
         "--fail-over",
-        type=float,
+        type=_finite_non_negative,
         metavar="N",
         help="Exit 1 when the worst total_per100w is greater than N.",
     )
@@ -1924,7 +2183,7 @@ def _file_identity(name: str) -> str:
 
 
 def _baseline_scores(
-    path: str, register: str, quote_safe: bool
+    path: str, register: str, quote_safe: bool, voice_sample_identity: str | None
 ) -> tuple[dict[str, float], float | None]:
     """Load compatible baseline scores keyed by normalized path identity."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -1934,7 +2193,13 @@ def _baseline_scores(
     by_file: dict[str, float] = {}
     anonymous_scores: list[float] = []
     for report in reports:
-        required = {"score_version", "register", "quote_safe", "total_per100w"}
+        required = {
+            "score_version",
+            "register",
+            "quote_safe",
+            "voice_sample_identity",
+            "total_per100w",
+        }
         missing = sorted(required - report.keys())
         if missing:
             raise BaselineError("incompatible", f"missing {', '.join(missing)}")
@@ -1950,13 +2215,23 @@ def _baseline_scores(
                 "incompatible",
                 f"quote_safe {report['quote_safe']!r} != {quote_safe!r}",
             )
+        if report["voice_sample_identity"] != voice_sample_identity:
+            raise BaselineError("incompatible", "voice sample content or policy differs")
         try:
             score = float(report["total_per100w"])
         except (TypeError, ValueError) as error:
             raise BaselineError("incompatible", "total_per100w is not numeric") from error
+        if not math.isfinite(score) or score < 0:
+            raise BaselineError(
+                "incompatible",
+                "total_per100w must be finite and non-negative",
+            )
         name = report.get("file")
         if name:
-            identity = _file_identity(str(name))
+            identity = report.get("file_identity")
+            if not isinstance(identity, str) or not Path(identity).is_absolute():
+                raise BaselineError("incompatible", "missing canonical file_identity")
+            identity = os.path.normcase(os.path.normpath(identity))
             if identity in by_file:
                 raise BaselineError("ambiguous", f"duplicate file identity {identity!r}")
             by_file[identity] = score
@@ -1974,12 +2249,15 @@ def _attach_deltas(
 ) -> None:
     named = [report for report in reports if report.get("file") is not None]
     if named:
-        identities = [_file_identity(str(report["file"])) for report in named]
+        identities = [report.get("file_identity") for report in named]
+        if any(not isinstance(identity, str) for identity in identities):
+            raise BaselineError("incompatible", "current report lacks file_identity")
+        identities = [os.path.normcase(os.path.normpath(identity)) for identity in identities]
         if len(identities) != len(set(identities)):
             raise BaselineError("ambiguous", "current run repeats a file identity")
         if anonymous is not None or set(identities) != set(by_file):
             raise BaselineError("mismatch", "current and baseline file identities differ")
-        for report, identity in zip(named, identities, strict=True):
+        for report, identity in zip(named, identities):
             before = by_file[identity]
             after = report["total_per100w"]
             report["delta"] = {"before": before, "after": after, "improved": after < before}
@@ -2071,9 +2349,18 @@ def main(argv: list[str] | None = None) -> int:
         reports.append(report)
 
     scored = [report for report in reports if "total_per100w" in report]
+    if args.fail_over is not None:
+        for report in scored:
+            report["fail_over"] = args.fail_over
+            report["over_fail_over"] = report["total_per100w"] > args.fail_over
     if args.baseline:
         try:
-            by_file, anonymous = _baseline_scores(args.baseline, register, args.quote_safe)
+            by_file, anonymous = _baseline_scores(
+                args.baseline,
+                register,
+                args.quote_safe,
+                scored[0]["voice_sample_identity"] if scored else None,
+            )
         # JSONDecodeError is a ValueError, which also covers a baseline report
         # whose total_per100w is not a number.
         except BaselineError as error:
@@ -2091,7 +2378,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.json:
         payload: Any = reports[0] if len(reports) == 1 else reports
-        json.dump(payload, sys.stdout, indent=2)
+        json.dump(payload, sys.stdout, indent=2, allow_nan=False)
         print()
     else:
         for report in reports:
@@ -2099,17 +2386,18 @@ def main(argv: list[str] | None = None) -> int:
             if "error" in report:
                 print(f"{label:32} error={report['error']}")
                 continue
-            state = "over" if report["over_bar"] else "ok"
+            state = ""
+            if "over_fail_over" in report:
+                state = " over" if report["over_fail_over"] else " ok"
             print(
                 f"{label:32} register={report['register']:8} "
                 f"words={report['words']:5d} total={report['total']:4d} "
-                f"per100w={report['total_per100w']:7.2f} {state}"
+                f"per100w={report['total_per100w']:7.2f}{state}"
             )
 
     if failed:
         return 2
-    worst = max((report["total_per100w"] for report in scored), default=0.0)
-    if args.fail_over is not None and worst > args.fail_over:
+    if any(report.get("over_fail_over", False) for report in scored):
         return 1
     return 0
 

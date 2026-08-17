@@ -4,13 +4,10 @@ description: >-
   Bumps Konflux Tekton task bundle digests in `.tekton` and `.tekton-templates`,
   applies each task's MIGRATION.md, and regenerates PipelineRuns with
   `updateDigests.sh`, `generatePipelineRuns.sh`, and `updatePLRs.sh` on the RHDH
-  midstream and rhdh-plugin-catalog trees, and updates release-data
-  ReleasePlanAdmission tags for a new RHDH patch release. Use for "bump konflux
-  task digests",
+  midstream and rhdh-plugin-catalog trees. Use for "bump konflux task digests",
   "apply the tekton migration", `quay.io/konflux-ci/tekton-catalog/task-*` tag
   upgrades such as buildah-oci-ta, prefetch-dependencies-oci-ta, init, or
-  build-image-index, for build-definitions MIGRATION.md URLs that 404, and
-  "update the RHDH RPA tags for 1.9.7".
+  build-image-index, and for build-definitions MIGRATION.md URLs that 404.
 compatibility: "bash, skopeo, jq 1.7+, yq, and git; a checkout of the target Konflux branch. gh is optional, for PR creation."
 ---
 
@@ -22,14 +19,8 @@ regenerate the PipelineRuns so they match the migrated templates.
 
 ## Route
 
-Choose one workflow from the request:
-
-- A release-data RPA patch-tag bump loads `workflows/konflux-rpa-update.md`.
-- A Tekton task digest or migration update loads
-  `workflows/konflux-task-update.md`.
-
-For a Tekton task update, the workflow detects the repository layout and sends
-you to the reference that matches:
+Load `workflows/konflux-task-update.md`. It detects the repository layout and
+sends you to the reference that matches:
 
 - `references/konflux-plugin-catalog.md` — `rhdh-plugin-catalog`, marker
   `.tekton/updatePLRs.sh`.
